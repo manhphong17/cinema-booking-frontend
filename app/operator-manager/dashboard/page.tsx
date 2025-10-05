@@ -2,9 +2,9 @@
 
 import {useRouter} from "next/navigation"
 import {AdminLayout} from "@/components/layouts/admin-layout"
-import {ProfileManagement} from "@/components/operator/profile-management";
+import {Dashboard} from "@/components/operator/dashboard";
 
-export default function ProfilePage() {
+export default function DashboardPage() {
     const router = useRouter()
 
     const handleSectionChange = (section: string) => {
@@ -12,8 +12,8 @@ export default function ProfilePage() {
     }
 
     return (
-        <AdminLayout activeSection="profile" onSectionChange={handleSectionChange}>
-            <ProfileManagement/>
+        <AdminLayout activeSection="dashboard" onSectionChange={handleSectionChange}>
+            <Dashboard />
         </AdminLayout>
     )
 }
