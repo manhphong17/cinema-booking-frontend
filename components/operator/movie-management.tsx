@@ -11,7 +11,6 @@ import {Label} from "@/components/ui/label"
 import {Textarea} from "@/components/ui/textarea"
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
 import {Badge} from "@/components/ui/badge"
-import {OperatorCheckbox} from "@/components/ui/operator-checkbox"
 import {
     ArrowDown,
     ArrowUp,
@@ -24,47 +23,127 @@ import {
     Search,
     Trash2,
     Upload,
-    X,
+    X
 } from "lucide-react"
-import {useToast} from "@/hooks/use-toast"
+import {OperatorCheckbox} from "@/components/ui/operator-checkbox"
+import {toast} from "sonner"
 import Image from "next/image"
 
-interface Movie {
-    id: string
-    poster: string
-    title: string
-    genre: string
-    language: string
-    duration: number
-    releaseDate: string
-    status: "upcoming" | "now-showing" | "ended"
-    description: string
-    director: string
-    actors: string
-    ageRating: string
-    year: number
-    country: string
+const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL
+
+// Token management utilities
+const isTokenExpired = (token: string | null): boolean => {
+    if (!token) return true
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        const currentTime = Date.now() / 1000
+        return payload.exp < currentTime
+    } catch {
+        return true
+    }
 }
 
-const GENRES = [
-    "Action",
-    "Drama",
-    "Comedy",
-    "Horror",
-    "Sci-Fi",
-    "Romance",
-    "Thriller",
-    "Animation",
-    "Adventure",
-    "Fantasy",
-]
-const LANGUAGES = ["Vietnamese", "English", "Korean", "Japanese", "Chinese", "Thai", "French", "Spanish"]
+const refreshAccessToken = async (): Promise<string | null> => {
+    try {
+        const response = await fetch(`${BASE_URL}/auth/refresh-token`, {
+            method: "POST",
+            credentials: "include", // Include cookies
+        })
+
+        if (response.ok) {
+            const data = await response.json()
+            const newAccessToken = data.data.accessToken
+            localStorage.setItem("accessToken", newAccessToken)
+            return newAccessToken
+        } else {
+            // Show notification before redirect
+            if (typeof window !== 'undefined') {
+                // Import toast dynamically to avoid SSR issues
+                const {toast} = await import("sonner")
+                toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.", {
+                    duration: 3000,
+                })
+
+                // Wait a bit for user to see the notification
+                setTimeout(() => {
+                    localStorage.removeItem("accessToken")
+                    window.location.href = "/session-expired"
+                }, 2000)
+            }
+            return null
+        }
+    } catch (error) {
+        console.error("Refresh token failed:", error)
+        if (typeof window !== 'undefined') {
+            const {toast} = await import("sonner")
+            toast.error("Lỗi xác thực. Vui lòng đăng nhập lại.", {
+                duration: 3000,
+            })
+
+            setTimeout(() => {
+                localStorage.removeItem("accessToken")
+                window.location.href = "/session-expired"
+            }, 2000)
+        }
+        return null
+    }
+}
+
+const fetchWithAuth = async (url: string, options: RequestInit = {}): Promise<Response> => {
+    let token = localStorage.getItem("accessToken")
+
+    // Check if token is expired
+    if (isTokenExpired(token)) {
+        token = await refreshAccessToken()
+        if (!token) {
+            throw new Error("Authentication failed")
+        }
+    }
+
+    return fetch(url, {
+        ...options,
+        headers: {
+            ...options.headers,
+            Authorization: `Bearer ${token}`
+        }
+    })
+}
+
+interface Movie {
+    id: number
+    actor: string
+    description: string
+    director: string
+    name: string
+    posterUrl: string
+    releaseDate: string
+    trailerUrl?: string
+    status: "UPCOMING" | "PLAYING" | "ENDED"
+    country: { id: number; name: string }
+    language: { id: number; name: string }
+    genre: { id: number; name: string }[]
+    ageRating?: string
+    duration?: number
+}
+
+
 const AGE_RATINGS = ["P", "K", "T13", "T16", "T18", "C"]
 const COUNTRIES = ["Vietnam", "USA", "Korea", "Japan", "China", "Thailand", "France", "UK"]
 
+interface Genre {
+    id: number
+    name: string
+}
+
+interface Language {
+    id: number
+    name: string
+}
+
 export function MovieManagement() {
-    const {toast} = useToast()
     const [movies, setMovies] = useState<Movie[]>([])
+    const [genres, setGenres] = useState<Genre[]>([])
+    const [languages, setLanguages] = useState<Language[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false)
@@ -80,12 +159,13 @@ export function MovieManagement() {
     const [dateTo, setDateTo] = useState("")
     const [dateError, setDateError] = useState("")
     const [statusFilters, setStatusFilters] = useState<{ upcoming: boolean; "now-showing": boolean; ended: boolean }>({
-        upcoming: true,
+        upcoming: false,
         "now-showing": false,
         ended: false,
     })
 
-    const [sortField, setSortField] = useState<"title" | "releaseDate">("releaseDate")
+
+    const [sortField, setSortField] = useState<"name" | "releaseDate">("releaseDate")
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
 
     const [currentPage, setCurrentPage] = useState(1)
@@ -93,14 +173,14 @@ export function MovieManagement() {
     const [totalMovies, setTotalMovies] = useState(0)
 
     const [formData, setFormData] = useState({
-        title: "",
+        name: "",
         genre: "",
         language: "",
         duration: "",
         releaseDate: "",
         description: "",
         poster: "",
-        status: "upcoming" as Movie["status"],
+        status: "" as Movie["status"],
         director: "",
         actors: "",
         ageRating: "",
@@ -108,66 +188,133 @@ export function MovieManagement() {
         country: "",
     })
 
+    const fetchGenres = async () => {
+        try {
+            const response = await fetchWithAuth(`${BASE_URL}/movies/movie-genres`)
+            if (response.ok) {
+                const data = await response.json()
+                setGenres(data.data || [])
+            }
+        } catch (error) {
+            console.error("Failed to fetch genres:", error)
+        }
+    }
+
+    const fetchLanguages = async () => {
+        try {
+            const response = await fetchWithAuth(`${BASE_URL}/movies/languages`)
+            if (response.ok) {
+                const data = await response.json()
+                setLanguages(data.data || [])
+            }
+        } catch (error) {
+            console.error("Failed to fetch languages:", error)
+        }
+    }
+
     const fetchMovies = async () => {
         setIsLoading(true)
         try {
-            const params = new URLSearchParams({
-                page: currentPage.toString(),
+            const statuses = Object.entries(statusFilters)
+                .filter(([_, v]) => v)
+                .map(([k]) => {
+                    // Map frontend status to backend enum
+                    switch (k) {
+                        case 'upcoming':
+                            return 'UPCOMING'
+                        case 'now-showing':
+                            return 'PLAYING'
+                        case 'ended':
+                            return 'ENDED'
+                        default:
+                            return k.toUpperCase()
+                    }
+                })
+                .join(",")
+
+            // Build query parameters only for non-empty values
+            const queryParams: Record<string, string> = {
+                pageNo: currentPage.toString(),
                 pageSize: pageSize.toString(),
-                sortField,
-                sortDirection,
-                ...(searchQuery && {search: searchQuery}),
-                ...(selectedGenre !== "all" && {genre: selectedGenre}),
-                ...(selectedLanguage !== "all" && {language: selectedLanguage}),
-                ...(dateFrom && {dateFrom}),
-                ...(dateTo && {dateTo}),
-                status: Object.entries(statusFilters)
-                    .filter(([_, value]) => value)
-                    .map(([key]) => key)
-                    .join(","),
+                sortBy: `${sortField}:${sortDirection}`,
+            }
+
+            // Only add filter parameters if they have values
+            if (searchQuery.trim()) {
+                queryParams.keyword = searchQuery.trim()
+            }
+            if (selectedGenre !== "all") {
+                queryParams.genre = selectedGenre
+            }
+            if (selectedLanguage !== "all") {
+                queryParams.language = selectedLanguage
+            }
+            if (dateFrom) {
+                queryParams.fromDate = dateFrom
+            }
+            if (dateTo) {
+                queryParams.toDate = dateTo
+            }
+
+            const query = new URLSearchParams()
+
+            // Add all parameters
+            Object.entries(queryParams).forEach(([key, value]) => {
+                if (key !== 'statuses') {
+                    query.append(key, value)
+                }
             })
 
-            const response = await fetch(`/api/movies?${params}`)
-            if (!response.ok) throw new Error("Failed to fetch movies")
+            // Add statuses as multiple parameters
+            if (statuses) {
+                const statusArray = statuses.split(',')
+                statusArray.forEach(status => {
+                    query.append('statuses', status)
+                })
+            }
 
-            const data = await response.json()
-            setMovies(data.movies)
-            setTotalMovies(data.total)
+            const fullUrl = BASE_URL + `/movies/list-with-filter-many-column-and-sortBy?${query.toString()}`
+
+            const res = await fetchWithAuth(fullUrl)
+
+            if (!res.ok) throw new Error("Vui lòng đăng nhập để sử dụng chức năng")
+
+            const data = await res.json()
+            setMovies(data.data.items || [])
+            // Fix: Calculate totalPages if API returns 0 but has items
+            const totalItems = data.data.totalItems || 0
+            const calculatedTotalPages = totalItems > 0 ? Math.ceil(totalItems / pageSize) : 0
+            setTotalMovies(totalItems)
         } catch (error) {
-            toast({
-                title: "Lỗi",
-                description: "Không thể tải danh sách phim. Vui lòng thử lại.",
-                variant: "destructive",
-            })
+            toast.error("Không thể tải danh sách phim. Vui lòng thử lại.")
         } finally {
             setIsLoading(false)
         }
     }
 
     useEffect(() => {
-        fetchMovies()
-    }, [
-        currentPage,
-        pageSize,
-        sortField,
-        sortDirection,
-        searchQuery,
-        selectedGenre,
-        selectedLanguage,
-        dateFrom,
-        dateTo,
-        statusFilters,
-    ])
+        const loadData = async () => {
+            await Promise.all([
+                fetchGenres(),
+                fetchLanguages(),
+                fetchMovies()
+            ])
+        }
+        loadData()
+    }, [])
+
+    useEffect(() => {
+        const loadMovies = async () => {
+            await fetchMovies()
+        }
+        loadMovies()
+    }, [currentPage, pageSize, sortField, sortDirection, searchQuery, selectedGenre, selectedLanguage, dateFrom, dateTo, statusFilters])
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (file) {
             if (!file.type.startsWith("image/")) {
-                toast({
-                    title: "Lỗi",
-                    description: "Vui lòng chọn file ảnh",
-                    variant: "destructive",
-                })
+                toast.error("Vui lòng chọn file ảnh hợp lệ (JPG, PNG, WebP)")
                 return
             }
 
@@ -189,6 +336,7 @@ export function MovieManagement() {
     const validateDateRange = (from: string, to: string) => {
         if (from && to && new Date(from) > new Date(to)) {
             setDateError("Ngày bắt đầu không được lớn hơn ngày kết thúc")
+            toast.warning("Ngày bắt đầu không được lớn hơn ngày kết thúc")
             return false
         }
         setDateError("")
@@ -198,73 +346,54 @@ export function MovieManagement() {
     const handleSubmit = async () => {
         try {
             const formDataToSend = new FormData()
-
-            // Add all form fields
-            Object.entries(formData).forEach(([key, value]) => {
+            for (const [key, value] of Object.entries(formData)) {
                 formDataToSend.append(key, value)
-            })
-
-            // Add poster file if exists
-            if (posterFile) {
-                formDataToSend.append("posterFile", posterFile)
             }
+            if (posterFile) formDataToSend.append("posterFile", posterFile)
 
-            const url = editingMovie ? `/api/movies/${editingMovie.id}` : "/api/movies"
+            const url = editingMovie ? `${BASE_URL}/movies/${editingMovie.id}` : `${BASE_URL}/movies`
             const method = editingMovie ? "PUT" : "POST"
 
-            const response = await fetch(url, {
+            const res = await fetchWithAuth(url, {
                 method,
                 body: formDataToSend,
             })
+            if (!res.ok) throw new Error("Không thể lưu phim")
 
-            if (!response.ok) throw new Error("Failed to save movie")
-
-            toast({
-                title: editingMovie ? "Cập nhật thành công" : "Thêm thành công",
-                description: editingMovie ? "Phim đã được cập nhật" : "Phim mới đã được thêm",
-            })
+            toast.success(editingMovie ? "Cập nhật phim thành công" : "Thêm phim mới thành công")
 
             setIsDialogOpen(false)
             resetForm()
-            fetchMovies()
+            await fetchMovies()
         } catch (error) {
-            toast({
-                title: "Lỗi",
-                description: "Không thể lưu phim. Vui lòng thử lại.",
-                variant: "destructive",
-            })
+            toast.error("Không thể lưu phim. Vui lòng thử lại.")
         }
     }
 
-    const handleDelete = async (id: string) => {
+    const handleDelete = async (id: number) => {
         try {
-            const response = await fetch(`/api/movies/${id}`, {
+            const res = await fetchWithAuth(`${BASE_URL}/movies/${id}`, {
                 method: "DELETE",
             })
+            if (!res.ok) throw new Error("Không thể xóa phim")
 
-            if (!response.ok) throw new Error("Failed to delete movie")
-
-            toast({title: "Xóa thành công", description: "Phim đã được xóa"})
-            fetchMovies()
-        } catch (error) {
-            toast({
-                title: "Lỗi",
-                description: "Không thể xóa phim. Vui lòng thử lại.",
-                variant: "destructive",
-            })
+            toast.success("Xóa phim thành công")
+            await fetchMovies()
+        } catch {
+            toast.error("Không thể xóa phim. Vui lòng thử lại.")
         }
     }
 
     const resetForm = () => {
         setFormData({
-            title: "",
+            name: "",
             genre: "",
             language: "",
             duration: "",
             releaseDate: "",
             description: "",
             poster: "",
-            status: "upcoming",
+            status: "UPCOMING",
             director: "",
             actors: "",
             ageRating: "",
@@ -276,27 +405,6 @@ export function MovieManagement() {
         setPosterFile(null)
     }
 
-    const openEditDialog = (movie: Movie) => {
-        setEditingMovie(movie)
-        setFormData({
-            title: movie.title,
-            genre: movie.genre,
-            language: movie.language,
-            duration: movie.duration.toString(),
-            releaseDate: movie.releaseDate,
-            description: movie.description,
-            poster: movie.poster,
-            status: movie.status,
-            director: movie.director,
-            actors: movie.actors,
-            ageRating: movie.ageRating,
-            year: movie.year.toString(),
-            country: movie.country,
-        })
-        setPosterPreview(movie.poster)
-        setIsDialogOpen(true)
-    }
-
     const resetFilters = () => {
         setSearchQuery("")
         setSelectedGenre("all")
@@ -304,11 +412,12 @@ export function MovieManagement() {
         setDateFrom("")
         setDateTo("")
         setDateError("")
-        setStatusFilters({upcoming: true, "now-showing": false, ended: false})
+        setStatusFilters({upcoming: false, "now-showing": false, ended: false})
         setCurrentPage(1)
+        toast.info("Đã đặt lại bộ lọc")
     }
 
-    const toggleSort = (field: "title" | "releaseDate") => {
+    const toggleSort = (field: "name" | "releaseDate") => {
         if (sortField === field) {
             setSortDirection(sortDirection === "asc" ? "desc" : "asc")
         } else {
@@ -318,35 +427,45 @@ export function MovieManagement() {
     }
 
     const getStatusBadge = (status: Movie["status"]) => {
-        const variants = {
-            upcoming: "operator-bg-upcoming text-white",
-            "now-showing": "operator-bg-now-showing text-white",
-            ended: "operator-bg-ended text-white",
+        switch (status) {
+            case "UPCOMING":
+                return {
+                    label: "Sắp chiếu",
+                    variant: "secondary" as const,
+                    className: "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                }
+            case "PLAYING":
+                return {
+                    label: "Đang chiếu",
+                    variant: "default" as const,
+                    className: "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                }
+            case "ENDED":
+                return {
+                    label: "Đã kết thúc",
+                    variant: "outline" as const,
+                    className: "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                }
+            default:
+                return {
+                    label: "Không xác định",
+                    variant: "outline" as const,
+                    className: "bg-muted text-muted-foreground border-muted-foreground/20"
+                }
         }
-        const labels = {
-            upcoming: "Sắp chiếu",
-            "now-showing": "Đang chiếu",
-            ended: "Đã kết thúc",
-        }
-        return {variant: variants[status], label: labels[status]}
     }
 
-    const totalPages = Math.ceil(totalMovies / pageSize)
+
+    const totalPages = totalMovies > 0 ? Math.ceil(totalMovies / pageSize) : 0
 
     const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
-
-        // Accept both CSV and ZIP files
         const isCSV = file.name.endsWith(".csv")
         const isZIP = file.name.endsWith(".zip")
 
         if (!isCSV && !isZIP) {
-            toast({
-                title: "Lỗi",
-                description: "Vui lòng chọn file CSV hoặc ZIP",
-                variant: "destructive",
-            })
+            toast.error("Vui lòng chọn file CSV hoặc ZIP hợp lệ")
             return
         }
 
@@ -355,31 +474,44 @@ export function MovieManagement() {
 
         try {
             setIsLoading(true)
-            const response = await fetch("/api/movies/bulk", {
+            const response = await fetchWithAuth(`${BASE_URL}/movies/bulk`, {
                 method: "POST",
                 body: formData,
             })
-
-            if (!response.ok) throw new Error("Failed to upload")
+            if (!response.ok) throw new Error("Upload thất bại")
 
             const result = await response.json()
-            toast({
-                title: "Thành công",
-                description: `Đã thêm ${result.count} phim`,
-            })
-
+            toast.success(`Đã thêm ${result.count} phim`)
             setIsBulkDialogOpen(false)
-            fetchMovies()
-        } catch (error) {
-            toast({
-                title: "Lỗi",
-                description: "Không thể tải lên file. Vui lòng thử lại.",
-                variant: "destructive",
-            })
+            await fetchMovies()
+        } catch {
+            toast.error("Không thể tải lên file. Vui lòng thử lại.")
         } finally {
             setIsLoading(false)
         }
     }
+
+    const openEditDialog = (movie: Movie) => {
+        setEditingMovie(movie)
+        setFormData({
+            name: movie.name || "",
+            genre: movie.genre?.[0]?.name || "",
+            language: movie.language?.name || "",
+            duration: movie.duration?.toString() || "",
+            releaseDate: movie.releaseDate || "",
+            description: movie.description || "",
+            poster: movie.posterUrl || "",
+            status: movie.status || "UPCOMING",
+            director: movie.director || "",
+            actors: movie.actor || "",
+            ageRating: movie.ageRating || "",
+            year: new Date(movie.releaseDate).getFullYear().toString(),
+            country: movie.country?.name || "",
+        })
+        setPosterPreview(movie.posterUrl || "")
+        setIsDialogOpen(true)
+    }
+
 
     const downloadTemplate = () => {
         const csvContent = `title,genre,language,duration,releaseDate,description,director,actors,ageRating,year,country,status,poster_filename
@@ -391,7 +523,9 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
         link.href = URL.createObjectURL(blob)
         link.download = "movie_template.csv"
         link.click()
+        toast.info("Đã tải xuống file mẫu CSV")
     }
+
 
     return (
         <div className="space-y-6">
@@ -587,13 +721,13 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                 </div>
 
                                 <div className="grid gap-3">
-                                    <Label htmlFor="title" className="text-foreground font-medium">
+                                    <Label htmlFor="name" className="text-foreground font-medium">
                                         Tên phim
                                     </Label>
                                     <Input
-                                        id="title"
-                                        value={formData.title}
-                                        onChange={(e) => setFormData({...formData, title: e.target.value})}
+                                        id="name"
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({...formData, name: e.target.value})}
                                         className="bg-input border-border text-foreground"
                                     />
                                 </div>
@@ -637,9 +771,9 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                                 <SelectValue placeholder="Chọn thể loại"/>
                                             </SelectTrigger>
                                             <SelectContent className="bg-popover border-border">
-                                                {GENRES.map((genre) => (
-                                                    <SelectItem key={genre} value={genre}>
-                                                        {genre}
+                                                {genres.map((genre) => (
+                                                    <SelectItem key={genre.id} value={genre.name}>
+                                                        {genre.name}
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
@@ -657,9 +791,9 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                                 <SelectValue placeholder="Chọn ngôn ngữ"/>
                                             </SelectTrigger>
                                             <SelectContent className="bg-popover border-border">
-                                                {LANGUAGES.map((lang) => (
-                                                    <SelectItem key={lang} value={lang}>
-                                                        {lang}
+                                                {languages.map((lang) => (
+                                                    <SelectItem key={lang.id} value={lang.name}>
+                                                        {lang.name}
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
@@ -688,19 +822,7 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                             </SelectContent>
                                         </Select>
                                     </div>
-                                    <div className="grid gap-3">
-                                        <Label htmlFor="year" className="text-foreground font-medium">
-                                            Năm
-                                        </Label>
-                                        <Input
-                                            id="year"
-                                            type="number"
-                                            min={2000}
-                                            value={formData.year}
-                                            onChange={(e) => setFormData({...formData, year: e.target.value})}
-                                            className="bg-input border-border text-foreground"
-                                        />
-                                    </div>
+
                                     <div className="grid gap-3">
                                         <Label htmlFor="country" className="text-foreground font-medium">
                                             Quốc gia
@@ -756,20 +878,21 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                     </Label>
                                     <Select
                                         value={formData.status}
-                                        onValueChange={(value: Movie["status"]) => setFormData({
-                                            ...formData,
-                                            status: value
-                                        })}
+                                        onValueChange={(value: Movie["status"]) =>
+                                            setFormData({...formData, status: value})
+                                        }
                                     >
                                         <SelectTrigger className="bg-input border-border text-foreground">
-                                            <SelectValue/>
+                                            <SelectValue placeholder="Chọn trạng thái"/>
                                         </SelectTrigger>
                                         <SelectContent className="bg-popover border-border">
-                                            <SelectItem value="upcoming">Sắp chiếu</SelectItem>
-                                            <SelectItem value="now-showing">Đang chiếu</SelectItem>
-                                            <SelectItem value="ended">Đã kết thúc</SelectItem>
+                                            <SelectItem value="UPCOMING">Sắp chiếu</SelectItem>
+                                            <SelectItem value="PLAYING">Đang chiếu</SelectItem>
+                                            <SelectItem value="ENDED">Đã kết thúc</SelectItem>
                                         </SelectContent>
                                     </Select>
+
+
                                 </div>
 
                                 <div className="grid gap-3">
@@ -811,7 +934,7 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                         <div className="flex-1 relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground"/>
                             <Input
-                                placeholder="Tìm kiếm theo tên phim..."
+                                placeholder="Tìm kiếm theo tên phim hoặc tên quốc gia..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="pl-11 bg-input border-border text-foreground h-12 text-base"
@@ -835,9 +958,9 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                 </SelectTrigger>
                                 <SelectContent className="bg-popover border-border">
                                     <SelectItem value="all">Tất cả</SelectItem>
-                                    {GENRES.map((genre) => (
-                                        <SelectItem key={genre} value={genre}>
-                                            {genre}
+                                    {genres.map((genre) => (
+                                        <SelectItem key={genre.id} value={genre.name}>
+                                            {genre.name}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -852,9 +975,9 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                 </SelectTrigger>
                                 <SelectContent className="bg-popover border-border">
                                     <SelectItem value="all">Tất cả</SelectItem>
-                                    {LANGUAGES.map((lang) => (
-                                        <SelectItem key={lang} value={lang}>
-                                            {lang}
+                                    {languages.map((lang) => (
+                                        <SelectItem key={lang.id} value={lang.name}>
+                                            {lang.name}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -924,17 +1047,17 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                         <Label className="text-sm text-muted-foreground font-medium">Sắp xếp theo:</Label>
                         <div className="flex gap-2">
                             <Button
-                                variant={sortField === "title" ? "default" : "outline"}
+                                variant={sortField === "name" ? "default" : "outline"}
                                 size="sm"
-                                onClick={() => toggleSort("title")}
+                                onClick={() => toggleSort("name")}
                                 className={
-                                    sortField === "title"
+                                    sortField === "name"
                                         ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
                                         : "border-border text-foreground hover:bg-muted"
                                 }
                             >
                                 Tên phim
-                                {sortField === "title" &&
+                                {sortField === "name" &&
                                     (sortDirection === "asc" ? (
                                         <ArrowUp className="w-3 h-3 ml-1"/>
                                     ) : (
@@ -991,7 +1114,9 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                         <TableHead className="text-muted-foreground font-semibold">Đạo diễn</TableHead>
                                         <TableHead className="text-muted-foreground font-semibold">Diễn viên</TableHead>
                                         <TableHead className="text-muted-foreground font-semibold">Độ tuổi</TableHead>
-                                        <TableHead className="text-muted-foreground font-semibold">Năm</TableHead>
+                                        <TableHead className="text-muted-foreground font-semibold">Thời
+                                            lượng</TableHead>
+                                        <TableHead className="text-muted-foreground font-semibold">Ngôn ngữ</TableHead>
                                         <TableHead className="text-muted-foreground font-semibold">Quốc gia</TableHead>
                                         <TableHead className="text-muted-foreground font-semibold">Ngày phát
                                             hành</TableHead>
@@ -1008,30 +1133,42 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                             <TableRow key={movie.id}
                                                       className="border-border hover:bg-muted/30 transition-colors">
                                                 <TableCell
-                                                    className="font-semibold text-foreground">{movie.title}</TableCell>
-                                                <TableCell className="text-foreground">{movie.genre}</TableCell>
+                                                    className="font-semibold text-foreground">{movie.name}</TableCell>
+                                                <TableCell>{movie.genre.map(g => g.name).join(", ")}</TableCell>
                                                 <TableCell className="text-foreground">{movie.director}</TableCell>
                                                 <TableCell className="text-foreground max-w-[200px] truncate"
-                                                           title={movie.actors}>
-                                                    {movie.actors}
+                                                           title={movie.actor}>
+                                                    {movie.actor}
                                                 </TableCell>
                                                 <TableCell className="text-foreground">
-                                                    <Badge variant="outline" className="border-border">
-                                                        {movie.ageRating}
+                                                    <Badge
+                                                        variant="outline"
+                                                        className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                                                    >
+                                                        {movie.ageRating || "N/A"}
                                                     </Badge>
                                                 </TableCell>
-                                                <TableCell className="text-foreground">{movie.year}</TableCell>
-                                                <TableCell className="text-foreground">{movie.country}</TableCell>
+                                                <TableCell className="text-foreground">
+                                                    {movie.duration ? `${movie.duration} phút` : "N/A"}
+                                                </TableCell>
+                                                <TableCell
+                                                    className="text-foreground">{movie.language?.name || "N/A"}</TableCell>
+                                                <TableCell className="text-foreground">{movie.country?.name}</TableCell>
                                                 <TableCell className="text-foreground">
                                                     {new Date(movie.releaseDate).toLocaleDateString("vi-VN")}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Badge className={statusBadge.variant}>{statusBadge.label}</Badge>
+                                                    <Badge
+                                                        variant={statusBadge.variant}
+                                                        className={statusBadge.className}
+                                                    >
+                                                        {statusBadge.label}
+                                                    </Badge>
                                                 </TableCell>
                                                 <TableCell>
                                                     <Image
-                                                        src={movie.poster || "/placeholder.svg"}
-                                                        alt={movie.title}
+                                                        src={movie.posterUrl || "/placeholder.svg"}
+                                                        alt={movie.name}
                                                         width={80}
                                                         height={120}
                                                         className="rounded-lg object-cover shadow-md"
@@ -1099,7 +1236,7 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                     Trước
                                 </Button>
                                 <div className="flex gap-1">
-                                    {Array.from({length: Math.min(5, totalPages)}, (_, i) => {
+                                    {totalPages > 0 && Array.from({length: Math.min(5, totalPages)}, (_, i) => {
                                         let pageNum
                                         if (totalPages <= 5) {
                                             pageNum = i + 1
@@ -1109,6 +1246,11 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                             pageNum = totalPages - 4 + i
                                         } else {
                                             pageNum = currentPage - 2 + i
+                                        }
+
+                                        // Ensure pageNum is within valid range
+                                        if (pageNum < 1 || pageNum > totalPages) {
+                                            return null
                                         }
 
                                         return (
@@ -1126,7 +1268,7 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                                 {pageNum}
                                             </Button>
                                         )
-                                    })}
+                                    }).filter(Boolean)}
                                 </div>
                                 <Button
                                     variant="outline"

@@ -1,6 +1,6 @@
 "use client"
 
-import {useState} from "react"
+import {useEffect, useState} from "react"
 import {useRouter} from "next/navigation"
 import {AdminLayout} from "@/components/layouts/admin-layout"
 import {Dashboard} from "@/components/operator/dashboard"
@@ -18,36 +18,36 @@ export default function AdminPage() {
     const [isLoading, setIsLoading] = useState(true)
     const router = useRouter()
 
-    /* useEffect(() => {
-         // Check authentication
-         const auth = localStorage.getItem("auth")
-         if (auth) {
-             const authData = JSON.parse(auth)
-             if (authData.isAuthenticated && authData.user.role === "admin") {
-                 setIsAuthenticated(true)
-             } else {
-                 router.push("/admin/login")
-             }
-         } else {
-             router.push("/admin/login")
-         }
-         setIsLoading(false)
-     }, [router])
+    useEffect(() => {
+        // Check authentication
+        const auth = localStorage.getItem("auth")
+        if (auth) {
+            const authData = JSON.parse(auth)
+            if (authData.isAuthenticated && authData.user.role === "admin") {
+                setIsAuthenticated(true)
+            } else {
+                router.push("/admin/login")
+            }
+        } else {
+            router.push("/admin/login")
+        }
+        setIsLoading(false)
+    }, [router])
 
-     if (isLoading) {
-         return (
-             <div className="min-h-screen bg-background flex items-center justify-center">
-                 <div className="text-center">
-                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                     <p className="text-foreground">Loading...</p>
-                 </div>
-             </div>
-         )
-     }
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                    <p className="text-foreground">Loading...</p>
+                </div>
+            </div>
+        )
+    }
 
-     if (!isAuthenticated) {
-         return null
-     }*/
+    if (!isAuthenticated) {
+        return null
+    }
 
     const renderContent = () => {
         if (selectedRoom) {
