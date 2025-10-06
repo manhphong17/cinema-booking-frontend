@@ -1,15 +1,20 @@
-import type {Metadata} from 'next'
-import {GeistSans} from 'geist/font/sans'
-import {GeistMono} from 'geist/font/mono'
 import {Analytics} from '@vercel/analytics/next'
 import './globals.css'
 import {Toaster} from "sonner"
+import {Inter, JetBrains_Mono} from "next/font/google"
+import {Suspense} from "react";
 
-export const metadata: Metadata = {
-    title: 'v0 App',
-    description: 'Created with v0',
-    generator: 'v0.app',
-}
+const inter = Inter({
+    subsets: ["latin", "vietnamese"],
+    variable: "--font-inter",
+    display: "swap",
+})
+
+const jetbrainsMono = JetBrains_Mono({
+    subsets: ["latin"],
+    variable: "--font-jetbrains-mono",
+    display: "swap",
+})
 
 export default function RootLayout({
                                        children,
@@ -18,9 +23,11 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="en">
-        <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
-        {children}
-        <Toaster richColors position="top-right"/>
+        <body className={`font-sans antialiased ${inter.variable} ${jetbrainsMono.variable}`}>
+        <Suspense fallback={null}>
+            {children}
+            <Toaster richColors position="top-right"/>
+        </Suspense>
         <Analytics/>
         </body>
         </html>

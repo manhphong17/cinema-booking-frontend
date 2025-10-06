@@ -17,17 +17,15 @@ API.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config;
+        console.log("Interceptor triggered, status:", error.response ? .status);
 
-        console.log("Interceptor triggered, status:", error.response?.status);
-
-
-        if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry) {
+        if ((error.response ? .status === 401 || error.response ? .status === 403) && !originalRequest._retry) {
             originalRequest._retry = true;
             try {
                 const res = await axios.post(
-                    `${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8885"}/auth/refresh-token`,
-                    {},
-                    {withCredentials: true}
+                    `${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8885"}/auth/refresh-token`, {}, {
+                        withCredentials: true
+                    }
                 );
 
                 const newAccessToken = res.data.data.accessToken;

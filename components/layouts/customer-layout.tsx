@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -16,6 +16,24 @@ interface CustomerLayoutProps {
 
 export function CustomerLayout({ children, activeSection, onSectionChange }: CustomerLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  const storedName = useMemo(() => {
+    if (typeof window === "undefined") {
+      return ""
+    }
+    return localStorage.getItem("userName") || localStorage.getItem("customerName") || ""
+  }, [])
+
+  const displayName = storedName || "Khách hàng"
+  const initials = useMemo(() => {
+    if (!displayName.trim()) {
+      return "KH"
+    }
+    const parts = displayName.trim().split(" ")
+    const first = parts[0]?.[0]?.toUpperCase() ?? "K"
+    const last = parts.length > 1 ? parts[parts.length - 1]?.[0]?.toUpperCase() : "H"
+    return `${first}${last}`
+  }, [displayName])
 
   const menuItems = [
     { id: "profile", label: "Profile", icon: User },
@@ -61,10 +79,10 @@ export function CustomerLayout({ children, activeSection, onSectionChange }: Cus
             <div className="flex items-center space-x-3">
               <Avatar>
                 <AvatarImage src="/customer-avatar.jpg" />
-                <AvatarFallback>JD</AvatarFallback>
+                <AvatarFallback>{initials}</AvatarFallback>
               </Avatar>
               <div>
-                <p className="font-medium text-gray-900">John Doe</p>
+                <p className="font-medium text-gray-900">{displayName}</p>
                 <Badge variant="secondary" className="text-xs">
                   Gold Member
                 </Badge>
