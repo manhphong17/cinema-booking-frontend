@@ -1,7 +1,7 @@
 "use client"
 
 import {useRouter, useParams} from "next/navigation"
-import {AdminLayout} from "@/components/layouts/admin-layout"
+import {OperatorLayout} from "@/components/layouts/operator-layout"
 import {MovieDetail} from "@/components/operator/movie-detail"
 
 export default function MovieDetailPage() {
@@ -9,8 +9,8 @@ export default function MovieDetailPage() {
     const movieId = params.id as string
 
     return (
-        <AdminLayout activeSection="movies" onSectionChange={() => {}}>
+        <OperatorLayout>
             <MovieDetail movieId={movieId} />
-        </AdminLayout>
+        </OperatorLayout>
     )
 }
