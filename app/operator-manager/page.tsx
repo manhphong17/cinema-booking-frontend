@@ -26,10 +26,10 @@ export default function AdminPage() {
             if (authData.isAuthenticated && authData.user.role === "admin") {
                 setIsAuthenticated(true)
             } else {
-                router.push("/admin/login")
+                router.push("/login/admin")
             }
         } else {
-            router.push("/admin/login")
+            router.push("/login/admin")
         }
         setIsLoading(false)
     }, [router])
