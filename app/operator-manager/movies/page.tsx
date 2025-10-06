@@ -1,13 +1,13 @@
 "use client"
 
 import {useRouter} from "next/navigation"
-import {AdminLayout} from "@/components/layouts/admin-layout"
+import {OperatorLayout} from "@/components/layouts/operator-layout"
 import {MovieManagement} from "@/components/operator/movie-management";
 
 export default function MoviePage() {
     return (
-        <AdminLayout activeSection="movies" onSectionChange={() => {}}>
+        <OperatorLayout>
             <MovieManagement/>
-        </AdminLayout>
+        </OperatorLayout>
     )
 }

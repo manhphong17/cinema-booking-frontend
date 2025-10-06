@@ -26,82 +26,7 @@ import {
 } from "lucide-react"
 import {toast} from "sonner"
 import Image from "next/image"
-
-const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL
-
-// Token management utilities
-const isTokenExpired = (token: string | null): boolean => {
-    if (!token) return true
-    try {
-        const payload = JSON.parse(atob(token.split('.')[1]))
-        const currentTime = Date.now() / 1000
-        return payload.exp < currentTime
-    } catch {
-        return true
-    }
-}
-
-const refreshAccessToken = async (): Promise<string | null> => {
-    try {
-        const response = await fetch(`${BASE_URL}/auth/refresh-token`, {
-            method: "POST",
-            credentials: "include",
-        })
-
-        if (response.ok) {
-            const data = await response.json()
-            const newAccessToken = data.data.accessToken
-            localStorage.setItem("accessToken", newAccessToken)
-            return newAccessToken
-        } else {
-            if (typeof window !== 'undefined') {
-                const {toast} = await import("sonner")
-                toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.", {
-                    duration: 3000,
-                })
-
-                setTimeout(() => {
-                    localStorage.removeItem("accessToken")
-                    window.location.href = "/login"
-                }, 2000)
-            }
-            return null
-        }
-    } catch (error) {
-        console.error("Refresh token failed:", error)
-        if (typeof window !== 'undefined') {
-            const {toast} = await import("sonner")
-            toast.error("Lỗi xác thực. Vui lòng đăng nhập lại.", {
-                duration: 3000,
-            })
-
-            setTimeout(() => {
-                localStorage.removeItem("accessToken")
-                window.location.href = "/login"
-            }, 2000)
-        }
-        return null
-    }
-}
-
-const fetchWithAuth = async (url: string, options: RequestInit = {}): Promise<Response> => {
-    let token = localStorage.getItem("accessToken")
-
-    if (isTokenExpired(token)) {
-        token = await refreshAccessToken()
-        if (!token) {
-            throw new Error("Authentication failed")
-        }
-    }
-
-    return fetch(url, {
-        ...options,
-        headers: {
-            ...options.headers,
-            Authorization: `Bearer ${token}`
-        }
-    })
-}
+import {apiClient} from "@/src/api/interceptor"
 
 const AGE_RATINGS = ["P", "K", "T13", "T16", "T18", "C"]
 const COUNTRIES = ["Vietnam", "USA", "Korea", "Japan", "China", "Thailand", "France", "UK"]
@@ -134,7 +59,6 @@ export function AddMovieForm() {
         releaseDate: "",
         description: "",
         poster: "",
-        status: "" as "UPCOMING" | "PLAYING" | "ENDED",
         director: "",
         actors: "",
         ageRating: "",
@@ -145,11 +69,8 @@ export function AddMovieForm() {
 
     const fetchGenres = async () => {
         try {
-            const response = await fetchWithAuth(`${BASE_URL}/movies/movie-genres`)
-            if (response.ok) {
-                const data = await response.json()
-                setGenres(data.data || [])
-            }
+            const response = await apiClient.get('/movies/movie-genres')
+            setGenres(response.data.data || [])
         } catch (error) {
             console.error("Failed to fetch genres:", error)
         }
@@ -157,11 +78,8 @@ export function AddMovieForm() {
 
     const fetchLanguages = async () => {
         try {
-            const response = await fetchWithAuth(`${BASE_URL}/movies/languages`)
-            if (response.ok) {
-                const data = await response.json()
-                setLanguages(data.data || [])
-            }
+            const response = await apiClient.get('/movies/languages')
+            setLanguages(response.data.data || [])
         } catch (error) {
             console.error("Failed to fetch languages:", error)
         }
@@ -219,10 +137,6 @@ export function AddMovieForm() {
             toast.error("Vui lòng chọn ngày phát hành")
             return false
         }
-        if (!formData.status) {
-            toast.error("Vui lòng chọn trạng thái phim")
-            return false
-        }
         if (!formData.country) {
             toast.error("Vui lòng chọn quốc gia")
             return false
@@ -262,12 +176,11 @@ export function AddMovieForm() {
             }
             if (posterFile) formDataToSend.append("posterFile", posterFile)
 
-            const res = await fetchWithAuth(`${BASE_URL}/movies`, {
-                method: "POST",
-                body: formDataToSend,
+            await apiClient.post('/movies', formDataToSend, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                }
             })
-            
-            if (!res.ok) throw new Error("Không thể thêm phim")
 
             toast.success("Thêm phim mới thành công")
             router.push("/operator-manager/movies")
@@ -287,7 +200,6 @@ export function AddMovieForm() {
             releaseDate: "",
             description: "",
             poster: "",
-            status: "",
             director: "",
             actors: "",
             ageRating: "",
@@ -473,47 +385,25 @@ export function AddMovieForm() {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="grid gap-3">
-                                        <Label htmlFor="country" className="text-foreground font-medium">
-                                            Quốc gia *
-                                        </Label>
-                                        <Select
-                                            value={formData.country}
-                                            onValueChange={(value) => setFormData({...formData, country: value})}
-                                        >
-                                            <SelectTrigger className="bg-input border-border text-foreground h-12">
-                                                <SelectValue placeholder="Chọn quốc gia"/>
-                                            </SelectTrigger>
-                                            <SelectContent className="bg-popover border-border">
-                                                {COUNTRIES.map((country) => (
-                                                    <SelectItem key={country} value={country}>
-                                                        {country}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="grid gap-3">
-                                        <Label htmlFor="status" className="text-foreground font-medium">
-                                            Trạng thái phim *
-                                        </Label>
-                                        <Select
-                                            value={formData.status}
-                                            onValueChange={(value: "UPCOMING" | "PLAYING" | "ENDED") =>
-                                                setFormData({...formData, status: value})
-                                            }
-                                        >
-                                            <SelectTrigger className="bg-input border-border text-foreground h-12">
-                                                <SelectValue placeholder="Chọn trạng thái phim"/>
-                                            </SelectTrigger>
-                                            <SelectContent className="bg-popover border-border">
-                                                <SelectItem value="UPCOMING">Sắp chiếu</SelectItem>
-                                                <SelectItem value="PLAYING">Đang chiếu</SelectItem>
-                                                <SelectItem value="ENDED">Đã kết thúc</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
+                                <div className="grid gap-3">
+                                    <Label htmlFor="country" className="text-foreground font-medium">
+                                        Quốc gia *
+                                    </Label>
+                                    <Select
+                                        value={formData.country}
+                                        onValueChange={(value) => setFormData({...formData, country: value})}
+                                    >
+                                        <SelectTrigger className="bg-input border-border text-foreground h-12">
+                                            <SelectValue placeholder="Chọn quốc gia"/>
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-popover border-border">
+                                            {COUNTRIES.map((country) => (
+                                                <SelectItem key={country} value={country}>
+                                                    {country}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">

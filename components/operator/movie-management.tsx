@@ -30,86 +30,7 @@ import {
 import {OperatorCheckbox} from "@/components/ui/operator-checkbox"
 import {toast} from "sonner"
 import Image from "next/image"
-
-const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL
-
-// Token management utilities
-const isTokenExpired = (token: string | null): boolean => {
-    if (!token) return true
-    try {
-        const payload = JSON.parse(atob(token.split('.')[1]))
-        const currentTime = Date.now() / 1000
-        return payload.exp < currentTime
-    } catch {
-        return true
-    }
-}
-
-const refreshAccessToken = async (): Promise<string | null> => {
-    try {
-        const response = await fetch(`${BASE_URL}/auth/refresh-token`, {
-            method: "POST",
-            credentials: "include", // Include cookies
-        })
-
-        if (response.ok) {
-            const data = await response.json()
-            const newAccessToken = data.data.accessToken
-            localStorage.setItem("accessToken", newAccessToken)
-            return newAccessToken
-        } else {
-            // Show notification before redirect
-            if (typeof window !== 'undefined') {
-                // Import toast dynamically to avoid SSR issues
-                const {toast} = await import("sonner")
-                toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.", {
-                    duration: 3000,
-                })
-
-                // Wait a bit for user to see the notification
-                setTimeout(() => {
-                    localStorage.removeItem("accessToken")
-                    window.location.href = "/login"
-                }, 2000)
-            }
-            return null
-        }
-    } catch (error) {
-        console.error("Refresh token failed:", error)
-        if (typeof window !== 'undefined') {
-            const {toast} = await import("sonner")
-            toast.error("Lỗi xác thực. Vui lòng đăng nhập lại.", {
-                duration: 3000,
-            })
-
-            setTimeout(() => {
-                localStorage.removeItem("accessToken")
-                window.location.href = "/login"
-            }, 2000)
-        }
-        return null
-    }
-}
-
-const fetchWithAuth = async (url: string, options: RequestInit = {}): Promise<Response> => {
-    let token = localStorage.getItem("accessToken")
-
-    // Check if token is expired
-    if (isTokenExpired(token)) {
-        token = await refreshAccessToken()
-        if (!token) {
-            throw new Error("Authentication failed")
-        }
-    }
-
-    return fetch(url, {
-        ...options,
-        headers: {
-            ...options.headers,
-            Authorization: `Bearer ${token}`
-        }
-    })
-}
+import {apiClient} from "@/src/api/interceptor"
 
 interface Movie {
     id: number
@@ -190,11 +111,8 @@ export function MovieManagement() {
 
     const fetchGenres = async () => {
         try {
-            const response = await fetchWithAuth(`${BASE_URL}/movies/movie-genres`)
-            if (response.ok) {
-                const data = await response.json()
-                setGenres(data.data || [])
-            }
+            const response = await apiClient.get('/movies/movie-genres')
+            setGenres(response.data.data || [])
         } catch (error) {
             console.error("Failed to fetch genres:", error)
         }
@@ -202,11 +120,8 @@ export function MovieManagement() {
 
     const fetchLanguages = async () => {
         try {
-            const response = await fetchWithAuth(`${BASE_URL}/movies/languages`)
-            if (response.ok) {
-                const data = await response.json()
-                setLanguages(data.data || [])
-            }
+            const response = await apiClient.get('/movies/languages')
+            setLanguages(response.data.data || [])
         } catch (error) {
             console.error("Failed to fetch languages:", error)
         }
@@ -273,17 +188,10 @@ export function MovieManagement() {
                 })
             }
 
-            const fullUrl = BASE_URL + `/movies/list-with-filter-many-column-and-sortBy?${query.toString()}`
-
-            const res = await fetchWithAuth(fullUrl)
-
-            if (!res.ok) throw new Error("Vui lòng đăng nhập để sử dụng chức năng")
-
-            const data = await res.json()
-            setMovies(data.data.items || [])
-            // Fix: Calculate totalPages if API returns 0 but has items
-            const totalItems = data.data.totalItems || 0
-            const calculatedTotalPages = totalItems > 0 ? Math.ceil(totalItems / pageSize) : 0
+            const response = await apiClient.get(`/movies/list-with-filter-many-column-and-sortBy?${query.toString()}`)
+            
+            setMovies(response.data.data.items || [])
+            const totalItems = response.data.data.totalItems || 0
             setTotalMovies(totalItems)
         } catch (error) {
             toast.error("Không thể tải danh sách phim. Vui lòng thử lại.")
@@ -363,17 +271,7 @@ export function MovieManagement() {
                 country: formData.country,
             }
 
-            const url = `${BASE_URL}/movies/${editingMovie?.id}/basic`
-            const method = "PUT"
-
-            const res = await fetchWithAuth(url, {
-                method,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(basicData),
-            })
-            if (!res.ok) throw new Error("Không thể lưu phim")
+            await apiClient.put(`/movies/${editingMovie?.id}/basic`, basicData)
 
             toast.success("Cập nhật thông tin cơ bản thành công")
 
@@ -386,11 +284,7 @@ export function MovieManagement() {
 
     const handleDelete = async (id: number) => {
         try {
-            const res = await fetchWithAuth(`${BASE_URL}/movies/${id}`, {
-                method: "DELETE",
-            })
-            if (!res.ok) throw new Error("Không thể xóa phim")
-
+            await apiClient.delete(`/movies/${id}`)
             toast.success("Xóa phim thành công")
             await fetchMovies()
         } catch {
@@ -487,14 +381,13 @@ export function MovieManagement() {
 
         try {
             setIsLoading(true)
-            const response = await fetchWithAuth(`${BASE_URL}/movies/bulk`, {
-                method: "POST",
-                body: formData,
+            const response = await apiClient.post('/movies/bulk', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                }
             })
-            if (!response.ok) throw new Error("Upload thất bại")
-
-            const result = await response.json()
-            toast.success(`Đã thêm ${result.count} phim`)
+            
+            toast.success(`Đã thêm ${response.data.count} phim`)
             setIsBulkDialogOpen(false)
             await fetchMovies()
         } catch {

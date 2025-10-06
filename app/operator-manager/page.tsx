@@ -2,39 +2,32 @@
 
 import {useEffect, useState} from "react"
 import {useRouter} from "next/navigation"
-import {AdminLayout} from "@/components/layouts/admin-layout"
+import {OperatorLayout} from "@/components/layouts/operator-layout"
 import {Dashboard} from "@/components/operator/dashboard"
-import {MovieManagement} from "@/components/operator/movie-management"
-import {ShowtimeManagement} from "@/components/operator/showtime-management"
-import {RoomManagement} from "@/components/operator/room-management"
-import {SeatManagement} from "@/components/operator/seat-management"
-import {NewsManagement} from "@/components/operator/news-management"
-import {ProfileManagement} from "@/components/operator/profile-management"
 
-export default function AdminPage() {
-    const [activeSection, setActiveSection] = useState("dashboard")
-    const [selectedRoom, setSelectedRoom] = useState<string | null>(null)
-    const [isAuthenticated, setIsAuthenticated] = useState(false)
-    const [isLoading, setIsLoading] = useState(true)
+export default function OperatorManagerPage() {
+    const [mounted, setMounted] = useState(false)
     const router = useRouter()
 
     useEffect(() => {
+        setMounted(true)
+        
         // Check authentication
         const auth = localStorage.getItem("auth")
         if (auth) {
             const authData = JSON.parse(auth)
             if (authData.isAuthenticated && authData.user.role === "admin") {
-                setIsAuthenticated(true)
-            } else {
-                router.push("/login/admin")
+                // User is authenticated, stay on page
+                return
             }
-        } else {
-            router.push("/login/admin")
         }
-        setIsLoading(false)
+        
+        // Redirect to login if not authenticated
+        router.push("/login/admin")
     }, [router])
 
-    if (isLoading) {
+    // Prevent hydration mismatch by not rendering until mounted
+    if (!mounted) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
                 <div className="text-center">
@@ -45,36 +38,9 @@ export default function AdminPage() {
         )
     }
 
-    if (!isAuthenticated) {
-        return null
-    }
-
-    const renderContent = () => {
-        if (selectedRoom) {
-            return <SeatManagement roomId={selectedRoom} onBack={() => setSelectedRoom(null)}/>
-        }
-
-        switch (activeSection) {
-            case "dashboard":
-                return <Dashboard/>
-            case "movies":
-                return <MovieManagement/>
-            case "showtimes":
-                return <ShowtimeManagement/>
-            case "rooms":
-                return <RoomManagement onSelectRoom={setSelectedRoom}/>
-            case "news":
-                return <NewsManagement/>
-            case "profile":
-                return <ProfileManagement/>
-            default:
-                return <Dashboard/>
-        }
-    }
-
     return (
-        <AdminLayout activeSection={activeSection} onSectionChange={setActiveSection}>
-            {renderContent()}
-        </AdminLayout>
+        <OperatorLayout>
+            <Dashboard/>
+        </OperatorLayout>
     )
 }
