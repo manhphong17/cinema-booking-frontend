@@ -1,13 +1,12 @@
 "use client"
 
-import {useRouter} from "next/navigation"
 import {AdminLayout} from "@/components/layouts/admin-layout"
-import {MovieManagement} from "@/components/operator/movie-management";
+import {AddMovieForm} from "@/components/operator/add-movie-form"
 
-export default function MoviePage() {
+export default function AddMoviePage() {
     return (
         <AdminLayout activeSection="movies" onSectionChange={() => {}}>
-            <MovieManagement/>
+            <AddMovieForm/>
         </AdminLayout>
     )
 }
