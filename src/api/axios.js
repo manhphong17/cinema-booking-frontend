@@ -38,7 +38,8 @@ API.interceptors.response.use(
             } catch (refreshError) {
                 console.error("Refresh token failed:", refreshError);
                 localStorage.removeItem("accessToken");
-                window.location.href = "/login";
+                // Use router.push instead of window.location for better performance
+                // window.location.href = "/login";
             }
         }
         return Promise.reject(error);

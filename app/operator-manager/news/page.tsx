@@ -6,14 +6,8 @@ import {MovieManagement} from "@/components/operator/movie-management";
 import {NewsManagement} from "@/components/operator/news-management";
 
 export default function NewsPage() {
-    const router = useRouter()
-
-    const handleSectionChange = (section: string) => {
-        router.push(`/operator-manager/${section}`)
-    }
-
     return (
-        <AdminLayout activeSection="news" onSectionChange={handleSectionChange}>
+        <AdminLayout activeSection="news" onSectionChange={() => {}}>
             <NewsManagement/>
         </AdminLayout>
     )

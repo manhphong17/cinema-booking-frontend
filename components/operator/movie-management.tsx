@@ -2,6 +2,7 @@
 
 import type React from "react"
 import {useEffect, useState} from "react"
+import {useRouter} from "next/navigation"
 import {Button} from "@/components/ui/button"
 import {Card} from "@/components/ui/card"
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table"
@@ -9,6 +10,7 @@ import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger} from "@
 import {Input} from "@/components/ui/input"
 import {Label} from "@/components/ui/label"
 import {Textarea} from "@/components/ui/textarea"
+import {Separator} from "@/components/ui/separator"
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
 import {Badge} from "@/components/ui/badge"
 import {
@@ -67,7 +69,7 @@ const refreshAccessToken = async (): Promise<string | null> => {
                 // Wait a bit for user to see the notification
                 setTimeout(() => {
                     localStorage.removeItem("accessToken")
-                    window.location.href = "/session-expired"
+                    window.location.href = "/login"
                 }, 2000)
             }
             return null
@@ -82,7 +84,7 @@ const refreshAccessToken = async (): Promise<string | null> => {
 
             setTimeout(() => {
                 localStorage.removeItem("accessToken")
-                window.location.href = "/session-expired"
+                window.location.href = "/login"
             }, 2000)
         }
         return null
@@ -141,16 +143,13 @@ interface Language {
 }
 
 export function MovieManagement() {
+    const router = useRouter()
     const [movies, setMovies] = useState<Movie[]>([])
     const [genres, setGenres] = useState<Genre[]>([])
     const [languages, setLanguages] = useState<Language[]>([])
     const [isLoading, setIsLoading] = useState(false)
-    const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false)
     const [editingMovie, setEditingMovie] = useState<Movie | null>(null)
-
-    const [posterPreview, setPosterPreview] = useState<string>("")
-    const [posterFile, setPosterFile] = useState<File | null>(null)
 
     const [searchQuery, setSearchQuery] = useState("")
     const [selectedGenre, setSelectedGenre] = useState<string>("all")
@@ -186,6 +185,7 @@ export function MovieManagement() {
         ageRating: "",
         year: "",
         country: "",
+        trailerUrl: "",
     })
 
     const fetchGenres = async () => {
@@ -310,28 +310,6 @@ export function MovieManagement() {
         loadMovies()
     }, [currentPage, pageSize, sortField, sortDirection, searchQuery, selectedGenre, selectedLanguage, dateFrom, dateTo, statusFilters])
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0]
-        if (file) {
-            if (!file.type.startsWith("image/")) {
-                toast.error("Vui lòng chọn file ảnh hợp lệ (JPG, PNG, WebP)")
-                return
-            }
-
-            setPosterFile(file)
-            const reader = new FileReader()
-            reader.onloadend = () => {
-                setPosterPreview(reader.result as string)
-            }
-            reader.readAsDataURL(file)
-        }
-    }
-
-    const removePosterPreview = () => {
-        setPosterPreview("")
-        setPosterFile(null)
-        setFormData({...formData, poster: ""})
-    }
 
     const validateDateRange = (from: string, to: string) => {
         if (from && to && new Date(from) > new Date(to)) {
@@ -343,26 +321,62 @@ export function MovieManagement() {
         return true
     }
 
-    const handleSubmit = async () => {
-        try {
-            const formDataToSend = new FormData()
-            for (const [key, value] of Object.entries(formData)) {
-                formDataToSend.append(key, value)
-            }
-            if (posterFile) formDataToSend.append("posterFile", posterFile)
+    const validateForm = () => {
+        if (!formData.name.trim()) {
+            toast.error("Vui lòng nhập tên phim")
+            return false
+        }
+        if (!formData.genre) {
+            toast.error("Vui lòng chọn thể loại")
+            return false
+        }
+        if (!formData.language) {
+            toast.error("Vui lòng chọn ngôn ngữ")
+            return false
+        }
+        if (!formData.releaseDate) {
+            toast.error("Vui lòng chọn ngày phát hành")
+            return false
+        }
+        if (!formData.status) {
+            toast.error("Vui lòng chọn trạng thái")
+            return false
+        }
+        if (!formData.country) {
+            toast.error("Vui lòng chọn quốc gia")
+            return false
+        }
+        
+        return true
+    }
 
-            const url = editingMovie ? `${BASE_URL}/movies/${editingMovie.id}` : `${BASE_URL}/movies`
-            const method = editingMovie ? "PUT" : "POST"
+    const handleSubmit = async () => {
+        if (!validateForm()) return
+        
+        try {
+            const basicData = {
+                name: formData.name,
+                genre: formData.genre,
+                language: formData.language,
+                releaseDate: formData.releaseDate,
+                status: formData.status,
+                country: formData.country,
+            }
+
+            const url = `${BASE_URL}/movies/${editingMovie?.id}/basic`
+            const method = "PUT"
 
             const res = await fetchWithAuth(url, {
                 method,
-                body: formDataToSend,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(basicData),
             })
             if (!res.ok) throw new Error("Không thể lưu phim")
 
-            toast.success(editingMovie ? "Cập nhật phim thành công" : "Thêm phim mới thành công")
+            toast.success("Cập nhật thông tin cơ bản thành công")
 
-            setIsDialogOpen(false)
             resetForm()
             await fetchMovies()
         } catch (error) {
@@ -399,10 +413,9 @@ export function MovieManagement() {
             ageRating: "",
             year: "",
             country: "",
+            trailerUrl: "",
         })
         setEditingMovie(null)
-        setPosterPreview("")
-        setPosterFile(null)
     }
 
     const resetFilters = () => {
@@ -507,9 +520,8 @@ export function MovieManagement() {
             ageRating: movie.ageRating || "",
             year: new Date(movie.releaseDate).getFullYear().toString(),
             country: movie.country?.name || "",
+            trailerUrl: movie.trailerUrl || "",
         })
-        setPosterPreview(movie.posterUrl || "")
-        setIsDialogOpen(true)
     }
 
 
@@ -643,125 +655,58 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                         </DialogContent>
                     </Dialog>
 
+                    <Button
+                        onClick={() => router.push("/operator-manager/movies/add")}
+                        className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20">
+                        <Plus className="w-4 h-4 mr-2"/>
+                        Thêm phim mới
+                    </Button>
+
+                    {/* Edit Dialog */}
                     <Dialog
-                        open={isDialogOpen}
+                        open={!!editingMovie}
                         onOpenChange={(open) => {
-                            setIsDialogOpen(open)
-                            if (!open) resetForm()
+                            if (!open) {
+                                setEditingMovie(null)
+                                resetForm()
+                            }
                         }}
                     >
-                        <DialogTrigger asChild>
-                            <Button
-                                className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20">
-                                <Plus className="w-4 h-4 mr-2"/>
-                                Thêm phim mới
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent
-                            className="bg-card text-card-foreground border-border max-w-3xl max-h-[90vh] overflow-y-auto">
+                        <DialogContent className="bg-card text-card-foreground border-border max-w-2xl max-h-[90vh] overflow-y-auto">
                             <DialogHeader>
                                 <DialogTitle className="text-foreground text-2xl">
-                                    {editingMovie ? "Sửa phim" : "Thêm phim mới"}
+                                    Chỉnh sửa phim
                                 </DialogTitle>
                             </DialogHeader>
                             <div className="grid gap-6 py-4">
-                                <div className="grid gap-3">
-                                    <Label htmlFor="poster" className="text-foreground font-medium">
-                                        Poster phim
-                                    </Label>
-                                    <div className="flex gap-4 items-start">
-                                        <div className="flex-1 space-y-3">
-                                            <div className="flex gap-2">
-                                                <Input
-                                                    id="poster-file"
-                                                    type="file"
-                                                    accept="image/*"
-                                                    onChange={handleFileChange}
-                                                    className="hidden"
-                                                />
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    onClick={() => document.getElementById("poster-file")?.click()}
-                                                    className="border-border text-foreground hover:bg-muted bg-transparent"
-                                                >
-                                                    <Upload className="w-4 h-4 mr-2"/>
-                                                    Chọn file
-                                                </Button>
-                                                {posterFile && (
-                                                    <span
-                                                        className="text-sm text-muted-foreground flex items-center">{posterFile.name}</span>
-                                                )}
-                                            </div>
-                                            <p className="text-xs text-muted-foreground">Chọn file ảnh poster (JPG, PNG,
-                                                WebP)</p>
-                                        </div>
-
-                                        {posterPreview && (
-                                            <div className="relative">
-                                                <Image
-                                                    src={posterPreview || "/placeholder.svg"}
-                                                    alt="Poster preview"
-                                                    width={120}
-                                                    height={180}
-                                                    className="rounded-lg object-cover shadow-lg border-2 border-border"
-                                                />
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="destructive"
-                                                    onClick={removePosterPreview}
-                                                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
-                                                >
-                                                    <X className="w-4 h-4"/>
-                                                </Button>
-                                            </div>
-                                        )}
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Film className="w-5 h-5 text-blue-600"/>
+                                        <h3 className="font-semibold text-blue-800">Chỉnh sửa nhanh</h3>
                                     </div>
+                                    <p className="text-sm text-blue-700">
+                                        Chỉ có thể chỉnh sửa các thông tin cơ bản ở đây. Để chỉnh sửa chi tiết đầy đủ, 
+                                        hãy vào trang chi tiết phim.
+                                    </p>
                                 </div>
 
                                 <div className="grid gap-3">
-                                    <Label htmlFor="name" className="text-foreground font-medium">
-                                        Tên phim
+                                    <Label htmlFor="edit-name" className="text-foreground font-medium">
+                                        Tên phim *
                                     </Label>
                                     <Input
-                                        id="name"
+                                        id="edit-name"
                                         value={formData.name}
                                         onChange={(e) => setFormData({...formData, name: e.target.value})}
                                         className="bg-input border-border text-foreground"
+                                        placeholder="Nhập tên phim"
                                     />
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="grid gap-3">
-                                        <Label htmlFor="director" className="text-foreground font-medium">
-                                            Đạo diễn
-                                        </Label>
-                                        <Input
-                                            id="director"
-                                            value={formData.director}
-                                            onChange={(e) => setFormData({...formData, director: e.target.value})}
-                                            className="bg-input border-border text-foreground"
-                                        />
-                                    </div>
-                                    <div className="grid gap-3">
-                                        <Label htmlFor="actors" className="text-foreground font-medium">
-                                            Diễn viên
-                                        </Label>
-                                        <Input
-                                            id="actors"
-                                            value={formData.actors}
-                                            onChange={(e) => setFormData({...formData, actors: e.target.value})}
-                                            placeholder="Ngăn cách bằng dấu phẩy"
-                                            className="bg-input border-border text-foreground"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="grid gap-3">
-                                        <Label htmlFor="genre" className="text-foreground font-medium">
-                                            Thể loại
+                                        <Label htmlFor="edit-genre" className="text-foreground font-medium">
+                                            Thể loại *
                                         </Label>
                                         <Select
                                             value={formData.genre}
@@ -780,8 +725,8 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                         </Select>
                                     </div>
                                     <div className="grid gap-3">
-                                        <Label htmlFor="language" className="text-foreground font-medium">
-                                            Ngôn ngữ
+                                        <Label htmlFor="edit-language" className="text-foreground font-medium">
+                                            Ngôn ngữ *
                                         </Label>
                                         <Select
                                             value={formData.language}
@@ -801,38 +746,17 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-3 gap-4">
+                                <div className="grid grid-cols-2 gap-4">
                                     <div className="grid gap-3">
-                                        <Label htmlFor="ageRating" className="text-foreground font-medium">
-                                            Độ tuổi
-                                        </Label>
-                                        <Select
-                                            value={formData.ageRating}
-                                            onValueChange={(value) => setFormData({...formData, ageRating: value})}
-                                        >
-                                            <SelectTrigger className="bg-input border-border text-foreground">
-                                                <SelectValue placeholder="Chọn"/>
-                                            </SelectTrigger>
-                                            <SelectContent className="bg-popover border-border">
-                                                {AGE_RATINGS.map((rating) => (
-                                                    <SelectItem key={rating} value={rating}>
-                                                        {rating}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
-                                    <div className="grid gap-3">
-                                        <Label htmlFor="country" className="text-foreground font-medium">
-                                            Quốc gia
+                                        <Label htmlFor="edit-country" className="text-foreground font-medium">
+                                            Quốc gia *
                                         </Label>
                                         <Select
                                             value={formData.country}
                                             onValueChange={(value) => setFormData({...formData, country: value})}
                                         >
                                             <SelectTrigger className="bg-input border-border text-foreground">
-                                                <SelectValue placeholder="Chọn"/>
+                                                <SelectValue placeholder="Chọn quốc gia"/>
                                             </SelectTrigger>
                                             <SelectContent className="bg-popover border-border">
                                                 {COUNTRIES.map((country) => (
@@ -843,75 +767,68 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                             </SelectContent>
                                         </Select>
                                     </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
                                     <div className="grid gap-3">
-                                        <Label htmlFor="duration" className="text-foreground font-medium">
-                                            Thời lượng (phút)
+                                        <Label htmlFor="edit-status" className="text-foreground font-medium">
+                                            Trạng thái *
                                         </Label>
-                                        <Input
-                                            id="duration"
-                                            type="number"
-                                            value={formData.duration}
-                                            onChange={(e) => setFormData({...formData, duration: e.target.value})}
-                                            className="bg-input border-border text-foreground"
-                                        />
-                                    </div>
-                                    <div className="grid gap-3">
-                                        <Label htmlFor="releaseDate" className="text-foreground font-medium">
-                                            Ngày khởi chiếu
-                                        </Label>
-                                        <Input
-                                            id="releaseDate"
-                                            type="date"
-                                            value={formData.releaseDate}
-                                            onChange={(e) => setFormData({...formData, releaseDate: e.target.value})}
-                                            className="bg-input border-border text-foreground"
-                                        />
+                                        <Select
+                                            value={formData.status}
+                                            onValueChange={(value: "UPCOMING" | "PLAYING" | "ENDED") =>
+                                                setFormData({...formData, status: value})
+                                            }
+                                        >
+                                            <SelectTrigger className="bg-input border-border text-foreground">
+                                                <SelectValue placeholder="Chọn trạng thái"/>
+                                            </SelectTrigger>
+                                            <SelectContent className="bg-popover border-border">
+                                                <SelectItem value="UPCOMING">Sắp chiếu</SelectItem>
+                                                <SelectItem value="PLAYING">Đang chiếu</SelectItem>
+                                                <SelectItem value="ENDED">Đã kết thúc</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                 </div>
 
                                 <div className="grid gap-3">
-                                    <Label htmlFor="status" className="text-foreground font-medium">
-                                        Trạng thái
+                                    <Label htmlFor="edit-releaseDate" className="text-foreground font-medium">
+                                        Ngày phát hành *
                                     </Label>
-                                    <Select
-                                        value={formData.status}
-                                        onValueChange={(value: Movie["status"]) =>
-                                            setFormData({...formData, status: value})
-                                        }
-                                    >
-                                        <SelectTrigger className="bg-input border-border text-foreground">
-                                            <SelectValue placeholder="Chọn trạng thái"/>
-                                        </SelectTrigger>
-                                        <SelectContent className="bg-popover border-border">
-                                            <SelectItem value="UPCOMING">Sắp chiếu</SelectItem>
-                                            <SelectItem value="PLAYING">Đang chiếu</SelectItem>
-                                            <SelectItem value="ENDED">Đã kết thúc</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-
-
-                                </div>
-
-                                <div className="grid gap-3">
-                                    <Label htmlFor="description" className="text-foreground font-medium">
-                                        Mô tả
-                                    </Label>
-                                    <Textarea
-                                        id="description"
-                                        value={formData.description}
-                                        onChange={(e) => setFormData({...formData, description: e.target.value})}
-                                        className="bg-input border-border text-foreground min-h-32"
+                                    <Input
+                                        id="edit-releaseDate"
+                                        type="date"
+                                        value={formData.releaseDate}
+                                        onChange={(e) => setFormData({...formData, releaseDate: e.target.value})}
+                                        className="bg-input border-border text-foreground"
                                     />
+                                </div>
+
+                                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Film className="w-5 h-5 text-amber-600"/>
+                                        <h3 className="font-semibold text-amber-800">Chỉnh sửa chi tiết</h3>
+                                    </div>
+                                    <p className="text-sm text-amber-700 mb-3">
+                                        Để chỉnh sửa thông tin chi tiết như đạo diễn, diễn viên, mô tả... 
+                                        hãy vào trang chi tiết phim.
+                                    </p>
+                                    <Button
+                                        onClick={() => {
+                                            setEditingMovie(null)
+                                            resetForm()
+                                            router.push(`/operator-manager/movies/${editingMovie?.id}`)
+                                        }}
+                                        className="border-amber-300 text-amber-700 hover:bg-amber-100"
+                                    >
+                                        <Film className="w-4 h-4 mr-2"/>
+                                        Xem & Chỉnh sửa chi tiết
+                                    </Button>
                                 </div>
                             </div>
                             <div className="flex justify-end gap-3 pt-4 border-t border-border">
                                 <Button
                                     variant="outline"
                                     onClick={() => {
-                                        setIsDialogOpen(false)
+                                        setEditingMovie(null)
                                         resetForm()
                                     }}
                                     className="border-border text-foreground hover:bg-muted"
@@ -1111,18 +1028,12 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                     <TableRow className="border-border hover:bg-muted/50">
                                         <TableHead className="text-muted-foreground font-semibold">Tên phim</TableHead>
                                         <TableHead className="text-muted-foreground font-semibold">Thể loại</TableHead>
-                                        <TableHead className="text-muted-foreground font-semibold">Đạo diễn</TableHead>
-                                        <TableHead className="text-muted-foreground font-semibold">Diễn viên</TableHead>
-                                        <TableHead className="text-muted-foreground font-semibold">Độ tuổi</TableHead>
-                                        <TableHead className="text-muted-foreground font-semibold">Thời
-                                            lượng</TableHead>
                                         <TableHead className="text-muted-foreground font-semibold">Ngôn ngữ</TableHead>
                                         <TableHead className="text-muted-foreground font-semibold">Quốc gia</TableHead>
                                         <TableHead className="text-muted-foreground font-semibold">Ngày phát
                                             hành</TableHead>
                                         <TableHead className="text-muted-foreground font-semibold">Trạng
                                             thái</TableHead>
-                                        <TableHead className="text-muted-foreground font-semibold">Poster</TableHead>
                                         <TableHead className="text-muted-foreground font-semibold">Hành động</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -1135,22 +1046,6 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                                 <TableCell
                                                     className="font-semibold text-foreground">{movie.name}</TableCell>
                                                 <TableCell>{movie.genre.map(g => g.name).join(", ")}</TableCell>
-                                                <TableCell className="text-foreground">{movie.director}</TableCell>
-                                                <TableCell className="text-foreground max-w-[200px] truncate"
-                                                           title={movie.actor}>
-                                                    {movie.actor}
-                                                </TableCell>
-                                                <TableCell className="text-foreground">
-                                                    <Badge
-                                                        variant="outline"
-                                                        className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-                                                    >
-                                                        {movie.ageRating || "N/A"}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell className="text-foreground">
-                                                    {movie.duration ? `${movie.duration} phút` : "N/A"}
-                                                </TableCell>
                                                 <TableCell
                                                     className="text-foreground">{movie.language?.name || "N/A"}</TableCell>
                                                 <TableCell className="text-foreground">{movie.country?.name}</TableCell>
@@ -1166,21 +1061,30 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Image
-                                                        src={movie.posterUrl || "/placeholder.svg"}
-                                                        alt={movie.name}
-                                                        width={80}
-                                                        height={120}
-                                                        className="rounded-lg object-cover shadow-md"
-                                                    />
-                                                </TableCell>
-                                                <TableCell>
                                                     <div className="flex gap-2">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            onClick={(e) => {
+                                                                if (e.ctrlKey || e.metaKey) {
+                                                                    // Ctrl+Click hoặc Cmd+Click: mở tab mới
+                                                                    window.open(`/operator-manager/movies/${movie.id}`, '_blank')
+                                                                } else {
+                                                                    // Click thường: mở trong tab hiện tại
+                                                                    router.push(`/operator-manager/movies/${movie.id}`)
+                                                                }
+                                                            }}
+                                                            className="text-blue-600 hover:bg-blue-50"
+                                                            title="Xem chi tiết (Ctrl+Click để mở tab mới)"
+                                                        >
+                                                            <Film className="w-4 h-4"/>
+                                                        </Button>
                                                         <Button
                                                             size="sm"
                                                             variant="ghost"
                                                             onClick={() => openEditDialog(movie)}
                                                             className="text-foreground hover:bg-muted"
+                                                            title="Chỉnh sửa"
                                                         >
                                                             <Pencil className="w-4 h-4"/>
                                                         </Button>
@@ -1189,6 +1093,7 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                                             variant="ghost"
                                                             onClick={() => handleDelete(movie.id)}
                                                             className="text-destructive hover:bg-destructive/10"
+                                                            title="Xóa"
                                                         >
                                                             <Trash2 className="w-4 h-4"/>
                                                         </Button>

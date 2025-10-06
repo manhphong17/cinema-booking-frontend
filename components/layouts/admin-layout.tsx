@@ -1,7 +1,9 @@
 "use client"
 
 import type {ReactNode} from "react"
-import {useState} from "react"
+import {useState, useMemo, memo} from "react"
+import {useRouter, usePathname} from "next/navigation"
+import Link from "next/link"
 import {Button} from "@/components/ui/button"
 import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar"
 import {Calendar, DoorOpen, Film, LayoutDashboard, LogOut, Newspaper, ChevronLeft, ChevronRight} from "lucide-react"
@@ -20,13 +22,70 @@ const sidebarItems = [
     {id: "news", label: "News Management", icon: Newspaper},
 ]
 
+// Memoized sidebar item component for better performance
+const SidebarItem = memo(({ 
+    item, 
+    isActive, 
+    isCollapsed, 
+    index
+}: {
+    item: typeof sidebarItems[0]
+    isActive: boolean
+    isCollapsed: boolean
+    index: number
+}) => {
+    const Icon = item.icon
+    const href = item.id === "dashboard" ? "/operator-manager" : `/operator-manager/${item.id}`
+    
+    return (
+        <Link href={href}>
+            <Button
+                variant={isActive ? "secondary" : "ghost"}
+                className={`operator-nav-item operator-tooltip w-full justify-start gap-3 h-12 transition-all duration-300 operator-hover-lift ${
+                    isActive
+                        ? "operator-gradient-primary text-primary-foreground shadow-lg scale-105"
+                        : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:scale-105"
+                }`}
+                style={{ animationDelay: `${index * 0.1}s` }}
+                data-tooltip={isCollapsed ? item.label : ""}
+            >
+                <Icon className={`w-5 h-5 transition-transform duration-200 ${isActive ? 'scale-110' : ''}`}/>
+                <span className="font-medium">{item.label}</span>
+                {isActive && (
+                    <div className="operator-nav-indicator ml-auto w-2 h-2 rounded-full bg-primary-foreground/20"></div>
+                )}
+            </Button>
+        </Link>
+    )
+})
+
+SidebarItem.displayName = "SidebarItem"
+
 export function AdminLayout({children, activeSection, onSectionChange}: AdminLayoutProps) {
+    const router = useRouter()
+    const pathname = usePathname()
     const [isCollapsed, setIsCollapsed] = useState(() => {
         if (typeof window !== 'undefined') {
             return localStorage.getItem('operator-sidebar-collapsed') === 'true'
         }
         return false
     })
+
+    // Memoize active section calculation to avoid re-computation
+    const currentActiveSection = useMemo(() => {
+        if (pathname === "/operator-manager") return "dashboard"
+        
+        // Handle nested routes like /operator-manager/movies/[id]
+        const pathParts = pathname.split("/").filter(Boolean)
+        
+        // If we're in a nested route, get the parent section
+        if (pathParts.length >= 3 && pathParts[0] === "operator-manager") {
+            return pathParts[1] // Return the section (movies, showtimes, etc.)
+        }
+        
+        // For direct routes like /operator-manager/movies
+        return pathParts[pathParts.length - 1] || "dashboard"
+    }, [pathname])
 
     const toggleSidebar = () => {
         const newState = !isCollapsed
@@ -35,6 +94,8 @@ export function AdminLayout({children, activeSection, onSectionChange}: AdminLay
             localStorage.setItem('operator-sidebar-collapsed', newState.toString())
         }
     }
+
+    // Navigation is now handled by Link components for better performance
 
     return (
         <div className="flex h-screen bg-background">
@@ -66,31 +127,15 @@ export function AdminLayout({children, activeSection, onSectionChange}: AdminLay
 
                 {/* Navigation */}
                 <nav className={`flex-1 p-4 space-y-2 ${isCollapsed ? 'overflow-hidden' : 'overflow-y-auto operator-scrollbar'}`}>
-                    {sidebarItems.map((item, index) => {
-                        const Icon = item.icon
-                        const isActive = activeSection === item.id
-
-                        return (
-                            <Button
-                                key={item.id}
-                                variant={isActive ? "secondary" : "ghost"}
-                                className={`operator-nav-item operator-tooltip w-full justify-start gap-3 h-12 transition-all duration-300 operator-hover-lift ${
-                                    isActive
-                                        ? "operator-gradient-primary text-primary-foreground shadow-lg scale-105"
-                                        : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:scale-105"
-                                }`}
-                                onClick={() => onSectionChange(item.id)}
-                                style={{ animationDelay: `${index * 0.1}s` }}
-                                data-tooltip={isCollapsed ? item.label : ""}
-                            >
-                                <Icon className={`w-5 h-5 transition-transform duration-200 ${isActive ? 'scale-110' : ''}`}/>
-                                <span className="font-medium">{item.label}</span>
-                                {isActive && (
-                                    <div className="operator-nav-indicator ml-auto w-2 h-2 rounded-full bg-primary-foreground/20"></div>
-                                )}
-                            </Button>
-                        )
-                    })}
+                    {sidebarItems.map((item, index) => (
+                        <SidebarItem
+                            key={item.id}
+                            item={item}
+                            isActive={currentActiveSection === item.id}
+                            isCollapsed={isCollapsed}
+                            index={index}
+                        />
+                    ))}
                 </nav>
 
                 {/* User Profile */}
@@ -116,7 +161,7 @@ export function AdminLayout({children, activeSection, onSectionChange}: AdminLay
                                 className="w-full justify-start gap-2 text-sidebar-foreground hover:bg-sidebar-accent/50 operator-hover-lift transition-all duration-200"
                                 onClick={() => {
                                     localStorage.removeItem("auth")
-                                    window.location.href = "/login"
+                                    router.push("/login")
                                 }}
                             >
                                 <LogOut className="w-4 h-4"/>
@@ -138,7 +183,7 @@ export function AdminLayout({children, activeSection, onSectionChange}: AdminLay
                                 className="operator-tooltip w-10 h-10 p-0 rounded-full hover:bg-sidebar-accent/50 operator-hover-lift transition-all duration-200"
                                 onClick={() => {
                                     localStorage.removeItem("auth")
-                                    window.location.href = "/login"
+                                    router.push("/login")
                                 }}
                                 data-tooltip="Logout"
                             >
