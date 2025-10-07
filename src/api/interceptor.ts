@@ -66,17 +66,17 @@ const refreshAccessToken = async (): Promise<string | null> => {
 apiClient.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem("accessToken")
-        
+
         if (token && !isTokenExpired(token)) {
-            config.headers.Authorization = `Bearer ${token}`
+            config.headers?.set?.("Authorization", `Bearer ${token}`)
         }
-        
+
         return config
     },
-    (error) => {
-        return Promise.reject(error)
-    }
+    (error) => Promise.reject(error)
 )
+
+
 
 // Response interceptor - tự động xử lý token hết hạn
 apiClient.interceptors.response.use(

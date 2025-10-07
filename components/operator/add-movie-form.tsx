@@ -28,8 +28,14 @@ import {toast} from "sonner"
 import Image from "next/image"
 import {apiClient} from "@/src/api/interceptor"
 
-const AGE_RATINGS = ["P", "K", "T13", "T16", "T18", "C"]
-const COUNTRIES = ["Vietnam", "USA", "Korea", "Japan", "China", "Thailand", "France", "UK"]
+const AGE_RATINGS = [
+    { value: "0", label: "P" },
+    { value: "1", label: "K" }, 
+    { value: "2", label: "T13" },
+    { value: "3", label: "T16" },
+    { value: "4", label: "T18" },
+    { value: "5", label: "C" }
+]
 
 interface Genre {
     id: number
@@ -41,10 +47,16 @@ interface Language {
     name: string
 }
 
+interface Country {
+    id: number
+    name: string
+}
+
 export function AddMovieForm() {
     const router = useRouter()
     const [genres, setGenres] = useState<Genre[]>([])
     const [languages, setLanguages] = useState<Language[]>([])
+    const [countries, setCountries] = useState<Country[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
     
@@ -53,19 +65,21 @@ export function AddMovieForm() {
 
     const [formData, setFormData] = useState({
         name: "",
-        genre: "",
-        language: "",
+        genreIds: [] as number[],
+        languageId: "",
         duration: "",
         releaseDate: "",
         description: "",
-        poster: "",
         director: "",
-        actors: "",
+        actor: "",
         ageRating: "",
-        year: "",
-        country: "",
+        countryId: "",
         trailerUrl: "",
     })
+    
+    const [selectedGenres, setSelectedGenres] = useState<Genre[]>([])
+    const [genreSearch, setGenreSearch] = useState("")
+    const [showGenreDropdown, setShowGenreDropdown] = useState(false)
 
     const fetchGenres = async () => {
         try {
@@ -74,6 +88,39 @@ export function AddMovieForm() {
         } catch (error) {
             console.error("Failed to fetch genres:", error)
         }
+    }
+
+    // Filter genres based on search
+    const filteredGenres = genres.filter(genre => 
+        genre.name.toLowerCase().includes(genreSearch.toLowerCase())
+    )
+
+    // Handle genre selection
+    const handleGenreSelect = (genre: Genre) => {
+        if (!selectedGenres.find(g => g.id === genre.id)) {
+            const newSelectedGenres = [...selectedGenres, genre]
+            const newGenreIds = newSelectedGenres.map(g => g.id)
+            setSelectedGenres(newSelectedGenres)
+            setFormData({
+                ...formData,
+                genreIds: newGenreIds
+            })
+            console.log("Genre selected:", genre.name, "New genre IDs:", newGenreIds)
+        }
+        setGenreSearch("")
+        setShowGenreDropdown(false)
+    }
+
+    // Handle genre removal
+    const handleGenreRemove = (genreId: number) => {
+        const newSelectedGenres = selectedGenres.filter(g => g.id !== genreId)
+        const newGenreIds = newSelectedGenres.map(g => g.id)
+        setSelectedGenres(newSelectedGenres)
+        setFormData({
+            ...formData,
+            genreIds: newGenreIds
+        })
+        console.log("Genre removed:", genreId, "New genre IDs:", newGenreIds)
     }
 
     const fetchLanguages = async () => {
@@ -85,12 +132,22 @@ export function AddMovieForm() {
         }
     }
 
+    const fetchCountries = async () => {
+        try {
+            const response = await apiClient.get('/movies/countries')
+            setCountries(response.data.data || [])
+        } catch (error) {
+            console.error("Failed to fetch countries:", error)
+        }
+    }
+
     useEffect(() => {
         const loadData = async () => {
             setIsLoading(true)
             await Promise.all([
                 fetchGenres(),
-                fetchLanguages()
+                fetchLanguages(),
+                fetchCountries()
             ])
             setIsLoading(false)
         }
@@ -100,8 +157,17 @@ export function AddMovieForm() {
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (file) {
-            if (!file.type.startsWith("image/")) {
-                toast.error("Vui lòng chọn file ảnh hợp lệ (JPG, PNG, WebP)")
+            // Check file type - match backend validation exactly
+            const allowedTypes = ['image/jpeg', 'image/png']
+            if (!allowedTypes.includes(file.type)) {
+                toast.error("Vui lòng chọn file ảnh hợp lệ (JPEG, PNG)")
+                return
+            }
+
+            // Check file size (max 5MB)
+            const maxSize = 5 * 1024 * 1024 // 5MB
+            if (file.size > maxSize) {
+                toast.error("Kích thước file không được vượt quá 5MB")
                 return
             }
 
@@ -117,48 +183,51 @@ export function AddMovieForm() {
     const removePosterPreview = () => {
         setPosterPreview("")
         setPosterFile(null)
-        setFormData({...formData, poster: ""})
     }
 
     const validateForm = () => {
-        if (!formData.name.trim()) {
+        if (!formData.name || !formData.name.trim()) {
             toast.error("Vui lòng nhập tên phim")
             return false
         }
-        if (!formData.genre) {
-            toast.error("Vui lòng chọn thể loại")
+        if (!formData.genreIds || !Array.isArray(formData.genreIds) || formData.genreIds.length === 0) {
+            toast.error("Vui lòng chọn ít nhất một thể loại")
             return false
         }
-        if (!formData.language) {
+        if (!formData.languageId || formData.languageId === "") {
             toast.error("Vui lòng chọn ngôn ngữ")
             return false
         }
-        if (!formData.releaseDate) {
+        if (!formData.releaseDate || formData.releaseDate === "") {
             toast.error("Vui lòng chọn ngày phát hành")
             return false
         }
-        if (!formData.country) {
+        if (!formData.countryId || formData.countryId === "") {
             toast.error("Vui lòng chọn quốc gia")
             return false
         }
-        if (!formData.director.trim()) {
+        if (!formData.director || !formData.director.trim()) {
             toast.error("Vui lòng nhập tên đạo diễn")
             return false
         }
-        if (!formData.actors.trim()) {
+        if (!formData.actor || !formData.actor.trim()) {
             toast.error("Vui lòng nhập tên diễn viên")
             return false
         }
-        if (!formData.description.trim()) {
+        if (!formData.description || !formData.description.trim()) {
             toast.error("Vui lòng nhập mô tả phim")
             return false
         }
-        if (!formData.duration || parseInt(formData.duration) <= 0) {
+        if (!formData.duration || formData.duration === "" || parseInt(formData.duration) <= 0) {
             toast.error("Vui lòng nhập thời lượng phim hợp lệ")
             return false
         }
-        if (!formData.ageRating) {
+        if (!formData.ageRating || formData.ageRating === "") {
             toast.error("Vui lòng chọn độ tuổi")
+            return false
+        }
+        if (!posterFile) {
+            toast.error("Vui lòng chọn file poster")
             return false
         }
         
@@ -168,24 +237,297 @@ export function AddMovieForm() {
     const handleSubmit = async () => {
         if (!validateForm()) return
         
+        // Additional validation before sending
+        console.log("Current form data before processing:", formData)
+        console.log("Selected genres before processing:", selectedGenres)
+        
         setIsSaving(true)
         try {
             const formDataToSend = new FormData()
-            for (const [key, value] of Object.entries(formData)) {
-                formDataToSend.append(key, value)
+            
+            // Ensure all required fields are properly formatted to match backend DTO
+            const movieData = {
+                name: formData.name?.trim() || "",
+                description: formData.description?.trim() || "",
+                duration: formData.duration ? parseInt(formData.duration) : null,
+                releaseDate: formData.releaseDate || "",
+                director: formData.director?.trim() || "",
+                actor: formData.actor?.trim() || "",
+                ageRating: formData.ageRating ? parseInt(formData.ageRating) : null,
+                trailerUrl: formData.trailerUrl?.trim() || "",
+                genreIds: Array.isArray(formData.genreIds) ? formData.genreIds.map(id => Number(id)) : [],
+                languageId: formData.languageId ? parseInt(formData.languageId) : null,
+                countryId: formData.countryId ? parseInt(formData.countryId) : null
             }
-            if (posterFile) formDataToSend.append("posterFile", posterFile)
+            
+            // Validate that all required fields have values
+            if (!movieData.name) {
+                toast.error("Tên phim không được để trống")
+                setIsSaving(false)
+                return
+            }
+            if (!movieData.languageId) {
+                toast.error("Ngôn ngữ không được để trống")
+                setIsSaving(false)
+                return
+            }
+            if (!movieData.countryId) {
+                toast.error("Quốc gia không được để trống")
+                setIsSaving(false)
+                return
+            }
+            if (!movieData.description || movieData.description.trim() === "") {
+                toast.error("Mô tả không được để trống")
+                setIsSaving(false)
+                return
+            }
+            if (!movieData.director) {
+                toast.error("Đạo diễn không được để trống")
+                setIsSaving(false)
+                return
+            }
+            if (!movieData.actor) {
+                toast.error("Diễn viên không được để trống")
+                setIsSaving(false)
+                return
+            }
+            if (!movieData.duration || movieData.duration <= 0) {
+                toast.error("Thời lượng không hợp lệ")
+                setIsSaving(false)
+                return
+            }
+            if (!movieData.ageRating) {
+                toast.error("Độ tuổi không được để trống")
+                setIsSaving(false)
+                return
+            }
+            if (!movieData.genreIds || movieData.genreIds.length === 0) {
+                toast.error("Thể loại không được để trống")
+                setIsSaving(false)
+                return
+            }
+            
+            // Handle regular fields - match backend DTO field order
+            formDataToSend.append("name", movieData.name)
+            formDataToSend.append("description", movieData.description)
+            formDataToSend.append("duration", movieData.duration!.toString())
+            formDataToSend.append("releaseDate", movieData.releaseDate)
+            formDataToSend.append("director", movieData.director)
+            formDataToSend.append("actor", movieData.actor)
+            formDataToSend.append("ageRating", movieData.ageRating!.toString())
+            formDataToSend.append("trailerUrl", movieData.trailerUrl)
+            formDataToSend.append("languageId", movieData.languageId!.toString())
+            formDataToSend.append("countryId", movieData.countryId!.toString())
+            
+            // Handle multiple genre IDs - ensure we always send at least one genre
+            if (movieData.genreIds && movieData.genreIds.length > 0) {
+                movieData.genreIds.forEach((id) => {
+                    formDataToSend.append("genreIds", id.toString())
+                })
+            } else {
+                // This should not happen due to validation, but just in case
+                console.error("No genres selected, this should have been caught by validation")
+                toast.error("Vui lòng chọn ít nhất một thể loại")
+                setIsSaving(false)
+                return
+            }
 
-            await apiClient.post('/movies', formDataToSend, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
+            if (posterFile) {
+                console.log("POSTER FILE DEBUG:", {
+                    name: posterFile.name,
+                    type: posterFile.type,
+                    size: posterFile.size,
+                    lastModified: posterFile.lastModified,
+                    isFile: posterFile instanceof File
+                })
+                formDataToSend.append("poster", posterFile)
+                console.log("Poster file appended successfully")
+                
+                // Verify the file was added to FormData
+                console.log("FormData entries after adding poster:")
+                for (let [key, value] of formDataToSend.entries()) {
+                    if (key === 'poster') {
+                        console.log("POSTER IN FORMDATA:", {
+                            key: key,
+                            value: value,
+                            isFile: value instanceof File,
+                            name: value.name,
+                            type: value.type,
+                            size: value.size
+                        })
+                    }
                 }
-            })
+            } else {
+                console.error("No poster file selected!")
+                toast.error("Vui lòng chọn file poster")
+                setIsSaving(false)
+                return
+            }
 
-            toast.success("Thêm phim mới thành công")
-            router.push("/operator-manager/movies")
-        } catch (error) {
-            toast.error("Không thể thêm phim. Vui lòng thử lại.")
+            // Debug logging
+            console.log("Form data being sent:", movieData)
+            console.log("Selected genres:", selectedGenres)
+            console.log("Genre IDs:", movieData.genreIds)
+            console.log("Poster file:", posterFile?.name, "Size:", posterFile?.size)
+            console.log("Description validation:", {
+                original: formData.description,
+                processed: movieData.description,
+                isEmpty: !movieData.description || movieData.description.trim() === ""
+            })
+            console.log("Release date validation:", {
+                original: formData.releaseDate,
+                processed: movieData.releaseDate,
+                isValidDate: !isNaN(Date.parse(movieData.releaseDate)),
+                isFuture: new Date(movieData.releaseDate) > new Date(),
+                currentDate: new Date().toISOString().split('T')[0]
+            })
+            
+            // Debug FormData contents
+            console.log("FormData contents:")
+            for (let [key, value] of formDataToSend.entries()) {
+                console.log(`${key}:`, value, `(type: ${typeof value})`)
+                if (key === 'description') {
+                    console.log("DESCRIPTION DEBUG:", {
+                        value: value,
+                        length: value?.length,
+                        isNull: value === null,
+                        isUndefined: value === undefined,
+                        isEmpty: value === ""
+                    })
+                }
+            }
+            
+            // Also log the raw form data
+            console.log("Raw form data state:", formData)
+            console.log("Poster file state:", posterFile)
+
+            console.log("=== TESTING FILE UPLOAD ===")
+            console.log("About to send request to /movies/add")
+            console.log("FormData size:", formDataToSend.get("poster") ? "HAS FILE" : "NO FILE")
+            console.log("All FormData entries:")
+            for (let [key, value] of formDataToSend.entries()) {
+                console.log(`${key}:`, value instanceof File ? `File(${value.name})` : value)
+            }
+            
+            // Test with a simple object first to see if the endpoint works
+            const testData = {
+                name: "Test Movie",
+                description: "Test Description",
+                duration: 120,
+                releaseDate: "2025-12-31",
+                director: "Test Director",
+                actor: "Test Actor",
+                ageRating: 1,
+                trailerUrl: "",
+                languageId: 1,
+                countryId: 1,
+                genreIds: [1, 2]
+            }
+            
+            console.log("Testing with simple data:", testData)
+            
+            // Use FormData for file upload
+            const token = localStorage.getItem("accessToken")
+            console.log("Token:", token ? "EXISTS" : "MISSING")
+            console.log("Backend URL: http://localhost:8885/movies/add")
+            
+            console.log("Sending FormData with file upload")
+            
+            const response = await fetch('http://localhost:8885/movies/add', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                    // Don't set Content-Type for FormData - let browser set it with boundary
+                },
+                body: formDataToSend
+            })
+            
+            console.log("Response status:", response.status)
+            console.log("Response headers:", response.headers)
+            
+            if (!response.ok) {
+                const errorData = await response.json()
+                throw new Error(JSON.stringify(errorData))
+            }
+            
+            const result = await response.json()
+            console.log("Request successful with FormData:", result)
+            
+            if (result.status === 200) {
+                toast.success("Thêm phim mới thành công")
+                router.push("/operator-manager/movies")
+            } else {
+                throw new Error(result.message || "Failed to create movie")
+            }
+        } catch (error: any) {
+            // Use alert to show error details since console.log might be overridden
+            alert("ERROR DEBUG:\n" + JSON.stringify(error.response?.data, null, 2))
+            
+            console.log("=== ERROR DEBUG START ===")
+            console.log("Error creating movie:", error)
+            console.log("Error response:", error.response?.data)
+            console.log("Error status:", error.response?.status)
+            
+            // Simple logging approach
+            if (error.response?.data) {
+                console.log("Error data exists:", error.response.data)
+                console.log("Error data type:", typeof error.response.data)
+                
+                // Try to log each property
+                Object.keys(error.response.data).forEach(key => {
+                    console.log(`Error.${key}:`, error.response.data[key])
+                })
+            } else {
+                console.log("No error response data")
+            }
+            
+            try {
+                console.log("Error response stringified:", JSON.stringify(error.response?.data, null, 2))
+            } catch (e) {
+                console.log("Could not stringify error response:", e)
+                console.log("Error response raw:", error.response?.data)
+            }
+            console.log("=== ERROR DEBUG END ===")
+            console.error("Error status:", error.response?.status)
+            console.error("Error headers:", error.response?.headers)
+            console.error("Full error object:", JSON.stringify(error, null, 2))
+            
+            // Try to extract error details more specifically
+            if (error.response?.data) {
+                console.error("Error data type:", typeof error.response.data)
+                console.error("Error data keys:", Object.keys(error.response.data))
+                
+                // Log each property of the error response
+                for (const [key, value] of Object.entries(error.response.data)) {
+                    console.error(`Error response.${key}:`, value)
+                }
+                
+                if (error.response.data.errors) {
+                    console.error("Validation errors array:", error.response.data.errors)
+                    error.response.data.errors.forEach((err: any, index: number) => {
+                        console.error(`Error ${index}:`, err)
+                    })
+                }
+                if (error.response.data.message) {
+                    console.error("Error message:", error.response.data.message)
+                }
+            }
+            
+            if (error.response?.data?.message) {
+                toast.error(`Lỗi: ${error.response.data.message}`)
+            } else if (error.response?.data?.errors) {
+                // Handle validation errors from backend
+                const errors = error.response.data.errors
+                console.error("Validation errors:", errors)
+                const errorMessages = errors.map((err: any) => err.defaultMessage || err.message).join(', ')
+                toast.error(`Lỗi validation: ${errorMessages}`)
+            } else if (error.response?.data) {
+                // Log the full error response
+                console.error("Full error response:", JSON.stringify(error.response.data, null, 2))
+                toast.error(`Lỗi: ${JSON.stringify(error.response.data)}`)
+            } else {
+                toast.error("Không thể thêm phim. Vui lòng thử lại.")
+            }
         } finally {
             setIsSaving(false)
         }
@@ -194,19 +536,20 @@ export function AddMovieForm() {
     const resetForm = () => {
         setFormData({
             name: "",
-            genre: "",
-            language: "",
+            genreIds: [],
+            languageId: "",
             duration: "",
             releaseDate: "",
             description: "",
-            poster: "",
             director: "",
-            actors: "",
+            actor: "",
             ageRating: "",
-            year: "",
-            country: "",
+            countryId: "",
             trailerUrl: "",
         })
+        setSelectedGenres([])
+        setGenreSearch("")
+        setShowGenreDropdown(false)
         setPosterPreview("")
         setPosterFile(null)
     }
@@ -260,7 +603,7 @@ export function AddMovieForm() {
                                             <Input
                                                 id="poster-file"
                                                 type="file"
-                                                accept="image/*"
+                                                accept="image/jpeg,image/png"
                                                 onChange={handleFileChange}
                                                 className="hidden"
                                             />
@@ -280,7 +623,7 @@ export function AddMovieForm() {
                                             )}
                                         </div>
                                         <p className="text-xs text-muted-foreground">
-                                            Chọn file ảnh poster (JPG, PNG, WebP) - Kích thước khuyến nghị: 300x450px
+                                            Chọn file ảnh poster (JPEG, PNG) - Kích thước khuyến nghị: 300x450px
                                         </p>
                                     </div>
                                 </div>
@@ -336,7 +679,10 @@ export function AddMovieForm() {
                                     <Input
                                         id="name"
                                         value={formData.name}
-                                        onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                        onChange={(e) => {
+                                            console.log("Name input changed:", e.target.value)
+                                            setFormData({...formData, name: e.target.value})
+                                        }}
                                         className="bg-input border-border text-foreground h-12 text-lg"
                                         placeholder="Nhập tên phim"
                                     />
@@ -344,39 +690,99 @@ export function AddMovieForm() {
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="grid gap-3">
-                                        <Label htmlFor="genre" className="text-foreground font-medium">
+                                        <Label className="text-foreground font-medium">
                                             Thể loại *
                                         </Label>
-                                        <Select
-                                            value={formData.genre}
-                                            onValueChange={(value) => setFormData({...formData, genre: value})}
-                                        >
-                                            <SelectTrigger className="bg-input border-border text-foreground h-12">
-                                                <SelectValue placeholder="Chọn thể loại"/>
-                                            </SelectTrigger>
-                                            <SelectContent className="bg-popover border-border">
-                                                {genres.map((genre) => (
-                                                    <SelectItem key={genre.id} value={genre.name}>
+                                        
+                                        {/* Selected Genres Display */}
+                                        {selectedGenres.length > 0 && (
+                                            <div className="flex flex-wrap gap-2 mb-2">
+                                                {selectedGenres.map((genre) => (
+                                                    <Badge
+                                                        key={genre.id}
+                                                        variant="secondary"
+                                                        className="bg-primary/10 text-primary border-primary/20 px-3 py-1"
+                                                    >
                                                         {genre.name}
-                                                    </SelectItem>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleGenreRemove(genre.id)}
+                                                            className="ml-2 hover:text-red-500"
+                                                        >
+                                                            <X className="w-3 h-3"/>
+                                                        </button>
+                                                    </Badge>
                                                 ))}
-                                            </SelectContent>
-                                        </Select>
+                                            </div>
+                                        )}
+                                        
+                                        {/* Genre Search Input */}
+                                        <div className="relative">
+                                            <Input
+                                                placeholder="Tìm kiếm thể loại..."
+                                                value={genreSearch}
+                                                onChange={(e) => {
+                                                    setGenreSearch(e.target.value)
+                                                    setShowGenreDropdown(true)
+                                                }}
+                                                onFocus={() => setShowGenreDropdown(true)}
+                                                className="bg-input border-border text-foreground h-12"
+                                            />
+                                            
+                                            {/* Dropdown */}
+                                            {showGenreDropdown && (
+                                                <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                                    {filteredGenres.length > 0 ? (
+                                                        filteredGenres.map((genre) => (
+                                                            <button
+                                                                key={genre.id}
+                                                                type="button"
+                                                                onClick={() => handleGenreSelect(genre)}
+                                                                className="w-full text-left px-4 py-2 hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
+                                                                disabled={selectedGenres.some(g => g.id === genre.id)}
+                                                            >
+                                                                <span>{genre.name}</span>
+                                                                {selectedGenres.some(g => g.id === genre.id) && (
+                                                                    <Badge variant="outline" className="text-xs">
+                                                                        Đã chọn
+                                                                    </Badge>
+                                                                )}
+                                                            </button>
+                                                        ))
+                                                    ) : (
+                                                        <div className="px-4 py-2 text-muted-foreground text-sm">
+                                                            Không tìm thấy thể loại
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                        
+                                        {/* Click outside to close dropdown */}
+                                        {showGenreDropdown && (
+                                            <div 
+                                                className="fixed inset-0 z-40" 
+                                                onClick={() => setShowGenreDropdown(false)}
+                                            />
+                                        )}
                                     </div>
                                     <div className="grid gap-3">
                                         <Label htmlFor="language" className="text-foreground font-medium">
                                             Ngôn ngữ *
                                         </Label>
                                         <Select
-                                            value={formData.language}
-                                            onValueChange={(value) => setFormData({...formData, language: value})}
+                                            value={formData.languageId}
+                                            onValueChange={(value) => {
+                                                console.log("Language selected:", value)
+                                                setFormData({...formData, languageId: value})
+                                            }}
                                         >
                                             <SelectTrigger className="bg-input border-border text-foreground h-12">
                                                 <SelectValue placeholder="Chọn ngôn ngữ"/>
                                             </SelectTrigger>
                                             <SelectContent className="bg-popover border-border">
                                                 {languages.map((lang) => (
-                                                    <SelectItem key={lang.id} value={lang.name}>
+                                                    <SelectItem key={lang.id} value={lang.id.toString()}>
                                                         {lang.name}
                                                     </SelectItem>
                                                 ))}
@@ -390,16 +796,19 @@ export function AddMovieForm() {
                                         Quốc gia *
                                     </Label>
                                     <Select
-                                        value={formData.country}
-                                        onValueChange={(value) => setFormData({...formData, country: value})}
+                                        value={formData.countryId}
+                                        onValueChange={(value) => {
+                                            console.log("Country selected:", value)
+                                            setFormData({...formData, countryId: value})
+                                        }}
                                     >
                                         <SelectTrigger className="bg-input border-border text-foreground h-12">
                                             <SelectValue placeholder="Chọn quốc gia"/>
                                         </SelectTrigger>
                                         <SelectContent className="bg-popover border-border">
-                                            {COUNTRIES.map((country) => (
-                                                <SelectItem key={country} value={country}>
-                                                    {country}
+                                            {countries.map((country) => (
+                                                <SelectItem key={country.id} value={country.id.toString()}>
+                                                    {country.name}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
@@ -417,21 +826,6 @@ export function AddMovieForm() {
                                             value={formData.releaseDate}
                                             onChange={(e) => setFormData({...formData, releaseDate: e.target.value})}
                                             className="bg-input border-border text-foreground h-12"
-                                        />
-                                    </div>
-                                    <div className="grid gap-3">
-                                        <Label htmlFor="year" className="text-foreground font-medium">
-                                            Năm sản xuất
-                                        </Label>
-                                        <Input
-                                            id="year"
-                                            type="number"
-                                            value={formData.year}
-                                            onChange={(e) => setFormData({...formData, year: e.target.value})}
-                                            className="bg-input border-border text-foreground h-12"
-                                            placeholder="2024"
-                                            min="1900"
-                                            max="2030"
                                         />
                                     </div>
                                 </div>
@@ -470,8 +864,8 @@ export function AddMovieForm() {
                                     </Label>
                                     <Input
                                         id="actors"
-                                        value={formData.actors}
-                                        onChange={(e) => setFormData({...formData, actors: e.target.value})}
+                                        value={formData.actor}
+                                        onChange={(e) => setFormData({...formData, actor: e.target.value})}
                                         className="bg-input border-border text-foreground h-12 text-lg"
                                         placeholder="Nhập tên diễn viên (ngăn cách bằng dấu phẩy)"
                                     />
@@ -496,7 +890,10 @@ export function AddMovieForm() {
                                     <Textarea
                                         id="description"
                                         value={formData.description}
-                                        onChange={(e) => setFormData({...formData, description: e.target.value})}
+                                        onChange={(e) => {
+                                            console.log("Description changed:", e.target.value)
+                                            setFormData({...formData, description: e.target.value})
+                                        }}
                                         className="bg-input border-border text-foreground min-h-32 text-lg"
                                         placeholder="Nhập mô tả phim..."
                                     />
@@ -529,12 +926,15 @@ export function AddMovieForm() {
                                                 <SelectValue placeholder="Chọn độ tuổi"/>
                                             </SelectTrigger>
                                             <SelectContent className="bg-popover border-border">
-                                                <SelectItem value="P">P - Mọi lứa tuổi</SelectItem>
-                                                <SelectItem value="K">K - Trẻ em</SelectItem>
-                                                <SelectItem value="T13">T13 - 13+</SelectItem>
-                                                <SelectItem value="T16">T16 - 16+</SelectItem>
-                                                <SelectItem value="T18">T18 - 18+</SelectItem>
-                                                <SelectItem value="C">C - Cấm trẻ em</SelectItem>
+                                                {AGE_RATINGS.map((rating) => (
+                                                    <SelectItem key={rating.value} value={rating.value}>
+                                                        {rating.label} - {rating.label === "P" ? "Mọi lứa tuổi" : 
+                                                         rating.label === "K" ? "Trẻ em" :
+                                                         rating.label === "T13" ? "13+" :
+                                                         rating.label === "T16" ? "16+" :
+                                                         rating.label === "T18" ? "18+" : "Cấm trẻ em"}
+                                                    </SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -552,18 +952,6 @@ export function AddMovieForm() {
                             </div>
 
                             <div className="space-y-4">
-                                <div className="grid gap-3">
-                                    <Label htmlFor="poster" className="text-foreground font-medium">
-                                        URL Poster
-                                    </Label>
-                                    <Input
-                                        id="poster"
-                                        value={formData.poster}
-                                        onChange={(e) => setFormData({...formData, poster: e.target.value})}
-                                        className="bg-input border-border text-foreground h-12"
-                                        placeholder="https://example.com/poster.jpg"
-                                    />
-                                </div>
 
                                 <div className="grid gap-3">
                                     <Label htmlFor="trailerUrl" className="text-foreground font-medium">
