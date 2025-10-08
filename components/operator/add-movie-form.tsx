@@ -342,21 +342,6 @@ export function AddMovieForm() {
                 })
                 formDataToSend.append("poster", posterFile)
                 console.log("Poster file appended successfully")
-                
-                // Verify the file was added to FormData
-                console.log("FormData entries after adding poster:")
-                for (let [key, value] of formDataToSend.entries()) {
-                    if (key === 'poster') {
-                        console.log("POSTER IN FORMDATA:", {
-                            key: key,
-                            value: value,
-                            isFile: value instanceof File,
-                            name: value.name,
-                            type: value.type,
-                            size: value.size
-                        })
-                    }
-                }
             } else {
                 console.error("No poster file selected!")
                 toast.error("Vui lòng chọn file poster")
@@ -382,20 +367,7 @@ export function AddMovieForm() {
                 currentDate: new Date().toISOString().split('T')[0]
             })
             
-            // Debug FormData contents
-            console.log("FormData contents:")
-            for (let [key, value] of formDataToSend.entries()) {
-                console.log(`${key}:`, value, `(type: ${typeof value})`)
-                if (key === 'description') {
-                    console.log("DESCRIPTION DEBUG:", {
-                        value: value,
-                        length: value?.length,
-                        isNull: value === null,
-                        isUndefined: value === undefined,
-                        isEmpty: value === ""
-                    })
-                }
-            }
+
             
             // Also log the raw form data
             console.log("Raw form data state:", formData)
@@ -427,37 +399,21 @@ export function AddMovieForm() {
             console.log("Testing with simple data:", testData)
             
             // Use FormData for file upload
-            const token = localStorage.getItem("accessToken")
-            console.log("Token:", token ? "EXISTS" : "MISSING")
-            console.log("Backend URL: http://localhost:8885/movies/add")
-            
             console.log("Sending FormData with file upload")
             
-            const response = await fetch('http://localhost:8885/movies/add', {
-                method: 'POST',
+            const response = await apiClient.post('/movies/add', formDataToSend, {
                 headers: {
-                    'Authorization': `Bearer ${token}`
-                    // Don't set Content-Type for FormData - let browser set it with boundary
-                },
-                body: formDataToSend
+                    'Content-Type': 'multipart/form-data'
+                }
             })
             
-            console.log("Response status:", response.status)
-            console.log("Response headers:", response.headers)
+            console.log("Request successful with FormData:", response.data)
             
-            if (!response.ok) {
-                const errorData = await response.json()
-                throw new Error(JSON.stringify(errorData))
-            }
-            
-            const result = await response.json()
-            console.log("Request successful with FormData:", result)
-            
-            if (result.status === 200) {
+            if (response.data.status === 200) {
                 toast.success("Thêm phim mới thành công")
                 router.push("/operator-manager/movies")
             } else {
-                throw new Error(result.message || "Failed to create movie")
+                throw new Error(response.data.message || "Failed to create movie")
             }
         } catch (error: any) {
             // Use alert to show error details since console.log might be overridden

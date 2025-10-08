@@ -197,7 +197,8 @@ export function OperatorLayout({children}: OperatorLayoutProps) {
                                 className="w-full justify-start gap-2 text-sidebar-foreground hover:bg-sidebar-accent/50 operator-hover-lift transition-all duration-200"
                                 onClick={() => {
                                     localStorage.removeItem("auth")
-                                    router.push("/login")
+                                    localStorage.removeItem("accessToken")
+                                    router.push("/login/admin")
                                 }}
                             >
                                 <LogOut className="w-4 h-4"/>
@@ -219,7 +220,8 @@ export function OperatorLayout({children}: OperatorLayoutProps) {
                                 className="operator-tooltip w-10 h-10 p-0 rounded-full hover:bg-sidebar-accent/50 operator-hover-lift transition-all duration-200"
                                 onClick={() => {
                                     localStorage.removeItem("auth")
-                                    router.push("/login")
+                                    localStorage.removeItem("accessToken")
+                                    router.push("/login/admin")
                                 }}
                                 data-tooltip="Logout"
                             >
