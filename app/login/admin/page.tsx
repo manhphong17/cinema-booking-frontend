@@ -93,7 +93,7 @@ export default function LoginPage() {
                             router.push("/staff")
                         } else if (roles.includes("BUSINESS")) {
                             console.log("Redirecting to /business")
-                            router.push("/business")
+                            router.push("/business-manager")
                         }
                         console.log("Admin router.push called successfully")
                     } catch (error) {
@@ -106,7 +106,7 @@ export default function LoginPage() {
                         } else if (roles.includes("STAFF")) {
                             window.location.href = "/staff"
                         } else if (roles.includes("BUSINESS")) {
-                            window.location.href = "/business"
+                            window.location.href = "/business-manager"
                         }
                     }
                 }, 100)
