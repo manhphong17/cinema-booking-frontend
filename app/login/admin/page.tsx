@@ -81,7 +81,7 @@ export default function LoginPage() {
                 } else if (roles.includes("STAFF")) {
                     router.push("/staff")
                 } else if (roles.includes("BUSINESS")) {
-                    router.push("/business")
+                    router.push("/business-manager")
                 }
             } else if (data.status === 1003) {
                 setShowVerifyModal(true)

@@ -9,6 +9,7 @@ import {Alert, AlertDescription} from "@/components/ui/alert"
 import {InputOTP, InputOTPGroup, InputOTPSlot} from "@/components/ui/input-otp"
 import {Film} from "lucide-react"
 import {toast} from "sonner"
+import axios from "axios";
 
 const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL
 
@@ -22,6 +23,7 @@ export default function OTPVerifyPage() {
 
     // Lấy email từ sessionStorage
     const email = sessionStorage.getItem("registerEmail")
+    const name = sessionStorage.getItem("registerName")
 
 
     const handleVerifyOTP = async (e: React.FormEvent) => {
@@ -41,7 +43,7 @@ export default function OTPVerifyPage() {
         setIsLoading(true)
         try {
             const response = await fetch(
-                `${BACKEND_BASE_URL}/accounts/verify-otp?email=${encodeURIComponent(email)}&otp=${otp}`,
+                `${BACKEND_BASE_URL}/auth/verify-otp?email=${encodeURIComponent(email)}&otp=${otp}`,
                 {method: "POST"}
             )
 
@@ -62,32 +64,15 @@ export default function OTPVerifyPage() {
         }
     }
 
-    const handleResendOTP = async () => {
-        setIsResending(true)
-        setError("")
 
+    const handleResend = async () => {
         try {
-            // Tạm thời gọi lại verify-otp (theo yêu cầu)
-            const response = await fetch(
-                `${BACKEND_BASE_URL}/accounts/verify-otp?email=${encodeURIComponent(email || "")}&otp=${otp || "000000"}`,
-                {method: "POST"}
-            )
-
-            const data = await response.json()
-
-            if (response.ok) {
-                toast.success("OTP mới đã được gửi lại (giả lập)")
-            } else {
-                setError(data.message || "Không thể gửi lại OTP")
-                toast.error(data.message || "Không thể gửi lại OTP")
-            }
-        } catch (err) {
-            setError("Lỗi kết nối khi gửi lại OTP")
-            toast.error("Lỗi kết nối khi gửi lại OTP")
-        } finally {
-            setIsResending(false)
+            await axios.post(`${BACKEND_BASE_URL}/auth/resend-otp`, null, { params: {email,name} });
+            toast.success("OTP mới đã được gửi đến email của bạn!");
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || "Không thể gửi lại OTP!");
         }
-    }
+    };
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center p-4">
@@ -147,7 +132,7 @@ export default function OTPVerifyPage() {
                             <Button
                                 variant="link"
                                 className="p-0 h-auto text-sm font-normal text-primary hover:text-primary/80"
-                                onClick={handleResendOTP}
+                                onClick={handleResend}
                                 disabled={isResending}
                             >
                                 {isResending ? "Đang gửi..." : "Gửi lại mã"}
