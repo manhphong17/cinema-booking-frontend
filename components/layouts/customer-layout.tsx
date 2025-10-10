@@ -44,7 +44,8 @@ export function CustomerLayout({ children, activeSection, onSectionChange }: Cus
   const handleLogout = () => {
     localStorage.removeItem("customerSession")
     alert("Logged out successfully!")
-    window.location.href = "/"
+    // Use router.push instead of window.location for better performance
+    // window.location.href = "/"
   }
 
   return (

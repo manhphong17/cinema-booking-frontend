@@ -2,12 +2,7 @@
 
 import {useState} from "react"
 import {useRouter} from "next/navigation"
-import {AdminLayout} from "@/components/layouts/admin-layout"
-import {Dashboard} from "@/components/admin/dashboard";
-import {MovieManagement} from "@/components/admin/movie-management";
-import {ShowtimeManagement} from "@/components/admin/showtime-management";
-import {RoomManagement} from "@/components/admin/room-management";
-import {NewsManagement} from "@/components/admin/news-management";
+
 
 export default function AdminPage() {
     const [activeSection, setActiveSection] = useState("dashboard")
@@ -47,29 +42,5 @@ export default function AdminPage() {
       return null
     }*/
 
-    const renderContent = () => {
 
-
-        switch (activeSection) {
-            case "dashboard":
-                return <Dashboard/>
-            case "movies":
-                return <MovieManagement/>
-            case "showtimes":
-                return <ShowtimeManagement/>
-            case "rooms":
-                return <RoomManagement onSelectRoom={setSelectedRoom}/>
-            case "news":
-                return <NewsManagement/>
-            default:
-                return <Dashboard/>
-        }
-    }
-
-
-    return (
-        <AdminLayout activeSection={activeSection} onSectionChange={setActiveSection}>
-            {renderContent()}
-        </AdminLayout>
-    )
 }

@@ -1,12 +1,12 @@
 "use client"
 
 import {useEffect} from "react"
-import API from "@/src/api/axios"
+import {apiClient} from "@/src/api/interceptor"
 
 export default function TestPage() {
     useEffect(() => {
         // gọi thử endpoint bảo vệ (cần accessToken)
-        API.get("/user/lisst")
+        apiClient.get("/user/lisst")
             .then(res => console.log("Profile:", res.data))
             .catch(err => console.error(" Error:", err))
     }, [])
