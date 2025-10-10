@@ -28,8 +28,6 @@ export default function RegisterPage() {
     const [error, setError] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const router = useRouter()
-    const [address, setAddress] = useState("");
-
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -66,7 +64,7 @@ export default function RegisterPage() {
         }
 
         try {
-            const response = await fetch(BACKEND_BASE_URL + "/auth/register-email", {
+            const response = await fetch(BACKEND_BASE_URL + "/accounts/register-email", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -77,8 +75,7 @@ export default function RegisterPage() {
                     confirmPassword,
                     name,
                     dateOfBirth,
-                    gender,
-                    address: address.trim() || null,
+                    gender
                 }),
             })
 
@@ -87,9 +84,6 @@ export default function RegisterPage() {
             if (data.status === 201) {
                 toast.success(data.message || "Vui lòng kiểm tra email để xác thực OTP.")
                 sessionStorage.setItem("registerEmail", email)
-
-                sessionStorage.setItem("registerEmail", email);
-                sessionStorage.setItem("registerName",name)
                 router.push("/verify-otp")
             } else {
                 setError(data.message || "Đăng ký thất bại. Vui lòng thử lại.")
@@ -112,6 +106,9 @@ export default function RegisterPage() {
 
     const handleGoogleSignIn = () => {
         window.location.href = BACKEND_BASE_URL + "/oauth2/authorization/google-user"
+    }
+    const handleVerifyOtpRedirect = () => {
+        router.push("/verify-otp")
     }
 
     const handleLoginRedirect = () => {
@@ -176,17 +173,6 @@ export default function RegisterPage() {
                                     </Select>
                                 </div>
                             </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="address" className="text-sm font-medium text-gray-700">Địa chỉ (không bắt buộc)</Label>
-                            <Input
-                                id="address"
-                                type="text"
-                                placeholder="Nhập địa chỉ của bạn (nếu có)"
-                                value={address}
-                                onChange={(e) => setAddress(e.target.value)}
-                                className="border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/50"
-                            />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="email" className="text-sm font-medium text-gray-700">Email</Label>
@@ -292,7 +278,7 @@ export default function RegisterPage() {
                                     fill="#EA4335"
                                 />
                             </svg>
-                            Đăng nhập với Google
+                            Đăng ký với Google
                         </Button>
 
                         <div className="text-center">

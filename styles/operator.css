@@ -1,0 +1,1094 @@
+@import 'tailwindcss';
+
+/* Operator-specific CSS overrides */
+:root {
+    /* Modern operator theme with blue-purple palette */
+    --background: oklch(0.99 0.005 250);
+    --foreground: oklch(0.15 0.05 250);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.15 0.05 250);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.15 0.05 250);
+    --primary: oklch(0.45 0.15 250);
+    --primary-foreground: oklch(0.98 0 0);
+    --secondary: oklch(0.95 0.02 250);
+    --secondary-foreground: oklch(0.2 0.1 250);
+    --muted: oklch(0.95 0.01 250);
+    --muted-foreground: oklch(0.5 0.05 250);
+    --accent: oklch(0.95 0.02 250);
+    --accent-foreground: oklch(0.2 0.1 250);
+    --destructive: oklch(0.55 0.2 15);
+    --destructive-foreground: oklch(0.98 0 0);
+    --border: oklch(0.9 0.02 250);
+    --input: oklch(0.95 0.01 250);
+    --ring: oklch(0.45 0.15 250);
+    --chart-1: oklch(0.6 0.18 60);
+    --chart-2: oklch(0.55 0.15 200);
+    --chart-3: oklch(0.5 0.12 220);
+    --chart-4: oklch(0.7 0.2 30);
+    --chart-5: oklch(0.65 0.15 280);
+    --radius: 0.75rem;
+    --sidebar: oklch(0.98 0.01 250);
+    --sidebar-foreground: oklch(0.2 0.1 250);
+    --sidebar-primary: oklch(0.45 0.15 250);
+    --sidebar-primary-foreground: oklch(0.98 0 0);
+    --sidebar-accent: oklch(0.92 0.03 250);
+    --sidebar-accent-foreground: oklch(0.45 0.15 250);
+    --sidebar-border: oklch(0.9 0.02 250);
+    --sidebar-ring: oklch(0.45 0.15 250);
+
+    /* Modern operator-specific status colors */
+    --operator-upcoming: oklch(0.6 0.18 60);
+    --operator-now-showing: oklch(0.55 0.15 200);
+    --operator-ended: oklch(0.5 0.05 0);
+
+    /* Modern operator-specific seat colors */
+    --operator-standard-seat: oklch(0.5 0.12 220);
+    --operator-vip-seat: oklch(0.7 0.2 30);
+}
+
+/* Dark mode for operator */
+.dark {
+    --background: oklch(0.08 0.02 250);
+    --foreground: oklch(0.95 0.01 250);
+    --card: oklch(0.12 0.03 250);
+    --card-foreground: oklch(0.9 0.02 250);
+    --popover: oklch(0.12 0.03 250);
+    --popover-foreground: oklch(0.9 0.02 250);
+    --primary: oklch(0.7 0.15 250);
+    --primary-foreground: oklch(0.05 0.05 250);
+    --secondary: oklch(0.15 0.05 250);
+    --secondary-foreground: oklch(0.9 0.02 250);
+    --muted: oklch(0.15 0.03 250);
+    --muted-foreground: oklch(0.6 0.05 250);
+    --accent: oklch(0.15 0.05 250);
+    --accent-foreground: oklch(0.9 0.02 250);
+    --destructive: oklch(0.6 0.25 15);
+    --destructive-foreground: oklch(0.05 0.05 250);
+    --border: oklch(0.2 0.05 250);
+    --input: oklch(0.15 0.03 250);
+    --ring: oklch(0.7 0.15 250);
+    --chart-1: oklch(0.7 0.2 60);
+    --chart-2: oklch(0.65 0.18 200);
+    --chart-3: oklch(0.6 0.15 220);
+    --chart-4: oklch(0.8 0.25 30);
+    --chart-5: oklch(0.75 0.18 280);
+    --sidebar: oklch(0.1 0.03 250);
+    --sidebar-foreground: oklch(0.9 0.02 250);
+    --sidebar-primary: oklch(0.7 0.15 250);
+    --sidebar-primary-foreground: oklch(0.05 0.05 250);
+    --sidebar-accent: oklch(0.18 0.05 250);
+    --sidebar-accent-foreground: oklch(0.7 0.15 250);
+    --sidebar-border: oklch(0.2 0.05 250);
+    --sidebar-ring: oklch(0.7 0.15 250);
+
+    --operator-upcoming: oklch(0.7 0.2 60);
+    --operator-now-showing: oklch(0.65 0.18 200);
+    --operator-ended: oklch(0.5 0.05 0);
+    --operator-standard-seat: oklch(0.6 0.15 220);
+    --operator-vip-seat: oklch(0.8 0.25 30);
+}
+
+/* Operator-specific utility classes for status and seat colors */
+.operator-bg-upcoming {
+    background-color: hsl(var(--operator-upcoming));
+}
+
+.operator-bg-now-showing {
+    background-color: hsl(var(--operator-now-showing));
+}
+
+.operator-bg-ended {
+    background-color: hsl(var(--operator-ended));
+}
+
+.operator-bg-standard-seat {
+    background-color: hsl(var(--operator-standard-seat));
+}
+
+.operator-bg-vip-seat {
+    background-color: hsl(var(--operator-vip-seat));
+}
+
+.operator-border-standard-seat {
+    border-color: hsl(var(--operator-standard-seat));
+}
+
+.operator-border-vip-seat {
+    border-color: hsl(var(--operator-vip-seat));
+}
+
+.operator-text-standard-seat {
+    color: hsl(var(--operator-standard-seat));
+}
+
+.operator-text-vip-seat {
+    color: hsl(var(--operator-vip-seat));
+}
+
+.operator-hover-standard-seat:hover {
+    background-color: hsl(var(--operator-standard-seat));
+    color: white;
+}
+
+.operator-hover-vip-seat:hover {
+    background-color: hsl(var(--operator-vip-seat));
+    color: white;
+}
+
+/* Modern operator animations */
+@keyframes operator-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes operator-slide-in {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes operator-scale-in {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes operator-pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+.operator-fade-in {
+    animation: operator-fade-in 0.3s ease-out;
+}
+
+.operator-slide-in {
+    animation: operator-slide-in 0.4s ease-out;
+}
+
+.operator-scale-in {
+    animation: operator-scale-in 0.3s ease-out;
+}
+
+.operator-pulse {
+    animation: operator-pulse 2s infinite;
+}
+
+/* Modern gradient backgrounds */
+.operator-gradient-primary {
+    background: linear-gradient(135deg, oklch(0.45 0.15 250), oklch(0.6 0.2 280));
+}
+
+.operator-gradient-secondary {
+    background: linear-gradient(135deg, oklch(0.95 0.02 250), oklch(0.9 0.05 260));
+}
+
+.operator-gradient-card {
+    background: linear-gradient(135deg, oklch(1 0 0), oklch(0.98 0.01 250));
+    box-shadow: 0 4px 6px -1px oklch(0.45 0.15 250 / 0.1), 0 2px 4px -1px oklch(0.45 0.15 250 / 0.06);
+}
+
+.operator-gradient-sidebar {
+    background: linear-gradient(180deg, oklch(0.98 0.01 250), oklch(0.95 0.02 250));
+}
+
+/* Modern glass morphism effect */
+.operator-glass {
+    background: oklch(1 0 0 / 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid oklch(0.9 0.02 250 / 0.2);
+}
+
+/* Modern hover effects */
+.operator-hover-lift {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.operator-hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -3px oklch(0.45 0.15 250 / 0.1), 0 4px 6px -2px oklch(0.45 0.15 250 / 0.05);
+}
+
+/* Modern status indicators with glow */
+.operator-status-upcoming {
+    background: linear-gradient(135deg, oklch(0.6 0.18 60), oklch(0.7 0.2 50));
+    box-shadow: 0 0 20px oklch(0.6 0.18 60 / 0.3);
+}
+
+.operator-status-now-showing {
+    background: linear-gradient(135deg, oklch(0.55 0.15 200), oklch(0.65 0.18 190));
+    box-shadow: 0 0 20px oklch(0.55 0.15 200 / 0.3);
+}
+
+.operator-status-ended {
+    background: linear-gradient(135deg, oklch(0.5 0.05 0), oklch(0.6 0.05 0));
+    box-shadow: 0 0 20px oklch(0.5 0.05 0 / 0.2);
+}
+
+/* Modern seat styling */
+.operator-seat-standard {
+    background: linear-gradient(135deg, oklch(0.5 0.12 220), oklch(0.6 0.15 210));
+    box-shadow: 0 2px 4px oklch(0.5 0.12 220 / 0.2);
+    transition: all 0.2s ease;
+}
+
+.operator-seat-standard:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px oklch(0.5 0.12 220 / 0.3);
+}
+
+.operator-seat-vip {
+    background: linear-gradient(135deg, oklch(0.7 0.2 30), oklch(0.8 0.25 20));
+    box-shadow: 0 2px 4px oklch(0.7 0.2 30 / 0.2);
+    transition: all 0.2s ease;
+}
+
+.operator-seat-vip:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px oklch(0.7 0.2 30 / 0.3);
+}
+
+/* Modern chart styling */
+.operator-chart-gradient-1 {
+    stop-color: oklch(0.6 0.18 60);
+}
+
+.operator-chart-gradient-2 {
+    stop-color: oklch(0.55 0.15 200);
+}
+
+.operator-chart-gradient-3 {
+    stop-color: oklch(0.5 0.12 220);
+}
+
+.operator-chart-gradient-4 {
+    stop-color: oklch(0.7 0.2 30);
+}
+
+.operator-chart-gradient-5 {
+    stop-color: oklch(0.65 0.15 280);
+}
+
+/* Modern checkbox styling for operator */
+.operator-checkbox {
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 0.375rem;
+    border: 2px solid oklch(0.5 0.05 250 / 0.3);
+    background-color: oklch(1 0 0);
+    transition: all 0.2s ease-in-out;
+}
+
+.operator-checkbox:hover {
+    border-color: oklch(0.45 0.15 250 / 0.5);
+    background-color: oklch(0.95 0.01 250);
+}
+
+.operator-checkbox:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px oklch(0.45 0.15 250 / 0.3);
+}
+
+.operator-checkbox:checked {
+    background-color: oklch(0.45 0.15 250);
+    border-color: oklch(0.45 0.15 250);
+    box-shadow: 0 10px 15px -3px oklch(0.45 0.15 250 / 0.25), 0 4px 6px -2px oklch(0.45 0.15 250 / 0.1);
+}
+
+.operator-checkbox:checked:hover {
+    background-color: oklch(0.45 0.15 250 / 0.9);
+    border-color: oklch(0.45 0.15 250 / 0.9);
+    box-shadow: 0 20px 25px -5px oklch(0.45 0.15 250 / 0.3), 0 10px 10px -5px oklch(0.45 0.15 250 / 0.1);
+}
+
+.operator-checkbox:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.operator-checkbox:disabled:hover {
+    border-color: oklch(0.5 0.05 250 / 0.3);
+    background-color: oklch(1 0 0);
+}
+
+/* Checkbox label styling */
+.operator-checkbox-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: oklch(0.15 0.05 250);
+    cursor: pointer;
+    transition: color 0.2s ease-in-out;
+}
+
+.operator-checkbox-label:hover {
+    color: oklch(0.45 0.15 250);
+}
+
+.operator-checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    transition: all 0.2s ease-in-out;
+    border: 1px solid transparent;
+}
+
+.operator-checkbox-group:hover {
+    background-color: oklch(0.95 0.01 250 / 0.3);
+    border-color: oklch(0.5 0.05 250 / 0.5);
+}
+
+.operator-checkbox-group:has(.operator-checkbox:checked) {
+    background-color: oklch(0.45 0.15 250 / 0.05);
+    border-color: oklch(0.45 0.15 250 / 0.2);
+}
+
+/* Status-specific checkbox styling */
+.operator-checkbox-upcoming {
+    border-color: oklch(0.7 0.2 30 / 0.5);
+}
+
+.operator-checkbox-upcoming:checked {
+    background-color: oklch(0.7 0.2 30);
+    border-color: oklch(0.7 0.2 30);
+    box-shadow: 0 10px 15px -3px oklch(0.7 0.2 30 / 0.25), 0 4px 6px -2px oklch(0.7 0.2 30 / 0.1);
+}
+
+.operator-checkbox-now-showing {
+    border-color: oklch(0.55 0.15 200 / 0.5);
+}
+
+.operator-checkbox-now-showing:checked {
+    background-color: oklch(0.55 0.15 200);
+    border-color: oklch(0.55 0.15 200);
+    box-shadow: 0 10px 15px -3px oklch(0.55 0.15 200 / 0.25), 0 4px 6px -2px oklch(0.55 0.15 200 / 0.1);
+}
+
+.operator-checkbox-ended {
+    border-color: oklch(0.5 0.05 0 / 0.5);
+}
+
+.operator-checkbox-ended:checked {
+    background-color: oklch(0.5 0.05 0);
+    border-color: oklch(0.5 0.05 0);
+    box-shadow: 0 10px 15px -3px oklch(0.5 0.05 0 / 0.25), 0 4px 6px -2px oklch(0.5 0.05 0 / 0.1);
+}
+
+/* Sidebar collapse/expand functionality */
+.operator-sidebar {
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    position: relative;
+}
+
+.operator-sidebar-collapsed {
+    width: 4rem;
+}
+
+.operator-sidebar-expanded {
+    width: 16rem;
+}
+
+/* Smooth transitions for all sidebar elements */
+.operator-sidebar * {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.operator-sidebar-content {
+    transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+}
+
+.operator-sidebar-collapsed .operator-sidebar-content {
+    opacity: 0;
+    transform: translateX(-10px);
+}
+
+.operator-sidebar-expanded .operator-sidebar-content {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.operator-sidebar-toggle {
+    position: absolute;
+    top: 1rem;
+    right: -1.25rem;
+    z-index: 10;
+    transition: all 0.3s ease-in-out;
+    background: oklch(1 0 0);
+    border: 2px solid oklch(0.9 0.02 250);
+    box-shadow: 0 4px 6px -1px oklch(0 0 0 / 0.1), 0 2px 4px -1px oklch(0 0 0 / 0.06);
+}
+
+.operator-sidebar-toggle:hover {
+    background: oklch(0.95 0.01 250);
+    border-color: oklch(0.45 0.15 250);
+    box-shadow: 0 10px 15px -3px oklch(0 0 0 / 0.1), 0 4px 6px -2px oklch(0 0 0 / 0.05);
+    transform: scale(1.1);
+}
+
+.operator-sidebar-collapsed .operator-sidebar-toggle {
+    transform: rotate(180deg);
+}
+
+.operator-sidebar-collapsed .operator-sidebar-toggle:hover {
+    transform: rotate(180deg) scale(1.1);
+}
+
+.operator-sidebar-expanded .operator-sidebar-toggle {
+    transform: rotate(0deg);
+}
+
+.operator-sidebar-expanded .operator-sidebar-toggle:hover {
+    transform: rotate(0deg) scale(1.1);
+}
+
+/* Collapsed sidebar navigation */
+.operator-sidebar-collapsed .operator-nav-item {
+    justify-content: center;
+    padding: 0.75rem;
+}
+
+.operator-sidebar-collapsed .operator-nav-item span {
+    display: none;
+}
+
+.operator-sidebar-collapsed .operator-nav-item .operator-nav-indicator {
+    display: none;
+}
+
+/* Collapsed sidebar header */
+.operator-sidebar-collapsed .operator-sidebar-header {
+    justify-content: center;
+    padding: 1.5rem 0.75rem;
+}
+
+.operator-sidebar-collapsed .operator-sidebar-header .operator-sidebar-content {
+    display: none;
+}
+
+/* Collapsed sidebar profile */
+.operator-sidebar-collapsed .operator-sidebar-profile {
+    padding: 1rem 0.75rem;
+}
+
+.operator-sidebar-collapsed .operator-sidebar-profile .operator-sidebar-content {
+    display: none;
+}
+
+.operator-sidebar-collapsed .operator-sidebar-profile .operator-avatar {
+    margin: 0 auto;
+}
+
+/* Tooltip for collapsed sidebar */
+.operator-tooltip {
+    position: relative;
+}
+
+.operator-tooltip::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-left: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    background-color: oklch(0.15 0.05 250);
+    color: oklch(0.98 0 0);
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: 0.5rem;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease-in-out;
+    z-index: 50;
+    box-shadow: 0 10px 15px -3px oklch(0 0 0 / 0.1), 0 4px 6px -2px oklch(0 0 0 / 0.05);
+    pointer-events: none;
+}
+
+.operator-tooltip::before {
+    content: '';
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-left: 0.5rem;
+    border: 5px solid transparent;
+    border-right-color: oklch(0.15 0.05 250);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease-in-out;
+    z-index: 51;
+    pointer-events: none;
+}
+
+.operator-sidebar-collapsed .operator-tooltip:hover::after,
+.operator-sidebar-collapsed .operator-tooltip:hover::before {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Hide tooltips when sidebar is expanded */
+.operator-sidebar-expanded .operator-tooltip::after,
+.operator-sidebar-expanded .operator-tooltip::before {
+    display: none;
+}
+
+/* Custom scrollbar styling for operator */
+.operator-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.5 0.05 250 / 0.3) transparent;
+}
+
+.operator-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.operator-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 3px;
+}
+
+.operator-scrollbar::-webkit-scrollbar-thumb {
+    background: oklch(0.5 0.05 250 / 0.3);
+    border-radius: 3px;
+    transition: background 0.2s ease;
+}
+
+.operator-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.5 0.05 250 / 0.5);
+}
+
+/* Seat matrix styling */
+.operator-seat-matrix {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.operator-seat-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    position: relative;
+}
+
+.operator-seat-row:hover {
+    transform: translateX(2px);
+    transition: transform 0.2s ease;
+}
+
+.operator-seat {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.operator-seat:hover {
+    transform: scale(1.1) translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    filter: brightness(1.1);
+}
+
+.operator-seat:active {
+    transform: scale(0.95) translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.operator-seat-standard:hover {
+    box-shadow: 0 6px 16px oklch(0.5 0.15 220 / 0.4);
+}
+
+.operator-seat-vip:hover {
+    box-shadow: 0 6px 16px oklch(0.7 0.2 30 / 0.5);
+}
+
+.operator-seat-disabled:hover {
+    box-shadow: 0 4px 8px oklch(0.4 0.05 0 / 0.3);
+    transform: scale(1.05) translateY(-1px);
+}
+
+.operator-seat-available:hover {
+    box-shadow: 0 6px 16px oklch(0.6 0.2 120 / 0.4);
+}
+
+.operator-seat-reserved:hover {
+    box-shadow: 0 6px 16px oklch(0.7 0.2 60 / 0.5);
+}
+
+.operator-seat-occupied:hover {
+    box-shadow: 0 6px 16px oklch(0.6 0.2 15 / 0.5);
+}
+
+.operator-seat-selected {
+    box-shadow: 0 0 0 2px oklch(0.45 0.15 250), 0 0 0 4px oklch(0.45 0.15 250 / 0.2);
+}
+
+.operator-seat-standard {
+    background: linear-gradient(135deg, oklch(0.6 0.15 220), oklch(0.5 0.18 220));
+    color: white;
+    box-shadow: 0 2px 8px oklch(0.5 0.15 220 / 0.3);
+}
+
+.operator-seat-vip {
+    background: linear-gradient(135deg, oklch(0.75 0.25 30), oklch(0.65 0.3 30));
+    color: oklch(0.1 0.05 30);
+    box-shadow: 0 2px 8px oklch(0.7 0.2 30 / 0.4);
+}
+
+.operator-seat-disabled {
+    background: linear-gradient(135deg, oklch(0.5 0.08 0), oklch(0.4 0.1 0));
+    color: oklch(0.7 0.05 0);
+    cursor: not-allowed;
+    box-shadow: 0 1px 4px oklch(0.4 0.05 0 / 0.2);
+    opacity: 0.6;
+}
+
+.operator-seat-available {
+    background: linear-gradient(135deg, oklch(0.6 0.2 120), oklch(0.5 0.25 120));
+    color: white;
+    box-shadow: 0 2px 8px oklch(0.6 0.2 120 / 0.3);
+}
+
+.operator-seat-reserved {
+    background: linear-gradient(135deg, oklch(0.7 0.2 60), oklch(0.6 0.25 60));
+    color: oklch(0.1 0.05 60);
+    box-shadow: 0 2px 8px oklch(0.7 0.2 60 / 0.4);
+}
+
+.operator-seat-occupied {
+    background: linear-gradient(135deg, oklch(0.6 0.2 15), oklch(0.5 0.25 15));
+    color: white;
+    box-shadow: 0 2px 8px oklch(0.6 0.2 15 / 0.4);
+}
+
+.operator-screen-container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 2rem 0;
+    width: 100%;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.operator-screen-header {
+    background: linear-gradient(135deg,
+            oklch(0.8 0.08 0),
+            oklch(0.7 0.1 0),
+            oklch(0.6 0.12 0));
+    color: oklch(0.95 0.02 0);
+    padding: 0.75rem 2rem;
+    font-size: 1rem;
+    font-weight: 700;
+    text-align: center;
+    width: 100%;
+    margin-top: 0.5rem;
+    border-radius: 0 0 0.75rem 0.75rem;
+    line-height: 1.3;
+    box-shadow:
+        0 4px 12px rgba(0, 0, 0, 0.3),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+    position: relative;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    border: 2px solid oklch(0.5 0.05 0);
+    border-top: none;
+}
+
+.operator-screen-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 0.25rem;
+    background: linear-gradient(90deg,
+            transparent,
+            oklch(1 0 0 / 0.2),
+            oklch(1 0 0 / 0.4),
+            oklch(1 0 0 / 0.2),
+            transparent);
+    border-radius: 0 0 0.75rem 0.75rem;
+}
+
+.operator-screen-header::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60%;
+    height: 0.125rem;
+    background: linear-gradient(90deg,
+            transparent,
+            oklch(0.9 0.02 0 / 0.3),
+            oklch(0.9 0.02 0 / 0.6),
+            oklch(0.9 0.02 0 / 0.3),
+            transparent);
+}
+
+.operator-screen-header:hover {
+    transform: translateY(2px);
+    box-shadow:
+        0 6px 20px rgba(0, 0, 0, 0.4),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.2);
+    transition: all 0.3s ease;
+}
+
+.operator-screen-header:hover::before {
+    background: linear-gradient(90deg,
+            transparent,
+            oklch(1 0 0 / 0.3),
+            oklch(1 0 0 / 0.5),
+            oklch(1 0 0 / 0.3),
+            transparent);
+    animation: headerGlow 2s ease-in-out infinite;
+}
+
+@keyframes headerGlow {
+
+    0%,
+    100% {
+        opacity: 0.8;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+.operator-screen-header svg {
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+    transition: all 0.3s ease;
+}
+
+.operator-screen-header:hover svg {
+    transform: scale(1.1);
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+}
+
+.operator-screen svg {
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+    animation: iconPulse 3s ease-in-out infinite;
+}
+
+@keyframes iconPulse {
+
+    0%,
+    100% {
+        opacity: 0.8;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+}
+
+.operator-screen-curve-top {
+    position: relative;
+    width: 100%;
+    height: 2rem;
+    margin-bottom: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.operator-screen-curve-top::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1rem;
+    background: linear-gradient(135deg,
+            oklch(0.2 0.05 0),
+            oklch(0.15 0.08 0),
+            oklch(0.1 0.1 0));
+    border-radius: 50px 50px 0 0;
+    transform: translateY(-50%) scaleY(0.4);
+    transform-origin: bottom;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.operator-screen {
+    background: linear-gradient(135deg,
+            oklch(0.2 0.05 0),
+            oklch(0.15 0.08 0),
+            oklch(0.1 0.1 0));
+    color: white;
+    padding: 1.5rem 4rem;
+    border-radius: 0;
+    font-size: 1.5rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    border: none;
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    text-align: center;
+    line-height: 1;
+    z-index: 2;
+}
+
+.operator-screen::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 0.5rem;
+    background: linear-gradient(90deg,
+            transparent,
+            oklch(1 0 0 / 0.4),
+            oklch(1 0 0 / 0.6),
+            oklch(1 0 0 / 0.4),
+            transparent);
+    animation: screenGlow 3s ease-in-out infinite;
+}
+
+.operator-screen::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg,
+            transparent 30%,
+            oklch(1 0 0 / 0.08) 50%,
+            transparent 70%);
+    pointer-events: none;
+}
+
+.operator-screen-curve-bottom {
+    position: relative;
+    width: 100%;
+    height: 1.5rem;
+    margin-top: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.operator-screen-curve-bottom::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 0.75rem;
+    background: linear-gradient(135deg,
+            oklch(0.1 0.1 0),
+            oklch(0.15 0.08 0),
+            oklch(0.2 0.05 0));
+    border-radius: 0 0 25px 25px;
+    transform: translateY(-50%) scaleY(0.6);
+    transform-origin: top;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes screenGlow {
+
+    0%,
+    100% {
+        opacity: 0.6;
+        transform: scaleX(1);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scaleX(1.02);
+    }
+}
+
+.operator-screen:hover {
+    transform: scale(1.02);
+    box-shadow:
+        0 12px 40px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    transition: all 0.3s ease;
+}
+
+.operator-screen:hover::before {
+    animation-duration: 1.5s;
+}
+
+.operator-legend {
+    background: oklch(0.95 0.01 250 / 0.5);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    backdrop-filter: blur(8px);
+}
+
+.operator-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.operator-legend-color {
+    width: 1rem;
+    height: 1rem;
+    border-radius: 0.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.operator-scrollbar::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+/* Hide scrollbar when sidebar is collapsed */
+.operator-sidebar-collapsed nav {
+    overflow: hidden !important;
+}
+
+.operator-sidebar-collapsed nav::-webkit-scrollbar {
+    display: none;
+}
+
+.operator-sidebar-collapsed nav {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* Improved tooltip positioning for collapsed sidebar */
+.operator-sidebar-collapsed .operator-tooltip::after {
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-left: 0.5rem;
+    border-left: 4px solid oklch(0.2 0.05 0);
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+}
+
+.operator-sidebar-collapsed .operator-tooltip::before {
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-left: 0.25rem;
+    border-left: 4px solid oklch(0.2 0.05 0);
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+}
+
+/* Center avatar and logout button when collapsed */
+.operator-sidebar-collapsed .operator-sidebar-profile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem 0.5rem;
+}
+
+.operator-sidebar-collapsed .operator-sidebar-profile>div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+}
+
+/* Dialog scroll improvements */
+.operator-dialog-scroll {
+    max-height: 80vh;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.5 0.05 250 / 0.3) transparent;
+}
+
+.operator-dialog-scroll::-webkit-scrollbar {
+    width: 8px;
+}
+
+.operator-dialog-scroll::-webkit-scrollbar-track {
+    background: oklch(0.95 0.01 250);
+    border-radius: 4px;
+}
+
+.operator-dialog-scroll::-webkit-scrollbar-thumb {
+    background: oklch(0.5 0.05 250 / 0.4);
+    border-radius: 4px;
+    transition: background 0.2s ease;
+}
+
+.operator-dialog-scroll::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.5 0.05 250 / 0.6);
+}
+
+/* Scroll fade effect */
+.operator-scroll-fade {
+    position: relative;
+}
+
+.operator-scroll-fade::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 20px;
+    background: linear-gradient(to bottom, oklch(1 0 0), transparent);
+    pointer-events: none;
+    z-index: 10;
+}
+
+.operator-scroll-fade::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 20px;
+    background: linear-gradient(to top, oklch(1 0 0), transparent);
+    pointer-events: none;
+    z-index: 10;
+}
