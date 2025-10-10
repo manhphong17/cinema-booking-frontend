@@ -2,16 +2,15 @@
 
 import type React from "react"
 import {useEffect, useState} from "react"
+import {useRouter} from "next/navigation"
 import {Button} from "@/components/ui/button"
 import {Card} from "@/components/ui/card"
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table"
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger} from "@/components/ui/dialog"
 import {Input} from "@/components/ui/input"
 import {Label} from "@/components/ui/label"
-import {Textarea} from "@/components/ui/textarea"
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
 import {Badge} from "@/components/ui/badge"
-import {OperatorCheckbox} from "@/components/ui/operator-checkbox"
 import {
     ArrowDown,
     ArrowUp,
@@ -24,54 +23,63 @@ import {
     Search,
     Trash2,
     Upload,
-    X,
+    X
 } from "lucide-react"
-import {useToast} from "@/hooks/use-toast"
-import Image from "next/image"
+import {OperatorCheckbox} from "@/components/ui/operator-checkbox"
+import {toast} from "sonner"
+import {apiClient} from "@/src/api/interceptor"
+import {useAuthGuard} from "@/src/api/auth-guard"
 
 interface Movie {
-    id: string
-    poster: string
-    title: string
-    genre: string
-    language: string
-    duration: number
-    releaseDate: string
-    status: "upcoming" | "now-showing" | "ended"
+    id: number
+    actor: string
     description: string
     director: string
-    actors: string
-    ageRating: string
-    year: number
-    country: string
+    name: string
+    posterUrl: string
+    releaseDate: string
+    trailerUrl?: string
+    status: "UPCOMING" | "PLAYING" | "ENDED"
+    country: { id: number; name: string }
+    language: { id: number; name: string }
+    genre: { id: number; name: string }[]
+    ageRating?: string
+    duration?: number
 }
 
-const GENRES = [
-    "Action",
-    "Drama",
-    "Comedy",
-    "Horror",
-    "Sci-Fi",
-    "Romance",
-    "Thriller",
-    "Animation",
-    "Adventure",
-    "Fantasy",
-]
-const LANGUAGES = ["Vietnamese", "English", "Korean", "Japanese", "Chinese", "Thai", "French", "Spanish"]
+
 const AGE_RATINGS = ["P", "K", "T13", "T16", "T18", "C"]
-const COUNTRIES = ["Vietnam", "USA", "Korea", "Japan", "China", "Thailand", "France", "UK"]
+
+interface Genre {
+    id: number
+    name: string
+}
+
+interface Language {
+    id: number
+    name: string
+}
+
+interface Country {
+    id: number
+    name: string
+}
 
 export function MovieManagement() {
-    const {toast} = useToast()
+    const router = useRouter()
     const [movies, setMovies] = useState<Movie[]>([])
+    const [genres, setGenres] = useState<Genre[]>([])
+    const [languages, setLanguages] = useState<Language[]>([])
+    const [countries, setCountries] = useState<Country[]>([])
     const [isLoading, setIsLoading] = useState(false)
-    const [isDialogOpen, setIsDialogOpen] = useState(false)
+    
+    // Check auth on component mount
+    useAuthGuard()
     const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false)
     const [editingMovie, setEditingMovie] = useState<Movie | null>(null)
-
-    const [posterPreview, setPosterPreview] = useState<string>("")
-    const [posterFile, setPosterFile] = useState<File | null>(null)
+    const [selectedGenres, setSelectedGenres] = useState<Genre[]>([])
+    const [genreSearch, setGenreSearch] = useState("")
+    const [showGenreDropdown, setShowGenreDropdown] = useState(false)
 
     const [searchQuery, setSearchQuery] = useState("")
     const [selectedGenre, setSelectedGenre] = useState<string>("all")
@@ -80,12 +88,13 @@ export function MovieManagement() {
     const [dateTo, setDateTo] = useState("")
     const [dateError, setDateError] = useState("")
     const [statusFilters, setStatusFilters] = useState<{ upcoming: boolean; "now-showing": boolean; ended: boolean }>({
-        upcoming: true,
+        upcoming: false,
         "now-showing": false,
         ended: false,
     })
 
-    const [sortField, setSortField] = useState<"title" | "releaseDate">("releaseDate")
+
+    const [sortField, setSortField] = useState<"name" | "releaseDate" | null>(null)
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
 
     const [currentPage, setCurrentPage] = useState(1)
@@ -93,208 +102,284 @@ export function MovieManagement() {
     const [totalMovies, setTotalMovies] = useState(0)
 
     const [formData, setFormData] = useState({
-        title: "",
-        genre: "",
-        language: "",
+        name: "",
+        genreIds: [] as number[],
+        languageId: "",
         duration: "",
         releaseDate: "",
         description: "",
         poster: "",
-        status: "upcoming" as Movie["status"],
+        status: "" as Movie["status"],
         director: "",
         actors: "",
         ageRating: "",
         year: "",
-        country: "",
+        countryId: "",
+        trailerUrl: "",
     })
+
+    const fetchGenres = async () => {
+        try {
+            const response = await apiClient.get('/movies/movie-genres')
+            setGenres(response.data.data || [])
+        } catch (error) {
+            console.error("Failed to fetch genres:", error)
+        }
+    }
+
+    const fetchLanguages = async () => {
+        try {
+            const response = await apiClient.get('/movies/languages')
+            setLanguages(response.data.data || [])
+        } catch (error) {
+            console.error("Failed to fetch languages:", error)
+        }
+    }
+
+    const fetchCountries = async () => {
+        try {
+            const response = await apiClient.get('/movies/countries')
+            setCountries(response.data.data || [])
+        } catch (error) {
+            console.error("Failed to fetch countries:", error)
+        }
+    }
+
+    // Filter genres based on search
+    const filteredGenres = genres.filter(genre => 
+        genre.name.toLowerCase().includes(genreSearch.toLowerCase())
+    )
+
+    // Handle genre selection
+    const handleGenreSelect = (genre: Genre) => {
+        if (!selectedGenres.find(g => g.id === genre.id)) {
+            const newSelectedGenres = [...selectedGenres, genre]
+            const newGenreIds = newSelectedGenres.map(g => g.id)
+            setSelectedGenres(newSelectedGenres)
+            setFormData({
+                ...formData,
+                genreIds: newGenreIds
+            })
+        }
+        setGenreSearch("")
+        setShowGenreDropdown(false)
+    }
+
+    // Handle genre removal
+    const handleGenreRemove = (genreId: number) => {
+        const newSelectedGenres = selectedGenres.filter(g => g.id !== genreId)
+        const newGenreIds = newSelectedGenres.map(g => g.id)
+        setSelectedGenres(newSelectedGenres)
+        setFormData({
+            ...formData,
+            genreIds: newGenreIds
+        })
+    }
 
     const fetchMovies = async () => {
         setIsLoading(true)
         try {
-            const params = new URLSearchParams({
-                page: currentPage.toString(),
+            const statuses = Object.entries(statusFilters)
+                .filter(([_, v]) => v)
+                .map(([k]) => {
+                    // Map frontend status to backend enum
+                    switch (k) {
+                        case 'upcoming':
+                            return 'UPCOMING'
+                        case 'now-showing':
+                            return 'PLAYING'
+                        case 'ended':
+                            return 'ENDED'
+                        default:
+                            return k.toUpperCase()
+                    }
+                })
+                .join(",")
+
+            // Build query parameters only for non-empty values
+            const queryParams: Record<string, string> = {
+                pageNo: currentPage.toString(),
                 pageSize: pageSize.toString(),
-                sortField,
-                sortDirection,
-                ...(searchQuery && {search: searchQuery}),
-                ...(selectedGenre !== "all" && {genre: selectedGenre}),
-                ...(selectedLanguage !== "all" && {language: selectedLanguage}),
-                ...(dateFrom && {dateFrom}),
-                ...(dateTo && {dateTo}),
-                status: Object.entries(statusFilters)
-                    .filter(([_, value]) => value)
-                    .map(([key]) => key)
-                    .join(","),
+            }
+
+            // Only add sortBy if sortField is selected
+            if (sortField) {
+                queryParams.sortBy = `${sortField}:${sortDirection}`
+            }
+
+            // Only add filter parameters if they have values
+            if (searchQuery.trim()) {
+                queryParams.keyword = searchQuery.trim()
+            }
+            if (selectedGenre !== "all") {
+                queryParams.genre = selectedGenre
+            }
+            if (selectedLanguage !== "all") {
+                queryParams.language = selectedLanguage
+            }
+            if (dateFrom) {
+                queryParams.fromDate = dateFrom
+            }
+            if (dateTo) {
+                queryParams.toDate = dateTo
+            }
+
+            const query = new URLSearchParams()
+
+            // Add all parameters
+            Object.entries(queryParams).forEach(([key, value]) => {
+                if (key !== 'statuses') {
+                    query.append(key, value)
+                }
             })
 
-            const response = await fetch(`/api/movies?${params}`)
-            if (!response.ok) throw new Error("Failed to fetch movies")
+            // Add statuses as multiple parameters
+            if (statuses) {
+                const statusArray = statuses.split(',')
+                statusArray.forEach(status => {
+                    query.append('statuses', status)
+                })
+            }
 
-            const data = await response.json()
-            setMovies(data.movies)
-            setTotalMovies(data.total)
+            const response = await apiClient.get(`/movies/list-with-filter-many-column-and-sortBy?${query.toString()}`)
+            
+            setMovies(response.data.data.items || [])
+            const totalItems = response.data.data.totalItems || 0
+            setTotalMovies(totalItems)
         } catch (error) {
-            toast({
-                title: "Lỗi",
-                description: "Không thể tải danh sách phim. Vui lòng thử lại.",
-                variant: "destructive",
-            })
+            toast.error("Lỗi kết nối server.")
         } finally {
             setIsLoading(false)
         }
     }
 
     useEffect(() => {
-        fetchMovies()
-    }, [
-        currentPage,
-        pageSize,
-        sortField,
-        sortDirection,
-        searchQuery,
-        selectedGenre,
-        selectedLanguage,
-        dateFrom,
-        dateTo,
-        statusFilters,
-    ])
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0]
-        if (file) {
-            if (!file.type.startsWith("image/")) {
-                toast({
-                    title: "Lỗi",
-                    description: "Vui lòng chọn file ảnh",
-                    variant: "destructive",
-                })
-                return
-            }
-
-            setPosterFile(file)
-            const reader = new FileReader()
-            reader.onloadend = () => {
-                setPosterPreview(reader.result as string)
-            }
-            reader.readAsDataURL(file)
+        const loadData = async () => {
+            await Promise.all([
+                fetchGenres(),
+                fetchLanguages(),
+                fetchCountries(),
+                fetchMovies()
+            ])
         }
-    }
+        loadData()
+    }, [])
 
-    const removePosterPreview = () => {
-        setPosterPreview("")
-        setPosterFile(null)
-        setFormData({...formData, poster: ""})
-    }
+    // Close genre dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            const target = event.target as HTMLElement
+            if (!target.closest('.genre-dropdown-container')) {
+                setShowGenreDropdown(false)
+            }
+        }
+
+        if (showGenreDropdown) {
+            document.addEventListener('mousedown', handleClickOutside)
+            return () => document.removeEventListener('mousedown', handleClickOutside)
+        }
+    }, [showGenreDropdown])
+
+    useEffect(() => {
+        const loadMovies = async () => {
+            await fetchMovies()
+        }
+        loadMovies()
+    }, [currentPage, pageSize, sortField, sortDirection, searchQuery, selectedGenre, selectedLanguage, dateFrom, dateTo, statusFilters])
+
 
     const validateDateRange = (from: string, to: string) => {
         if (from && to && new Date(from) > new Date(to)) {
             setDateError("Ngày bắt đầu không được lớn hơn ngày kết thúc")
+            toast.warning("Ngày bắt đầu không được lớn hơn ngày kết thúc")
             return false
         }
         setDateError("")
         return true
     }
 
+    const validateForm = () => {
+        if (!formData.name.trim()) {
+            toast.error("Vui lòng nhập tên phim")
+            return false
+        }
+        if (!formData.genreIds || formData.genreIds.length === 0) {
+            toast.error("Vui lòng chọn ít nhất một thể loại")
+            return false
+        }
+        if (!formData.languageId) {
+            toast.error("Vui lòng chọn ngôn ngữ")
+            return false
+        }
+        if (!formData.releaseDate) {
+            toast.error("Vui lòng chọn ngày phát hành")
+            return false
+        }
+        if (!formData.status) {
+            toast.error("Vui lòng chọn trạng thái")
+            return false
+        }
+        if (!formData.countryId) {
+            toast.error("Vui lòng chọn quốc gia")
+            return false
+        }
+        
+        return true
+    }
+
     const handleSubmit = async () => {
+        if (!validateForm()) return
+        
         try {
-            const formDataToSend = new FormData()
-
-            // Add all form fields
-            Object.entries(formData).forEach(([key, value]) => {
-                formDataToSend.append(key, value)
-            })
-
-            // Add poster file if exists
-            if (posterFile) {
-                formDataToSend.append("posterFile", posterFile)
+            const basicData = {
+                id: editingMovie?.id,
+                name: formData.name,
+                genreIds: formData.genreIds,
+                languageId: parseInt(formData.languageId),
+                releaseDate: formData.releaseDate,
+                status: formData.status,
+                countryId: parseInt(formData.countryId),
             }
+            await apiClient.put(`/movies/update/${editingMovie?.id}`, basicData)
 
-            const url = editingMovie ? `/api/movies/${editingMovie.id}` : "/api/movies"
-            const method = editingMovie ? "PUT" : "POST"
+            toast.success("Cập nhật thông tin thành công")
 
-            const response = await fetch(url, {
-                method,
-                body: formDataToSend,
-            })
-
-            if (!response.ok) throw new Error("Failed to save movie")
-
-            toast({
-                title: editingMovie ? "Cập nhật thành công" : "Thêm thành công",
-                description: editingMovie ? "Phim đã được cập nhật" : "Phim mới đã được thêm",
-            })
-
-            setIsDialogOpen(false)
             resetForm()
-            fetchMovies()
+            await fetchMovies()
         } catch (error) {
-            toast({
-                title: "Lỗi",
-                description: "Không thể lưu phim. Vui lòng thử lại.",
-                variant: "destructive",
-            })
+            toast.error("Không thể lưu phim. Vui lòng thử lại.")
         }
     }
 
-    const handleDelete = async (id: string) => {
+    const handleDelete = async (id: number) => {
         try {
-            const response = await fetch(`/api/movies/${id}`, {
-                method: "DELETE",
-            })
-
-            if (!response.ok) throw new Error("Failed to delete movie")
-
-            toast({title: "Xóa thành công", description: "Phim đã được xóa"})
-            fetchMovies()
-        } catch (error) {
-            toast({
-                title: "Lỗi",
-                description: "Không thể xóa phim. Vui lòng thử lại.",
-                variant: "destructive",
-            })
+            await apiClient.put(`/movies/delete/${id}`)
+            toast.success("Xóa phim thành công")
+            await fetchMovies()
+        } catch {
+            toast.error("Không thể xóa phim. Vui lòng thử lại.")
         }
     }
 
     const resetForm = () => {
         setFormData({
-            title: "",
-            genre: "",
-            language: "",
+            name: "",
+            genreIds: [],
+            languageId: "",
             duration: "",
             releaseDate: "",
             description: "",
             poster: "",
-            status: "upcoming",
+            status: "UPCOMING",
             director: "",
             actors: "",
             ageRating: "",
             year: "",
-            country: "",
+            countryId: "",
+            trailerUrl: "",
         })
+        setSelectedGenres([])
         setEditingMovie(null)
-        setPosterPreview("")
-        setPosterFile(null)
-    }
-
-    const openEditDialog = (movie: Movie) => {
-        setEditingMovie(movie)
-        setFormData({
-            title: movie.title,
-            genre: movie.genre,
-            language: movie.language,
-            duration: movie.duration.toString(),
-            releaseDate: movie.releaseDate,
-            description: movie.description,
-            poster: movie.poster,
-            status: movie.status,
-            director: movie.director,
-            actors: movie.actors,
-            ageRating: movie.ageRating,
-            year: movie.year.toString(),
-            country: movie.country,
-        })
-        setPosterPreview(movie.poster)
-        setIsDialogOpen(true)
     }
 
     const resetFilters = () => {
@@ -304,11 +389,12 @@ export function MovieManagement() {
         setDateFrom("")
         setDateTo("")
         setDateError("")
-        setStatusFilters({upcoming: true, "now-showing": false, ended: false})
+        setStatusFilters({upcoming: false, "now-showing": false, ended: false})
         setCurrentPage(1)
+        toast.info("Đã đặt lại bộ lọc")
     }
 
-    const toggleSort = (field: "title" | "releaseDate") => {
+    const toggleSort = (field: "name" | "releaseDate") => {
         if (sortField === field) {
             setSortDirection(sortDirection === "asc" ? "desc" : "asc")
         } else {
@@ -318,35 +404,45 @@ export function MovieManagement() {
     }
 
     const getStatusBadge = (status: Movie["status"]) => {
-        const variants = {
-            upcoming: "operator-bg-upcoming text-white",
-            "now-showing": "operator-bg-now-showing text-white",
-            ended: "operator-bg-ended text-white",
+        switch (status) {
+            case "UPCOMING":
+                return {
+                    label: "Sắp chiếu",
+                    variant: "secondary" as const,
+                    className: "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                }
+            case "PLAYING":
+                return {
+                    label: "Đang chiếu",
+                    variant: "default" as const,
+                    className: "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                }
+            case "ENDED":
+                return {
+                    label: "Đã kết thúc",
+                    variant: "outline" as const,
+                    className: "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                }
+            default:
+                return {
+                    label: "Không xác định",
+                    variant: "outline" as const,
+                    className: "bg-muted text-muted-foreground border-muted-foreground/20"
+                }
         }
-        const labels = {
-            upcoming: "Sắp chiếu",
-            "now-showing": "Đang chiếu",
-            ended: "Đã kết thúc",
-        }
-        return {variant: variants[status], label: labels[status]}
     }
 
-    const totalPages = Math.ceil(totalMovies / pageSize)
+
+    const totalPages = totalMovies > 0 ? Math.ceil(totalMovies / pageSize) : 0
 
     const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
-
-        // Accept both CSV and ZIP files
         const isCSV = file.name.endsWith(".csv")
         const isZIP = file.name.endsWith(".zip")
 
         if (!isCSV && !isZIP) {
-            toast({
-                title: "Lỗi",
-                description: "Vui lòng chọn file CSV hoặc ZIP",
-                variant: "destructive",
-            })
+            toast.error("Vui lòng chọn file CSV hoặc ZIP hợp lệ")
             return
         }
 
@@ -355,31 +451,52 @@ export function MovieManagement() {
 
         try {
             setIsLoading(true)
-            const response = await fetch("/api/movies/bulk", {
-                method: "POST",
-                body: formData,
+            const response = await apiClient.post('/movies/bulk', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                }
             })
-
-            if (!response.ok) throw new Error("Failed to upload")
-
-            const result = await response.json()
-            toast({
-                title: "Thành công",
-                description: `Đã thêm ${result.count} phim`,
-            })
-
+            
+            toast.success(`Đã thêm ${response.data.count} phim`)
             setIsBulkDialogOpen(false)
-            fetchMovies()
-        } catch (error) {
-            toast({
-                title: "Lỗi",
-                description: "Không thể tải lên file. Vui lòng thử lại.",
-                variant: "destructive",
-            })
+            await fetchMovies()
+        } catch {
+            toast.error("Không thể tải lên file. Vui lòng thử lại.")
         } finally {
             setIsLoading(false)
         }
     }
+
+    const openEditDialog = async (movie: Movie) => {
+        setEditingMovie(movie)
+        
+        // Ensure countries are loaded before opening dialog
+        if (countries.length === 0) {
+            await fetchCountries()
+        }
+        
+        // Set selected genres from movie data
+        const movieGenres = movie.genre || []
+        setSelectedGenres(movieGenres)
+        
+        setFormData({
+            name: movie.name || "",
+            genreIds: movieGenres.map(g => g.id),
+            languageId: movie.language?.id?.toString() || "",
+            duration: movie.duration?.toString() || "",
+            releaseDate: movie.releaseDate || "",
+            description: movie.description || "",
+            poster: movie.posterUrl || "",
+            status: movie.status || "UPCOMING",
+            director: movie.director || "",
+            actors: movie.actor || "",
+            ageRating: movie.ageRating || "",
+            year: new Date(movie.releaseDate).getFullYear().toString(),
+            countryId: movie.country?.id?.toString() || "",
+            trailerUrl: movie.trailerUrl || "",
+        })
+    }
+
 
     const downloadTemplate = () => {
         const csvContent = `title,genre,language,duration,releaseDate,description,director,actors,ageRating,year,country,status,poster_filename
@@ -391,7 +508,9 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
         link.href = URL.createObjectURL(blob)
         link.download = "movie_template.csv"
         link.click()
+        toast.info("Đã tải xuống file mẫu CSV")
     }
+
 
     return (
         <div className="space-y-6">
@@ -509,215 +628,137 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                         </DialogContent>
                     </Dialog>
 
+                    <Button
+                        onClick={() => router.push("/operator-manager/movies/add")}
+                        className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20">
+                        <Plus className="w-4 h-4 mr-2"/>
+                        Thêm phim mới
+                    </Button>
+
+                    {/* Edit Dialog */}
                     <Dialog
-                        open={isDialogOpen}
+                        open={!!editingMovie}
                         onOpenChange={(open) => {
-                            setIsDialogOpen(open)
-                            if (!open) resetForm()
+                            if (!open) {
+                                setEditingMovie(null)
+                                resetForm()
+                                setShowGenreDropdown(false)
+                                setGenreSearch("")
+                            }
                         }}
                     >
-                        <DialogTrigger asChild>
-                            <Button
-                                className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20">
-                                <Plus className="w-4 h-4 mr-2"/>
-                                Thêm phim mới
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent
-                            className="bg-card text-card-foreground border-border max-w-3xl max-h-[90vh] overflow-y-auto">
+                        <DialogContent className="bg-card text-card-foreground border-border max-w-2xl max-h-[90vh] overflow-y-auto">
                             <DialogHeader>
                                 <DialogTitle className="text-foreground text-2xl">
-                                    {editingMovie ? "Sửa phim" : "Thêm phim mới"}
+                                    Chỉnh sửa phim
                                 </DialogTitle>
                             </DialogHeader>
                             <div className="grid gap-6 py-4">
                                 <div className="grid gap-3">
-                                    <Label htmlFor="poster" className="text-foreground font-medium">
-                                        Poster phim
-                                    </Label>
-                                    <div className="flex gap-4 items-start">
-                                        <div className="flex-1 space-y-3">
-                                            <div className="flex gap-2">
-                                                <Input
-                                                    id="poster-file"
-                                                    type="file"
-                                                    accept="image/*"
-                                                    onChange={handleFileChange}
-                                                    className="hidden"
-                                                />
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    onClick={() => document.getElementById("poster-file")?.click()}
-                                                    className="border-border text-foreground hover:bg-muted bg-transparent"
-                                                >
-                                                    <Upload className="w-4 h-4 mr-2"/>
-                                                    Chọn file
-                                                </Button>
-                                                {posterFile && (
-                                                    <span
-                                                        className="text-sm text-muted-foreground flex items-center">{posterFile.name}</span>
-                                                )}
-                                            </div>
-                                            <p className="text-xs text-muted-foreground">Chọn file ảnh poster (JPG, PNG,
-                                                WebP)</p>
-                                        </div>
-
-                                        {posterPreview && (
-                                            <div className="relative">
-                                                <Image
-                                                    src={posterPreview || "/placeholder.svg"}
-                                                    alt="Poster preview"
-                                                    width={120}
-                                                    height={180}
-                                                    className="rounded-lg object-cover shadow-lg border-2 border-border"
-                                                />
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="destructive"
-                                                    onClick={removePosterPreview}
-                                                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
-                                                >
-                                                    <X className="w-4 h-4"/>
-                                                </Button>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="grid gap-3">
-                                    <Label htmlFor="title" className="text-foreground font-medium">
-                                        Tên phim
+                                    <Label htmlFor="edit-name" className="text-foreground font-medium">
+                                        Tên phim *
                                     </Label>
                                     <Input
-                                        id="title"
-                                        value={formData.title}
-                                        onChange={(e) => setFormData({...formData, title: e.target.value})}
+                                        id="edit-name"
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({...formData, name: e.target.value})}
                                         className="bg-input border-border text-foreground"
+                                        placeholder="Nhập tên phim"
                                     />
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
                                     <div className="grid gap-3">
-                                        <Label htmlFor="director" className="text-foreground font-medium">
-                                            Đạo diễn
+                                        <Label htmlFor="edit-genre" className="text-foreground font-medium">
+                                            Thể loại *
                                         </Label>
-                                        <Input
-                                            id="director"
-                                            value={formData.director}
-                                            onChange={(e) => setFormData({...formData, director: e.target.value})}
-                                            className="bg-input border-border text-foreground"
-                                        />
+                                    <div className="space-y-3">
+                                        {/* Selected Genres Display */}
+                                        {selectedGenres.length > 0 && (
+                                            <div className="flex flex-wrap gap-2">
+                                                {selectedGenres.map((genre) => (
+                                                    <Badge
+                                                        key={genre.id}
+                                                        variant="secondary"
+                                                        className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"
+                                                    >
+                                                        {genre.name}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleGenreRemove(genre.id)}
+                                                            className="ml-2 hover:text-destructive"
+                                                        >
+                                                            <X className="w-3 h-3" />
+                                                        </button>
+                                                    </Badge>
+                                                ))}
                                     </div>
-                                    <div className="grid gap-3">
-                                        <Label htmlFor="actors" className="text-foreground font-medium">
-                                            Diễn viên
-                                        </Label>
-                                        <Input
-                                            id="actors"
-                                            value={formData.actors}
-                                            onChange={(e) => setFormData({...formData, actors: e.target.value})}
-                                            placeholder="Ngăn cách bằng dấu phẩy"
-                                            className="bg-input border-border text-foreground"
-                                        />
+                                        )}
+                                        
+                                        {/* Genre Search Input */}
+                                        <div className="relative genre-dropdown-container">
+                                            <Input
+                                                placeholder="Tìm kiếm thể loại..."
+                                                value={genreSearch}
+                                                onChange={(e) => {
+                                                    setGenreSearch(e.target.value)
+                                                    setShowGenreDropdown(true)
+                                                }}
+                                                onFocus={() => setShowGenreDropdown(true)}
+                                                className="bg-input border-border text-foreground"
+                                            />
+                                            
+                                            {/* Genre Dropdown */}
+                                            {showGenreDropdown && (
+                                                <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                                    {filteredGenres.length > 0 ? (
+                                                        filteredGenres.map((genre) => (
+                                                            <button
+                                                                key={genre.id}
+                                                                type="button"
+                                                                onClick={() => handleGenreSelect(genre)}
+                                                                className="w-full px-3 py-2 text-left text-foreground hover:bg-muted/50 flex items-center justify-between"
+                                                            >
+                                                                <span>{genre.name}</span>
+                                                                {selectedGenres.find(g => g.id === genre.id) && (
+                                                                    <span className="text-primary text-sm">✓</span>
+                                                                )}
+                                                            </button>
+                                                        ))
+                                                    ) : (
+                                                        <div className="px-3 py-2 text-muted-foreground text-sm">
+                                                            Không tìm thấy thể loại
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="grid gap-3">
-                                        <Label htmlFor="genre" className="text-foreground font-medium">
-                                            Thể loại
+                                        <Label htmlFor="edit-language" className="text-foreground font-medium">
+                                            Ngôn ngữ *
                                         </Label>
                                         <Select
-                                            value={formData.genre}
-                                            onValueChange={(value) => setFormData({...formData, genre: value})}
-                                        >
-                                            <SelectTrigger className="bg-input border-border text-foreground">
-                                                <SelectValue placeholder="Chọn thể loại"/>
-                                            </SelectTrigger>
-                                            <SelectContent className="bg-popover border-border">
-                                                {GENRES.map((genre) => (
-                                                    <SelectItem key={genre} value={genre}>
-                                                        {genre}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="grid gap-3">
-                                        <Label htmlFor="language" className="text-foreground font-medium">
-                                            Ngôn ngữ
-                                        </Label>
-                                        <Select
-                                            value={formData.language}
-                                            onValueChange={(value) => setFormData({...formData, language: value})}
+                                            value={formData.languageId}
+                                            onValueChange={(value) => setFormData({...formData, languageId: value})}
                                         >
                                             <SelectTrigger className="bg-input border-border text-foreground">
                                                 <SelectValue placeholder="Chọn ngôn ngữ"/>
                                             </SelectTrigger>
                                             <SelectContent className="bg-popover border-border">
-                                                {LANGUAGES.map((lang) => (
-                                                    <SelectItem key={lang} value={lang}>
-                                                        {lang}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-3 gap-4">
-                                    <div className="grid gap-3">
-                                        <Label htmlFor="ageRating" className="text-foreground font-medium">
-                                            Độ tuổi
-                                        </Label>
-                                        <Select
-                                            value={formData.ageRating}
-                                            onValueChange={(value) => setFormData({...formData, ageRating: value})}
-                                        >
-                                            <SelectTrigger className="bg-input border-border text-foreground">
-                                                <SelectValue placeholder="Chọn"/>
-                                            </SelectTrigger>
-                                            <SelectContent className="bg-popover border-border">
-                                                {AGE_RATINGS.map((rating) => (
-                                                    <SelectItem key={rating} value={rating}>
-                                                        {rating}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="grid gap-3">
-                                        <Label htmlFor="year" className="text-foreground font-medium">
-                                            Năm
-                                        </Label>
-                                        <Input
-                                            id="year"
-                                            type="number"
-                                            min={2000}
-                                            value={formData.year}
-                                            onChange={(e) => setFormData({...formData, year: e.target.value})}
-                                            className="bg-input border-border text-foreground"
-                                        />
-                                    </div>
-                                    <div className="grid gap-3">
-                                        <Label htmlFor="country" className="text-foreground font-medium">
-                                            Quốc gia
-                                        </Label>
-                                        <Select
-                                            value={formData.country}
-                                            onValueChange={(value) => setFormData({...formData, country: value})}
-                                        >
-                                            <SelectTrigger className="bg-input border-border text-foreground">
-                                                <SelectValue placeholder="Chọn"/>
-                                            </SelectTrigger>
-                                            <SelectContent className="bg-popover border-border">
-                                                {COUNTRIES.map((country) => (
-                                                    <SelectItem key={country} value={country}>
-                                                        {country}
-                                                    </SelectItem>
-                                                ))}
+                                                {languages.length > 0 ? (
+                                                    languages.map((lang) => (
+                                                        <SelectItem key={lang.id} value={lang.id.toString()}>
+                                                            {lang.name}
+                                                        </SelectItem>
+                                                    ))
+                                                ) : (
+                                                    <div className="px-3 py-2 text-muted-foreground text-sm">
+                                                        Đang tải danh sách ngôn ngữ...
+                                                    </div>
+                                                )}
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -725,71 +766,96 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="grid gap-3">
-                                        <Label htmlFor="duration" className="text-foreground font-medium">
-                                            Thời lượng (phút)
+                                        <Label htmlFor="edit-country" className="text-foreground font-medium">
+                                            Quốc gia *
                                         </Label>
-                                        <Input
-                                            id="duration"
-                                            type="number"
-                                            value={formData.duration}
-                                            onChange={(e) => setFormData({...formData, duration: e.target.value})}
-                                            className="bg-input border-border text-foreground"
-                                        />
+                                        <Select
+                                            value={formData.countryId}
+                                            onValueChange={(value) => setFormData({...formData, countryId: value})}
+                                        >
+                                            <SelectTrigger className="bg-input border-border text-foreground">
+                                                <SelectValue placeholder="Chọn quốc gia"/>
+                                            </SelectTrigger>
+                                            <SelectContent className="bg-popover border-border">
+                                                {countries.length > 0 ? (
+                                                    countries.map((country) => (
+                                                        <SelectItem key={country.id} value={country.id.toString()}>
+                                                            {country.name}
+                                                    </SelectItem>
+                                                    ))
+                                                ) : (
+                                                    <div className="px-3 py-2 text-muted-foreground text-sm">
+                                                        Đang tải danh sách quốc gia...
+                                                    </div>
+                                                )}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                     <div className="grid gap-3">
-                                        <Label htmlFor="releaseDate" className="text-foreground font-medium">
-                                            Ngày khởi chiếu
+                                        <Label htmlFor="edit-status" className="text-foreground font-medium">
+                                            Trạng thái *
                                         </Label>
-                                        <Input
-                                            id="releaseDate"
-                                            type="date"
-                                            value={formData.releaseDate}
-                                            onChange={(e) => setFormData({...formData, releaseDate: e.target.value})}
-                                            className="bg-input border-border text-foreground"
-                                        />
+                                        <Select
+                                            value={formData.status}
+                                            onValueChange={(value: "UPCOMING" | "PLAYING" | "ENDED") =>
+                                                setFormData({...formData, status: value})
+                                            }
+                                        >
+                                            <SelectTrigger className="bg-input border-border text-foreground">
+                                                <SelectValue placeholder="Chọn trạng thái"/>
+                                            </SelectTrigger>
+                                            <SelectContent className="bg-popover border-border">
+                                                <SelectItem value="UPCOMING">Sắp chiếu</SelectItem>
+                                                <SelectItem value="PLAYING">Đang chiếu</SelectItem>
+                                                <SelectItem value="ENDED">Đã kết thúc</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                 </div>
 
                                 <div className="grid gap-3">
-                                    <Label htmlFor="status" className="text-foreground font-medium">
-                                        Trạng thái
+                                    <Label htmlFor="edit-releaseDate" className="text-foreground font-medium">
+                                        Ngày phát hành *
                                     </Label>
-                                    <Select
-                                        value={formData.status}
-                                        onValueChange={(value: Movie["status"]) => setFormData({
-                                            ...formData,
-                                            status: value
-                                        })}
-                                    >
-                                        <SelectTrigger className="bg-input border-border text-foreground">
-                                            <SelectValue/>
-                                        </SelectTrigger>
-                                        <SelectContent className="bg-popover border-border">
-                                            <SelectItem value="upcoming">Sắp chiếu</SelectItem>
-                                            <SelectItem value="now-showing">Đang chiếu</SelectItem>
-                                            <SelectItem value="ended">Đã kết thúc</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <Input
+                                        id="edit-releaseDate"
+                                        type="date"
+                                        value={formData.releaseDate}
+                                        onChange={(e) => setFormData({...formData, releaseDate: e.target.value})}
+                                        className="bg-input border-border text-foreground"
+                                    />
                                 </div>
 
-                                <div className="grid gap-3">
-                                    <Label htmlFor="description" className="text-foreground font-medium">
-                                        Mô tả
-                                    </Label>
-                                    <Textarea
-                                        id="description"
-                                        value={formData.description}
-                                        onChange={(e) => setFormData({...formData, description: e.target.value})}
-                                        className="bg-input border-border text-foreground min-h-32"
-                                    />
+                                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Film className="w-5 h-5 text-amber-600"/>
+                                        <h3 className="font-semibold text-amber-800">Chỉnh sửa chi tiết</h3>
+                                    </div>
+                                    <p className="text-sm text-amber-700 mb-3">
+                                        Để chỉnh sửa thông tin chi tiết như đạo diễn, diễn viên, mô tả... 
+                                        hãy vào trang chi tiết phim.
+                                    </p>
+                                    <Button
+                                        onClick={() => {
+                                            setEditingMovie(null)
+                                            resetForm()
+                                            router.push(`/operator-manager/movies/${editingMovie?.id}`)
+                                        }}
+                                        className="border-amber-300 text-amber-700 hover:bg-amber-100"
+                                    >
+                                        <Film className="w-4 h-4 mr-2"/>
+                                        Xem & Chỉnh sửa chi tiết
+                                    </Button>
                                 </div>
                             </div>
                             <div className="flex justify-end gap-3 pt-4 border-t border-border">
                                 <Button
                                     variant="outline"
                                     onClick={() => {
-                                        setIsDialogOpen(false)
+                                        setEditingMovie(null)
                                         resetForm()
+                                        setShowGenreDropdown(false)
+                                        setGenreSearch("")
                                     }}
                                     className="border-border text-foreground hover:bg-muted"
                                 >
@@ -811,7 +877,7 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                         <div className="flex-1 relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground"/>
                             <Input
-                                placeholder="Tìm kiếm theo tên phim..."
+                                placeholder="Tìm kiếm theo tên phim hoặc tên quốc gia..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="pl-11 bg-input border-border text-foreground h-12 text-base"
@@ -835,9 +901,9 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                 </SelectTrigger>
                                 <SelectContent className="bg-popover border-border">
                                     <SelectItem value="all">Tất cả</SelectItem>
-                                    {GENRES.map((genre) => (
-                                        <SelectItem key={genre} value={genre}>
-                                            {genre}
+                                    {genres.map((genre) => (
+                                        <SelectItem key={genre.id} value={genre.name}>
+                                            {genre.name}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -852,9 +918,9 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                 </SelectTrigger>
                                 <SelectContent className="bg-popover border-border">
                                     <SelectItem value="all">Tất cả</SelectItem>
-                                    {LANGUAGES.map((lang) => (
-                                        <SelectItem key={lang} value={lang}>
-                                            {lang}
+                                    {languages.map((lang) => (
+                                        <SelectItem key={lang.id} value={lang.name}>
+                                            {lang.name}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -924,17 +990,17 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                         <Label className="text-sm text-muted-foreground font-medium">Sắp xếp theo:</Label>
                         <div className="flex gap-2">
                             <Button
-                                variant={sortField === "title" ? "default" : "outline"}
+                                variant={sortField === "name" ? "default" : "outline"}
                                 size="sm"
-                                onClick={() => toggleSort("title")}
+                                onClick={() => toggleSort("name")}
                                 className={
-                                    sortField === "title"
+                                    sortField === "name"
                                         ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
                                         : "border-border text-foreground hover:bg-muted"
                                 }
                             >
                                 Tên phim
-                                {sortField === "title" &&
+                                {sortField === "name" &&
                                     (sortDirection === "asc" ? (
                                         <ArrowUp className="w-3 h-3 ml-1"/>
                                     ) : (
@@ -986,18 +1052,15 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                             <Table>
                                 <TableHeader>
                                     <TableRow className="border-border hover:bg-muted/50">
+                                        <TableHead className="text-muted-foreground font-semibold w-16">ID</TableHead>
                                         <TableHead className="text-muted-foreground font-semibold">Tên phim</TableHead>
                                         <TableHead className="text-muted-foreground font-semibold">Thể loại</TableHead>
-                                        <TableHead className="text-muted-foreground font-semibold">Đạo diễn</TableHead>
-                                        <TableHead className="text-muted-foreground font-semibold">Diễn viên</TableHead>
-                                        <TableHead className="text-muted-foreground font-semibold">Độ tuổi</TableHead>
-                                        <TableHead className="text-muted-foreground font-semibold">Năm</TableHead>
+                                        <TableHead className="text-muted-foreground font-semibold">Ngôn ngữ</TableHead>
                                         <TableHead className="text-muted-foreground font-semibold">Quốc gia</TableHead>
                                         <TableHead className="text-muted-foreground font-semibold">Ngày phát
                                             hành</TableHead>
                                         <TableHead className="text-muted-foreground font-semibold">Trạng
                                             thái</TableHead>
-                                        <TableHead className="text-muted-foreground font-semibold">Poster</TableHead>
                                         <TableHead className="text-muted-foreground font-semibold">Hành động</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -1007,43 +1070,51 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                         return (
                                             <TableRow key={movie.id}
                                                       className="border-border hover:bg-muted/30 transition-colors">
+                                                <TableCell className="text-muted-foreground font-mono text-sm">
+                                                    {movie.id}
+                                                </TableCell>
                                                 <TableCell
-                                                    className="font-semibold text-foreground">{movie.title}</TableCell>
-                                                <TableCell className="text-foreground">{movie.genre}</TableCell>
-                                                <TableCell className="text-foreground">{movie.director}</TableCell>
-                                                <TableCell className="text-foreground max-w-[200px] truncate"
-                                                           title={movie.actors}>
-                                                    {movie.actors}
-                                                </TableCell>
-                                                <TableCell className="text-foreground">
-                                                    <Badge variant="outline" className="border-border">
-                                                        {movie.ageRating}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell className="text-foreground">{movie.year}</TableCell>
-                                                <TableCell className="text-foreground">{movie.country}</TableCell>
+                                                    className="font-semibold text-foreground">{movie.name}</TableCell>
+                                                <TableCell>{movie.genre.map(g => g.name).join(", ")}</TableCell>
+                                                <TableCell
+                                                    className="text-foreground">{movie.language?.name || "N/A"}</TableCell>
+                                                <TableCell className="text-foreground">{movie.country?.name}</TableCell>
                                                 <TableCell className="text-foreground">
                                                     {new Date(movie.releaseDate).toLocaleDateString("vi-VN")}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Badge className={statusBadge.variant}>{statusBadge.label}</Badge>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Image
-                                                        src={movie.poster || "/placeholder.svg"}
-                                                        alt={movie.title}
-                                                        width={80}
-                                                        height={120}
-                                                        className="rounded-lg object-cover shadow-md"
-                                                    />
+                                                    <Badge
+                                                        variant={statusBadge.variant}
+                                                        className={statusBadge.className}
+                                                    >
+                                                        {statusBadge.label}
+                                                    </Badge>
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex gap-2">
                                                         <Button
                                                             size="sm"
                                                             variant="ghost"
+                                                            onClick={(e) => {
+                                                                if (e.ctrlKey || e.metaKey) {
+                                                                    // Ctrl+Click hoặc Cmd+Click: mở tab mới
+                                                                    window.open(`/operator-manager/movies/${movie.id}`, '_blank')
+                                                                } else {
+                                                                    // Click thường: mở trong tab hiện tại
+                                                                    router.push(`/operator-manager/movies/${movie.id}`)
+                                                                }
+                                                            }}
+                                                            className="text-blue-600 hover:bg-blue-50"
+                                                            title="Xem chi tiết (Ctrl+Click để mở tab mới)"
+                                                        >
+                                                            <Film className="w-4 h-4"/>
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
                                                             onClick={() => openEditDialog(movie)}
                                                             className="text-foreground hover:bg-muted"
+                                                            title="Chỉnh sửa"
                                                         >
                                                             <Pencil className="w-4 h-4"/>
                                                         </Button>
@@ -1052,6 +1123,7 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                                             variant="ghost"
                                                             onClick={() => handleDelete(movie.id)}
                                                             className="text-destructive hover:bg-destructive/10"
+                                                            title="Xóa"
                                                         >
                                                             <Trash2 className="w-4 h-4"/>
                                                         </Button>
@@ -1099,7 +1171,7 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                     Trước
                                 </Button>
                                 <div className="flex gap-1">
-                                    {Array.from({length: Math.min(5, totalPages)}, (_, i) => {
+                                    {totalPages > 0 && Array.from({length: Math.min(5, totalPages)}, (_, i) => {
                                         let pageNum
                                         if (totalPages <= 5) {
                                             pageNum = i + 1
@@ -1109,6 +1181,11 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                             pageNum = totalPages - 4 + i
                                         } else {
                                             pageNum = currentPage - 2 + i
+                                        }
+
+                                        // Ensure pageNum is within valid range
+                                        if (pageNum < 1 || pageNum > totalPages) {
+                                            return null
                                         }
 
                                         return (
@@ -1126,7 +1203,7 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                                 {pageNum}
                                             </Button>
                                         )
-                                    })}
+                                    }).filter(Boolean)}
                                 </div>
                                 <Button
                                     variant="outline"

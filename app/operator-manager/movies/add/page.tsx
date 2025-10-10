@@ -1,12 +1,12 @@
 "use client"
 
 import {OperatorLayout} from "@/components/layouts/operator-layout"
-import {ProfileManagement} from "@/components/operator/profile-management";
+import {AddMovieForm} from "@/components/operator/add-movie-form"
 
-export default function ProfilePage() {
+export default function AddMoviePage() {
     return (
         <OperatorLayout>
-            <ProfileManagement/>
+            <AddMovieForm/>
         </OperatorLayout>
     )
 }

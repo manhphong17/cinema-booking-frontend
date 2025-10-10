@@ -1,12 +1,12 @@
 "use client"
 
 import {OperatorLayout} from "@/components/layouts/operator-layout"
-import {ProfileManagement} from "@/components/operator/profile-management";
+import {ShowtimeManagement} from "@/components/operator/showtime-management";
 
-export default function ProfilePage() {
+export default function ShowTimesPage() {
     return (
         <OperatorLayout>
-            <ProfileManagement/>
+            <ShowtimeManagement/>
         </OperatorLayout>
     )
 }
