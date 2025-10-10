@@ -94,7 +94,7 @@ export function MovieManagement() {
     })
 
 
-    const [sortField, setSortField] = useState<"name" | "releaseDate" | null>(null)
+    const [sortField, setSortField] = useState<"id" | "name" | "releaseDate">("id")
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
 
     const [currentPage, setCurrentPage] = useState(1)
@@ -200,11 +200,7 @@ export function MovieManagement() {
             const queryParams: Record<string, string> = {
                 pageNo: currentPage.toString(),
                 pageSize: pageSize.toString(),
-            }
-
-            // Only add sortBy if sortField is selected
-            if (sortField) {
-                queryParams.sortBy = `${sortField}:${sortDirection}`
+                sortBy: `${sortField}:${sortDirection}`,
             }
 
             // Only add filter parameters if they have values
@@ -394,7 +390,7 @@ export function MovieManagement() {
         toast.info("Đã đặt lại bộ lọc")
     }
 
-    const toggleSort = (field: "name" | "releaseDate") => {
+    const toggleSort = (field: "id" | "name" | "releaseDate") => {
         if (sortField === field) {
             setSortDirection(sortDirection === "asc" ? "desc" : "asc")
         } else {
@@ -989,6 +985,24 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                     <div className="flex items-center gap-4 pt-3 border-t border-border">
                         <Label className="text-sm text-muted-foreground font-medium">Sắp xếp theo:</Label>
                         <div className="flex gap-2">
+                            <Button
+                                variant={sortField === "id" ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => toggleSort("id")}
+                                className={
+                                    sortField === "id"
+                                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                                        : "border-border text-foreground hover:bg-muted"
+                                }
+                            >
+                                ID
+                                {sortField === "id" &&
+                                    (sortDirection === "asc" ? (
+                                        <ArrowUp className="w-3 h-3 ml-1"/>
+                                    ) : (
+                                        <ArrowDown className="w-3 h-3 ml-1"/>
+                                    ))}
+                            </Button>
                             <Button
                                 variant={sortField === "name" ? "default" : "outline"}
                                 size="sm"

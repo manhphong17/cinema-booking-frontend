@@ -39,22 +39,30 @@ const getLoginPage = (): string => {
 
 const refreshAccessToken = async (): Promise<string | null> => {
     try {
-        console.log("Attempting to refresh access token...")
+        console.log("🔄 Attempting to refresh access token...")
+        console.log("🔄 Base URL:", BASE_URL)
+        console.log("🔄 Cookies:", document.cookie)
+        
         const response = await axios.post(`${BASE_URL}/auth/refresh-token`, {}, {
             withCredentials: true
         })
 
+        console.log("🔄 Refresh response status:", response.status)
+        console.log("🔄 Refresh response data:", response.data)
+
         if (response.data?.data?.accessToken) {
             const newAccessToken = response.data.data.accessToken
             localStorage.setItem("accessToken", newAccessToken)
-            console.log("Access token refreshed successfully")
+            console.log("✅ Access token refreshed successfully")
             return newAccessToken
         }
         
-        console.log("No access token in refresh response")
+        console.log("❌ No access token in refresh response")
         return null
     } catch (error) {
-        console.error("Refresh token failed:", error)
+        console.error("❌ Refresh token failed:", error)
+        console.error("❌ Error response:", error.response?.data)
+        console.error("❌ Error status:", error.response?.status)
         // Don't redirect here, let the interceptor handle it
         return null
     }
@@ -68,8 +76,10 @@ apiClient.interceptors.request.use(
         console.log("Request interceptor - Token expired:", token ? isTokenExpired(token) : "N/A")
         console.log("Request interceptor - URL:", config.url)
 
-        // Skip auth for login/register endpoints
-        if (config.url?.includes('/auth/') || config.url?.includes('/login') || config.url?.includes('/register')) {
+        // Skip auth for login/register endpoints (except refresh-token)
+        if ((config.url?.includes('/auth/') && !config.url?.includes('/auth/refresh-token')) || 
+            config.url?.includes('/login') || 
+            config.url?.includes('/register')) {
             console.log("Request interceptor - Skipping auth for auth endpoints")
             return config
         }
@@ -102,8 +112,10 @@ apiClient.interceptors.response.use(
         console.log("Response interceptor - Error:", error.response?.status, error.config?.url)
         const originalRequest = error.config
 
-        // Skip redirect for auth endpoints
-        if (originalRequest.url?.includes('/auth/') || originalRequest.url?.includes('/login') || originalRequest.url?.includes('/register')) {
+        // Skip redirect for auth endpoints (except refresh-token)
+        if ((originalRequest.url?.includes('/auth/') && !originalRequest.url?.includes('/auth/refresh-token')) || 
+            originalRequest.url?.includes('/login') || 
+            originalRequest.url?.includes('/register')) {
             console.log("Response interceptor - Skipping redirect for auth endpoints")
             return Promise.reject(error)
         }

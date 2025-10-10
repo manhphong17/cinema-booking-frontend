@@ -55,13 +55,17 @@ export default function LoginPage() {
             const response = await fetch(BACKEND_BASE_URL + "/auth/log-in", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
+                credentials: "include", // Fix: Include credentials for cookie
                 body: JSON.stringify({email, password}),
             })
 
             const data = await response.json()
+            console.log("Login response:", data) // Debug log
 
             if (data.status === 200 && data.data.accessToken) {
                 const roles: string[] = data.data.roleName
+                console.log("User roles:", roles) // Debug log
+                
                 if (!roles.includes("CUSTOMER")) {
                     toast.error("Trang đăng nhập này chỉ dành cho khách hàng")
                     return
@@ -72,7 +76,19 @@ export default function LoginPage() {
                 localStorage.setItem("email", data.data.email)
 
                 toast.success(data.message)
-                router.push("/customer")
+                console.log("Redirecting to /customer") // Debug log
+                
+                // Add delay to ensure state is saved
+                setTimeout(() => {
+                    try {
+                        router.push("/customer")
+                        console.log("Router.push called successfully")
+                    } catch (error) {
+                        console.error("Router.push error:", error)
+                        // Fallback to window.location
+                        window.location.href = "/customer"
+                    }
+                }, 100)
             } else if (data.status === 1003) {
                 setShowVerifyModal(true)
             } else if (data.status === 1004) {
