@@ -74,16 +74,47 @@ interface MovieCarouselProps {
   title: string
   movies: typeof movies
   showViewAll?: boolean
+  variant?: 'home' | 'page'
 }
 
-export function MovieCarousel({ title, movies: movieList, showViewAll = true }: MovieCarouselProps) {
+export function MovieCarousel({ title, movies: movieList, showViewAll = true, variant = 'home' }: MovieCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(8)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [selectedGenre, setSelectedGenre] = useState<string>('all')
+  const [selectedRating, setSelectedRating] = useState<string>("all")
   const router = useRouter()
   const itemsPerView = 4
-  const maxMoviesToShow = 4 // Chỉ hiển thị 4 phim trên trang home
+  const maxMoviesToShow = 4 // Trang home chỉ hiển thị 4 phim
 
-  // Chỉ lấy 4 phim đầu tiên cho trang home
-  const displayMovies = movieList.slice(0, maxMoviesToShow)
+  const isHome = variant === 'home'
+  // Build genre list from data (split by comma)
+  const allGenres = Array.from(
+    new Set(
+      movieList
+        .flatMap(m => m.genre.split(',').map(g => g.trim()))
+        .filter(Boolean)
+    )
+  )
+
+  const filteredMovies = !isHome
+    ? movieList.filter(m => {
+        const matchSearch = searchTerm.trim()
+          ? m.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            m.genre.toLowerCase().includes(searchTerm.toLowerCase())
+          : true
+        const movieGenres = m.genre.split(',').map(g => g.trim())
+        const matchGenre = selectedGenre === 'all' ? true : movieGenres.includes(selectedGenre)
+        const matchRating = selectedRating === 'all' ? true : m.rating === selectedRating
+        return matchSearch && matchGenre && matchRating
+      })
+    : movieList
+
+  const baseMovies = isHome ? movieList.slice(0, maxMoviesToShow) : filteredMovies
+  // Bỏ phân trang cho trang liệt kê: hiển thị toàn bộ danh sách đã lọc
+  const totalPages = 1
+  const displayMovies = baseMovies
 
   const nextSlide = () => {
     setCurrentIndex((prev) => 
@@ -112,29 +143,70 @@ export function MovieCarousel({ title, movies: movieList, showViewAll = true }: 
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
           <div>
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-2">
-              <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+            <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1">
+              {title === "Phim đang chiếu" ? "Now Showing" : "Coming Soon"}
+            </div>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-foreground mb-2 tracking-tight leading-tight">
+              <span className="text-foreground">
                 {title}
               </span>
             </h2>
-            <div className="w-16 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full"></div>
+            <div className="h-1 w-16 rounded-full bg-black/80"></div>
           </div>
-          {showViewAll && (
+          {isHome && showViewAll && (
             <Button 
               variant="outline" 
-              className="bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-600 hover:to-purple-600 hover:text-white border border-blue-300 hover:border-blue-500 transition-all duration-300 hover:scale-105 shadow-lg rounded-xl px-6 py-3 font-semibold"
+              className="bg-white hover:bg-black hover:text-white border border-gray-300 hover:border-black transition-all duration-200 rounded-xl px-6 py-3 font-semibold shadow-sm"
               onClick={() => router.push(title === "Phim đang chiếu" ? "/movies/now-showing" : "/movies/coming-soon")}
             >
-              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:text-white">
-                Xem tất cả →
-              </span>
+              Xem tất cả →
             </Button>
           )}
         </div>
 
         <div className="relative">
-          {/* Navigation Buttons - Ẩn vì chỉ hiển thị 4 phim cố định */}
-          {displayMovies.length > itemsPerView && (
+          {/* Page tools for listing pages */}
+          {!isHome && (
+            <div className="space-y-3 mb-6">
+              <div className="flex flex-wrap items-center gap-3 justify-between">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-gray-600">Độ tuổi:</label>
+                  <select
+                    value={selectedRating}
+                    onChange={(e) => { setSelectedRating(e.target.value); setPage(1) }}
+                    className="h-9 rounded-md border border-gray-300 bg-white px-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-black/10"
+                  >
+                    <option value="all">Tất cả</option>
+                    <option value="P13">P13</option>
+                    <option value="P16">P16</option>
+                  </select>
+                </div>
+                <input
+                  value={searchTerm}
+                  onChange={(e) => { setSearchTerm(e.target.value); setPage(1) }}
+                  placeholder="Tìm phim theo tên hoặc thể loại..."
+                  className="h-9 w-64 md:w-80 px-3 rounded-md border border-gray-300 bg-white text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-black/10"
+                />
+              </div>
+              {/* Genre as dropdown */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600">Thể loại:</label>
+                <select
+                  value={selectedGenre}
+                  onChange={(e) => { setSelectedGenre(e.target.value); setPage(1) }}
+                  className="h-9 rounded-md border border-gray-300 bg-white px-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-black/10"
+                >
+                  <option value="all">Tất cả</option>
+                  {allGenres.map(g => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* Navigation Buttons - Ẩn nếu không cần */}
+          {isHome && displayMovies.length > itemsPerView && (
             <>
               <button
                 onClick={prevSlide}
@@ -175,7 +247,7 @@ export function MovieCarousel({ title, movies: movieList, showViewAll = true }: 
                   <div className="absolute inset-0 flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     <Button
                       size="lg"
-                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-full w-14 h-14 shadow-xl hover:scale-110 transition-all duration-300"
+                      className="bg-black hover:bg-black/90 text-white rounded-full w-14 h-14 shadow-xl hover:scale-110 transition-all duration-300"
                       onClick={(e) => {
                         e.stopPropagation()
                         handleBookTicket(movie.id)
@@ -186,7 +258,7 @@ export function MovieCarousel({ title, movies: movieList, showViewAll = true }: 
                     <Button
                       size="lg"
                       variant="outline"
-                      className="bg-white/90 hover:bg-gradient-to-r hover:from-pink-500 hover:to-rose-500 text-gray-700 hover:text-white rounded-full w-14 h-14 shadow-xl hover:scale-110 transition-all duration-300 border-2"
+                      className="bg-white text-gray-800 hover:bg-black hover:text-white rounded-full w-14 h-14 shadow-xl hover:scale-110 transition-all duration-300 border-2 border-gray-300 hover:border-black"
                       onClick={(e) => {
                         e.stopPropagation()
                         handleViewDetails(movie.id)
@@ -209,7 +281,7 @@ export function MovieCarousel({ title, movies: movieList, showViewAll = true }: 
                   </div>
                   <div className="flex gap-2">
                     <Button 
-                      className="flex-1 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white font-semibold py-2.5 transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-blue-500/30 rounded-lg"
+                      className="flex-1 bg-black hover:bg-black/90 text-white font-semibold py-2.5 transition-colors duration-200 rounded-lg shadow-md hover:shadow-black/20"
                       onClick={(e) => {
                         e.stopPropagation()
                         handleBookTicket(movie.id)
@@ -219,7 +291,7 @@ export function MovieCarousel({ title, movies: movieList, showViewAll = true }: 
                     </Button>
                     <Button 
                       variant="outline"
-                      className="px-3 border-blue-300 text-blue-600 hover:bg-gradient-to-r hover:from-pink-500 hover:to-rose-500 hover:text-white hover:border-pink-400 transition-all duration-300 hover:scale-105 rounded-lg"
+                      className="px-3 border-gray-300 text-gray-800 hover:bg-black hover:text-white hover:border-black transition-colors duration-200 rounded-lg"
                       onClick={(e) => {
                         e.stopPropagation()
                         handleViewDetails(movie.id)
@@ -232,6 +304,8 @@ export function MovieCarousel({ title, movies: movieList, showViewAll = true }: 
               </Card>
             ))}
           </div>
+
+          {/* Không có phân trang ở trang liệt kê */}
         </div>
 
       </div>
@@ -239,11 +313,11 @@ export function MovieCarousel({ title, movies: movieList, showViewAll = true }: 
   )
 }
 
-export function NowShowingCarousel() {
-  return <MovieCarousel title="Phim đang chiếu" movies={movies} />
+export function NowShowingCarousel({ variant = 'home' }: { variant?: 'home' | 'page' }) {
+  return <MovieCarousel title="Phim đang chiếu" movies={movies} variant={variant} />
 }
 
-export function ComingSoonCarousel() {
+export function ComingSoonCarousel({ variant = 'home' }: { variant?: 'home' | 'page' }) {
   const comingSoonMovies = [
     {
       id: 7,
@@ -287,5 +361,5 @@ export function ComingSoonCarousel() {
     }
   ]
 
-  return <MovieCarousel title="Phim sắp chiếu" movies={comingSoonMovies} />
+  return <MovieCarousel title="Phim sắp chiếu" movies={comingSoonMovies} variant={variant} />
 }

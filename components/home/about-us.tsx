@@ -11,11 +11,9 @@ export function AboutUs() {
           <div className="lg:col-span-3">
             <div className="mb-6">
               <h2 className="text-3xl md:text-4xl font-extrabold text-foreground mb-3 text-balance">
-                <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-                  Giới thiệu rạp của chúng tôi
-                </span>
+                Giới thiệu rạp của chúng tôi
               </h2>
-              <div className="w-16 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full"></div>
+              <div className="w-16 h-1 bg-black/80 rounded-full"></div>
             </div>
             
             <div className="space-y-4 text-foreground/80 leading-relaxed">
@@ -31,30 +29,28 @@ export function AboutUs() {
                 Với đội ngũ nhân viên chuyên nghiệp, nhiệt tình và cam kết về chất lượng dịch vụ, chúng tôi luôn đặt sự hài
                 lòng của khách hàng lên hàng đầu và không ngừng cải tiến để mang đến những trải nghiệm xem phim tuyệt vời nhất.
               </p>
-              <div className="bg-gradient-to-r from-blue-50/80 via-purple-50/60 to-pink-50/40 p-6 rounded-xl border border-blue-200/30 shadow-lg">
+              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-lg">
                 <p className="font-semibold text-foreground text-lg">
-                  <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-                    Hãy đến với chúng tôi - nơi những câu chuyện điện ảnh trở nên sống động!
-                  </span>
+                  Hãy đến với chúng tôi - nơi những câu chuyện điện ảnh trở nên sống động!
                 </p>
               </div>
 
               {/* Feature highlights */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
-                <div className="p-5 rounded-xl border border-blue-200/30 bg-gradient-to-br from-blue-50/80 to-purple-50/60 backdrop-blur hover:shadow-lg hover:scale-105 transition-all duration-300">
-                  <div className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1">Dolby Atmos</div>
+                <div className="p-5 rounded-xl border bg-white hover:shadow-md transition">
+                  <div className="text-xl font-bold text-foreground mb-1">Dolby Atmos</div>
                   <div className="text-sm text-slate-600">Âm thanh đa chiều ấn tượng</div>
                 </div>
-                <div className="p-5 rounded-xl border border-purple-200/30 bg-gradient-to-br from-purple-50/80 to-pink-50/60 backdrop-blur hover:shadow-lg hover:scale-105 transition-all duration-300">
-                  <div className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-1">Màn hình 4K</div>
+                <div className="p-5 rounded-xl border bg-white hover:shadow-md transition">
+                  <div className="text-xl font-bold text-foreground mb-1">Màn hình 4K</div>
                   <div className="text-sm text-slate-600">Hình ảnh sắc nét, chân thực</div>
                 </div>
-                <div className="p-5 rounded-xl border border-pink-200/30 bg-gradient-to-br from-pink-50/80 to-rose-50/60 backdrop-blur hover:shadow-lg hover:scale-105 transition-all duration-300">
-                  <div className="text-xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent mb-1">Ghế VIP</div>
+                <div className="p-5 rounded-xl border bg-white hover:shadow-md transition">
+                  <div className="text-xl font-bold text-foreground mb-1">Ghế VIP</div>
                   <div className="text-sm text-slate-600">Thoải mái, rộng rãi</div>
                 </div>
-                <div className="p-5 rounded-xl border border-cyan-200/30 bg-gradient-to-br from-cyan-50/80 to-blue-50/60 backdrop-blur hover:shadow-lg hover:scale-105 transition-all duration-300">
-                  <div className="text-xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent mb-1">Combo hấp dẫn</div>
+                <div className="p-5 rounded-xl border bg-white hover:shadow-md transition">
+                  <div className="text-xl font-bold text-foreground mb-1">Combo hấp dẫn</div>
                   <div className="text-sm text-slate-600">Bắp nước đa dạng, giá tốt</div>
                 </div>
               </div>
