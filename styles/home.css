@@ -1,10 +1,12 @@
+@reference "tailwindcss";
+
 /* Home Layout Styles */
 .home-layout {
-    @apply min-h-screen bg-white;
+    @apply min-h-screen bg-background;
 }
 
 .home-navbar {
-    @apply fixed top-0 left-0 right-0 z-50 border-b border-gray-200 shadow-sm backdrop-blur-sm bg-white/95;
+    @apply fixed top-0 left-0 right-0 z-50 border-b border-border shadow-sm backdrop-blur-sm bg-background/95;
     transition: all 0.3s ease-in-out;
 }
 
@@ -35,7 +37,7 @@
 }
 
 .home-navbar.scrolled {
-    @apply shadow-lg bg-white/98;
+    @apply shadow-lg bg-background/98;
 }
 
 /* Removed old logo styles - now using inline classes for better control */
@@ -47,14 +49,14 @@
 }
 
 .home-avatar {
-    @apply h-10 w-10 ring-2 ring-blue-500/30 hover: ring-blue-500/50 transition-all duration-200;
+    @apply h-10 w-10 ring-2 ring-primary/30 hover: ring-primary/50 transition-all duration-200;
 }
 
 /* Footer styles are now handled inline for better control */
 
 /* Loading states */
 .home-loading-navbar {
-    @apply fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 shadow-sm;
+    @apply fixed top-0 left-0 right-0 z-50 bg-background border-b border-border shadow-sm;
 }
 
 .home-loading-content {
@@ -230,7 +232,7 @@
 }
 
 .movie-card-glow:hover {
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 25px 50px -12px rgba(59, 130, 246, 0.15), 0 0 0 1px rgba(147, 51, 234, 0.1), 0 0 20px rgba(236, 72, 153, 0.1);
     transform: translateY(-8px) scale(1.02);
 }
 
@@ -254,21 +256,50 @@
     left: 100%;
 }
 
-/* Pulse animation for important elements */
+/* Pulse animation for important elements with modern colors */
 @keyframes pulse-glow {
 
     0%,
     100% {
-        box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+        box-shadow: 0 0 5px rgba(59, 130, 246, 0.5), 0 0 5px rgba(147, 51, 234, 0.3);
     }
 
     50% {
-        box-shadow: 0 0 20px rgba(59, 130, 246, 0.8), 0 0 30px rgba(59, 130, 246, 0.6);
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.8), 0 0 30px rgba(147, 51, 234, 0.6), 0 0 40px rgba(236, 72, 153, 0.4);
     }
 }
 
 .pulse-glow {
     animation: pulse-glow 2s infinite;
+}
+
+/* Modern color scheme utilities */
+.modern-gradient-text {
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.modern-card-hover {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modern-card-hover:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 20px 40px -12px rgba(59, 130, 246, 0.2), 0 0 0 1px rgba(147, 51, 234, 0.1);
+}
+
+/* Enhanced button styles */
+.modern-button-primary {
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%);
+    transition: all 0.3s ease;
+}
+
+.modern-button-primary:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #7c3aed 50%, #db2777 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.4);
 }
 
 /* Enhanced backdrop blur effects */
@@ -277,10 +308,10 @@
     -webkit-backdrop-filter: blur(12px) saturate(180%);
 }
 
-/* Gradient borders */
+/* Gradient borders with modern color scheme */
 .gradient-border {
     position: relative;
-    background: linear-gradient(45deg, #3b82f6, #8b5cf6, #ec4899);
+    background: linear-gradient(45deg, #3b82f6, #8b5cf6, #ec4899, #06b6d4);
     padding: 2px;
     border-radius: 12px;
 }

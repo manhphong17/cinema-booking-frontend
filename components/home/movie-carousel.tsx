@@ -78,35 +78,22 @@ interface MovieCarouselProps {
 
 export function MovieCarousel({ title, movies: movieList, showViewAll = true }: MovieCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [page, setPage] = useState(1)
   const router = useRouter()
   const itemsPerView = 4
-  const pageSize = 8
+  const maxMoviesToShow = 4 // Chỉ hiển thị 4 phim trên trang home
 
-  const filteredMovies = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase()
-    if (!term) return movieList
-    return movieList.filter(m =>
-      m.title.toLowerCase().includes(term) ||
-      m.genre.toLowerCase().includes(term)
-    )
-  }, [movieList, searchTerm])
-
-  const totalPages = Math.max(1, Math.ceil(filteredMovies.length / pageSize))
-  const currentPage = Math.min(page, totalPages)
-  const pageStart = (currentPage - 1) * pageSize
-  const pagedMovies = filteredMovies.slice(pageStart, pageStart + pageSize)
+  // Chỉ lấy 4 phim đầu tiên cho trang home
+  const displayMovies = movieList.slice(0, maxMoviesToShow)
 
   const nextSlide = () => {
     setCurrentIndex((prev) => 
-      prev + itemsPerView >= movieList.length ? 0 : prev + 1
+      prev + itemsPerView >= displayMovies.length ? 0 : prev + 1
     )
   }
 
   const prevSlide = () => {
     setCurrentIndex((prev) => 
-      prev === 0 ? Math.max(0, movieList.length - itemsPerView) : prev - 1
+      prev === 0 ? Math.max(0, displayMovies.length - itemsPerView) : prev - 1
     )
   }
 
@@ -118,59 +105,57 @@ export function MovieCarousel({ title, movies: movieList, showViewAll = true }: 
     router.push(`/movie/${movieId}`)
   }
 
-  const visibleMovies = pagedMovies.slice(0, Math.min(itemsPerView, pagedMovies.length))
+  const visibleMovies = displayMovies.slice(0, Math.min(itemsPerView, displayMovies.length))
 
   return (
-    <section className="py-20 bg-gradient-to-b from-background to-gray-50/50">
+    <section className="py-20 bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20">
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
+        <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
           <div>
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-2">
-              <span className="bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
                 {title}
               </span>
             </h2>
-            <div className="w-16 h-0.5 bg-gradient-to-r from-primary to-primary/60 rounded-full"></div>
+            <div className="w-16 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full"></div>
           </div>
-          <div className="flex items-center gap-3 ml-auto">
-            <input
-              value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
-              placeholder="Tìm kiếm phim..."
-              className="h-10 w-56 md:w-72 px-3 rounded-lg border border-gray-200 bg-white/90 focus:outline-none focus:ring-2 focus:ring-primary/40"
-            />
-            {showViewAll && (
-              <Button 
-                variant="outline" 
-                className="hidden md:flex bg-white/90 hover:bg-primary hover:text-white border border-primary/30 hover:border-primary transition-all duration-300 hover:scale-105 shadow-md rounded-lg"
-                onClick={() => router.push(title === "Phim đang chiếu" ? "/movies/now-showing" : "/movies/coming-soon")}
-              >
-                Xem tất cả
-              </Button>
-            )}
-          </div>
+          {showViewAll && (
+            <Button 
+              variant="outline" 
+              className="bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-600 hover:to-purple-600 hover:text-white border border-blue-300 hover:border-blue-500 transition-all duration-300 hover:scale-105 shadow-lg rounded-xl px-6 py-3 font-semibold"
+              onClick={() => router.push(title === "Phim đang chiếu" ? "/movies/now-showing" : "/movies/coming-soon")}
+            >
+              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:text-white">
+                Xem tất cả →
+              </span>
+            </Button>
+          )}
         </div>
 
         <div className="relative">
-          {/* Navigation Buttons */}
-          <button
-            onClick={prevSlide}
-            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 bg-white/95 hover:bg-white text-gray-600 hover:text-primary p-2.5 rounded-full shadow-lg transition-all duration-300 hover:scale-110 border border-gray-200 hover:border-primary/40"
-            disabled={currentIndex === 0}
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-          <button
-            onClick={nextSlide}
-            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 bg-white/95 hover:bg-white text-gray-600 hover:text-primary p-2.5 rounded-full shadow-lg transition-all duration-300 hover:scale-110 border border-gray-200 hover:border-primary/40"
-            disabled={currentIndex + itemsPerView >= movieList.length}
-          >
-            <ChevronRight className="h-5 w-5" />
-          </button>
+          {/* Navigation Buttons - Ẩn vì chỉ hiển thị 4 phim cố định */}
+          {displayMovies.length > itemsPerView && (
+            <>
+              <button
+                onClick={prevSlide}
+                className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 bg-gradient-to-r from-slate-100 to-slate-200 hover:from-blue-500 hover:to-purple-500 text-slate-600 hover:text-white p-2.5 rounded-full shadow-lg transition-all duration-300 hover:scale-110 border border-slate-300 hover:border-blue-400"
+                disabled={currentIndex === 0}
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <button
+                onClick={nextSlide}
+                className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 bg-gradient-to-r from-slate-100 to-slate-200 hover:from-blue-500 hover:to-purple-500 text-slate-600 hover:text-white p-2.5 rounded-full shadow-lg transition-all duration-300 hover:scale-110 border border-slate-300 hover:border-blue-400"
+                disabled={currentIndex + itemsPerView >= displayMovies.length}
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </>
+          )}
 
           {/* Movie Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {pagedMovies.map((movie) => (
+            {displayMovies.map((movie) => (
               <Card key={movie.id} className="overflow-hidden hover:shadow-xl transition-all duration-400 group bg-white border-0 shadow-md hover:-translate-y-1 cursor-pointer" onClick={() => handleViewDetails(movie.id)}>
                 <div className="relative aspect-[2/3] overflow-hidden">
                   <img
@@ -179,10 +164,10 @@ export function MovieCarousel({ title, movies: movieList, showViewAll = true }: 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-400"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <Badge className="absolute top-2 right-2 bg-red-600/85 text-white border-red-500 px-2 py-1 text-xs font-semibold shadow-md">
+                  <Badge className="absolute top-2 right-2 bg-gradient-to-r from-red-500 to-red-600 text-white border-red-400/50 px-3 py-1.5 text-xs font-semibold shadow-lg">
                     {movie.rating}
                   </Badge>
-                  <div className="absolute top-2 left-2 flex items-center gap-1 bg-yellow-400/85 backdrop-blur-sm text-black px-2 py-1 rounded-full text-xs font-semibold shadow-md">
+                  <div className="absolute top-2 left-2 flex items-center gap-1 bg-gradient-to-r from-yellow-400/90 to-orange-400/90 backdrop-blur-sm text-black px-3 py-1.5 rounded-full text-xs font-semibold shadow-lg">
                     <Star className="h-3 w-3 fill-current text-yellow-600" />
                     <span>{movie.imdbRating}</span>
                   </div>
@@ -190,7 +175,7 @@ export function MovieCarousel({ title, movies: movieList, showViewAll = true }: 
                   <div className="absolute inset-0 flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     <Button
                       size="lg"
-                      className="bg-red-600 hover:bg-red-700 text-white rounded-full w-14 h-14 shadow-xl hover:scale-110 transition-all duration-300"
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-full w-14 h-14 shadow-xl hover:scale-110 transition-all duration-300"
                       onClick={(e) => {
                         e.stopPropagation()
                         handleBookTicket(movie.id)
@@ -201,7 +186,7 @@ export function MovieCarousel({ title, movies: movieList, showViewAll = true }: 
                     <Button
                       size="lg"
                       variant="outline"
-                      className="bg-white/90 hover:bg-white text-gray-700 hover:text-gray-900 rounded-full w-14 h-14 shadow-xl hover:scale-110 transition-all duration-300"
+                      className="bg-white/90 hover:bg-gradient-to-r hover:from-pink-500 hover:to-rose-500 text-gray-700 hover:text-white rounded-full w-14 h-14 shadow-xl hover:scale-110 transition-all duration-300 border-2"
                       onClick={(e) => {
                         e.stopPropagation()
                         handleViewDetails(movie.id)
@@ -212,7 +197,7 @@ export function MovieCarousel({ title, movies: movieList, showViewAll = true }: 
                   </div>
                 </div>
                 <CardContent className="p-4">
-                  <h3 className="font-semibold text-lg mb-2 text-foreground line-clamp-1 group-hover:text-primary transition-colors">
+                  <h3 className="font-semibold text-lg mb-2 text-foreground line-clamp-1 group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-300">
                     {movie.title}
                   </h3>
                   <p className="text-sm text-muted-foreground mb-2 line-clamp-1">{movie.genre}</p>
@@ -224,7 +209,7 @@ export function MovieCarousel({ title, movies: movieList, showViewAll = true }: 
                   </div>
                   <div className="flex gap-2">
                     <Button 
-                      className="flex-1 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary text-white font-semibold py-2.5 transition-all duration-300 hover:scale-105 shadow-md hover:shadow-primary/20 rounded-lg"
+                      className="flex-1 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white font-semibold py-2.5 transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-blue-500/30 rounded-lg"
                       onClick={(e) => {
                         e.stopPropagation()
                         handleBookTicket(movie.id)
@@ -234,7 +219,7 @@ export function MovieCarousel({ title, movies: movieList, showViewAll = true }: 
                     </Button>
                     <Button 
                       variant="outline"
-                      className="px-3 border-primary/30 text-primary hover:bg-primary hover:text-white transition-all duration-300 hover:scale-105 rounded-lg"
+                      className="px-3 border-blue-300 text-blue-600 hover:bg-gradient-to-r hover:from-pink-500 hover:to-rose-500 hover:text-white hover:border-pink-400 transition-all duration-300 hover:scale-105 rounded-lg"
                       onClick={(e) => {
                         e.stopPropagation()
                         handleViewDetails(movie.id)
@@ -249,28 +234,6 @@ export function MovieCarousel({ title, movies: movieList, showViewAll = true }: 
           </div>
         </div>
 
-        {/* Pagination Controls for Movies */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-4 mt-8">
-            <Button
-              className="bg-gradient-to-r from-primary to-primary/80 text-white font-semibold shadow-md hover:shadow-primary/30 hover:from-primary/90 hover:to-primary rounded-full px-5"
-              disabled={currentPage === 1}
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-            >
-              Trước
-            </Button>
-            <div className="text-sm text-muted-foreground">
-              Trang {currentPage}/{totalPages}
-            </div>
-            <Button
-              className="bg-gradient-to-r from-primary to-primary/80 text-white font-semibold shadow-md hover:shadow-primary/30 hover:from-primary/90 hover:to-primary rounded-full px-5"
-              disabled={currentPage === totalPages}
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-            >
-              Sau
-            </Button>
-          </div>
-        )}
       </div>
     </section>
   )
