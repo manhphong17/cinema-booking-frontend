@@ -76,17 +76,17 @@ export default function LoginPage() {
                 localStorage.setItem("email", data.data.email)
 
                 toast.success(data.message)
-                console.log("Redirecting to /customer") // Debug log
+                console.log("Redirecting to /home") // Debug log
                 
                 // Add delay to ensure state is saved
                 setTimeout(() => {
                     try {
-                        router.push("/customer")
+                        router.push("/home")
                         console.log("Router.push called successfully")
                     } catch (error) {
                         console.error("Router.push error:", error)
                         // Fallback to window.location
-                        window.location.href = "/customer"
+                        window.location.href = "/home"
                     }
                 }, 100)
             } else if (data.status === 1003) {
@@ -250,7 +250,7 @@ export default function LoginPage() {
                                 <p className="text-sm text-gray-600">
                                     Chưa có tài khoản?{" "}
                                     <a
-                                        href="#"
+                                        href="/register"
                                         onClick={handleRegister}
                                         className="text-primary hover:text-primary/80 font-medium underline"
                                     >

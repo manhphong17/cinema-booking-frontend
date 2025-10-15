@@ -93,7 +93,7 @@ export default function LoginPage() {
                             router.push("/staff")
                         } else if (roles.includes("BUSINESS")) {
                             console.log("Redirecting to /business")
-                            router.push("/business")
+                            router.push("/business-manager")
                         }
                         console.log("Admin router.push called successfully")
                     } catch (error) {
