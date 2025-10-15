@@ -1,7 +1,7 @@
 "use client"
 
 import {useRouter} from "next/navigation"
-import {AdminLayout} from "@/components/layouts/admin-layout"
+import {OperatorLayout} from "@/components/layouts/operator-layout"
 import {Dashboard} from "@/components/operator/dashboard";
 
 export default function DashboardPage() {
@@ -10,10 +10,9 @@ export default function DashboardPage() {
     const handleSectionChange = (section: string) => {
         router.push(`/operator-manager/${section}`)
     }
-
     return (
-        <AdminLayout activeSection="dashboard" onSectionChange={handleSectionChange}>
+        <OperatorLayout>
             <Dashboard />
-        </AdminLayout>
+        </OperatorLayout>
     )
 }

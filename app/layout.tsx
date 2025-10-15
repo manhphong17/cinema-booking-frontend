@@ -1,5 +1,6 @@
 import {Analytics} from '@vercel/analytics/next'
 import './globals.css'
+import '../styles/home.css'
 import {Toaster} from "sonner"
 import {Inter, JetBrains_Mono} from "next/font/google"
 import {Suspense} from "react";

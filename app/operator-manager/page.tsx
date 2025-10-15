@@ -2,39 +2,63 @@
 
 import {useEffect, useState} from "react"
 import {useRouter} from "next/navigation"
-import {AdminLayout} from "@/components/layouts/admin-layout"
+import {OperatorLayout} from "@/components/layouts/operator-layout"
 import {Dashboard} from "@/components/operator/dashboard"
-import {MovieManagement} from "@/components/operator/movie-management"
-import {ShowtimeManagement} from "@/components/operator/showtime-management"
-import {RoomManagement} from "@/components/operator/room-management"
-import {SeatManagement} from "@/components/operator/seat-management"
-import {NewsManagement} from "@/components/operator/news-management"
-import {ProfileManagement} from "@/components/operator/profile-management"
 
-export default function AdminPage() {
-    const [activeSection, setActiveSection] = useState("dashboard")
-    const [selectedRoom, setSelectedRoom] = useState<string | null>(null)
-    const [isAuthenticated, setIsAuthenticated] = useState(false)
-    const [isLoading, setIsLoading] = useState(true)
+export default function OperatorManagerPage() {
+    const [mounted, setMounted] = useState(false)
     const router = useRouter()
 
     useEffect(() => {
-        // Check authentication
-        const auth = localStorage.getItem("auth")
-        if (auth) {
-            const authData = JSON.parse(auth)
-            if (authData.isAuthenticated && authData.user.role === "admin") {
-                setIsAuthenticated(true)
-            } else {
-                router.push("/admin/login")
+        setMounted(true)
+        
+        // Check authentication using new token system
+        const token = localStorage.getItem("accessToken")
+        const roleName = localStorage.getItem("roleName")
+        
+        console.log("Operator page - Token:", !!token)
+        console.log("Operator page - Role:", roleName)
+        
+        if (!token) {
+            console.log("Operator page - No token, redirecting to login")
+            router.push("/login/admin")
+            return
+        }
+        
+        // Check if token is expired
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]))
+            const currentTime = Date.now() / 1000
+            if (payload.exp < currentTime) {
+                console.log("Operator page - Token expired, redirecting to login")
+                router.push("/login/admin")
+                return
+            }
+        } catch (error) {
+            console.log("Operator page - Invalid token, redirecting to login")
+            router.push("/login/admin")
+            return
+        }
+        
+        // Check if user has OPERATION role
+        if (roleName) {
+            const roles = JSON.parse(roleName)
+            if (!roles.includes("OPERATION")) {
+                console.log("Operator page - User doesn't have OPERATION role, redirecting to login")
+                router.push("/login/admin")
+                return
             }
         } else {
-            router.push("/admin/login")
+            console.log("Operator page - No role found, redirecting to login")
+            router.push("/login/admin")
+            return
         }
-        setIsLoading(false)
+        
+        console.log("Operator page - Authentication successful")
     }, [router])
 
-    if (isLoading) {
+    // Prevent hydration mismatch by not rendering until mounted
+    if (!mounted) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
                 <div className="text-center">
@@ -45,36 +69,9 @@ export default function AdminPage() {
         )
     }
 
-    if (!isAuthenticated) {
-        return null
-    }
-
-    const renderContent = () => {
-        if (selectedRoom) {
-            return <SeatManagement roomId={selectedRoom} onBack={() => setSelectedRoom(null)}/>
-        }
-
-        switch (activeSection) {
-            case "dashboard":
-                return <Dashboard/>
-            case "movies":
-                return <MovieManagement/>
-            case "showtimes":
-                return <ShowtimeManagement/>
-            case "rooms":
-                return <RoomManagement onSelectRoom={setSelectedRoom}/>
-            case "news":
-                return <NewsManagement/>
-            case "profile":
-                return <ProfileManagement/>
-            default:
-                return <Dashboard/>
-        }
-    }
-
     return (
-        <AdminLayout activeSection={activeSection} onSectionChange={setActiveSection}>
-            {renderContent()}
-        </AdminLayout>
+        <OperatorLayout>
+            <Dashboard/>
+        </OperatorLayout>
     )
 }

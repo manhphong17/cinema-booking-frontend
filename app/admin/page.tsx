@@ -1,13 +1,7 @@
 "use client"
 
-import {useState} from "react"
+import {useState, useEffect} from "react"
 import {useRouter} from "next/navigation"
-import {AdminLayout} from "@/components/layouts/admin-layout"
-import {Dashboard} from "@/components/admin/dashboard";
-import {MovieManagement} from "@/components/admin/movie-management";
-import {ShowtimeManagement} from "@/components/admin/showtime-management";
-import {RoomManagement} from "@/components/admin/room-management";
-import {NewsManagement} from "@/components/admin/news-management";
 
 export default function AdminPage() {
     const [activeSection, setActiveSection] = useState("dashboard")
@@ -16,60 +10,73 @@ export default function AdminPage() {
     const [isLoading, setIsLoading] = useState(true)
     const router = useRouter()
 
-    /*useEffect(() => {
-      // Check authentication
-      const auth = localStorage.getItem("auth")
-      if (auth) {
-        const authData = JSON.parse(auth)
-        if (authData.isAuthenticated && authData.user.role === "admin") {
-          setIsAuthenticated(true)
-        } else {
-          router.push("/login")
+    useEffect(() => {
+        // Check authentication using new token system
+        const token = localStorage.getItem("accessToken")
+        const roleName = localStorage.getItem("roleName")
+        
+        console.log("Admin page - Token:", !!token)
+        console.log("Admin page - Role:", roleName)
+        
+        if (!token) {
+            console.log("Admin page - No token, redirecting to login")
+            router.push("/login/admin")
+            return
         }
-      } else {
-        router.push("/login")
-      }
-      setIsLoading(false)
+        
+        // Check if token is expired
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]))
+            const currentTime = Date.now() / 1000
+            if (payload.exp < currentTime) {
+                console.log("Admin page - Token expired, redirecting to login")
+                router.push("/login/admin")
+                return
+            }
+        } catch (error) {
+            console.log("Admin page - Invalid token, redirecting to login")
+            router.push("/login/admin")
+            return
+        }
+        
+        // Check if user has ADMIN role
+        if (roleName) {
+            const roles = JSON.parse(roleName)
+            if (!roles.includes("ADMIN")) {
+                console.log("Admin page - User doesn't have ADMIN role, redirecting to login")
+                router.push("/login/admin")
+                return
+            }
+        } else {
+            console.log("Admin page - No role found, redirecting to login")
+            router.push("/login/admin")
+            return
+        }
+        
+        console.log("Admin page - Authentication successful")
+        setIsAuthenticated(true)
+        setIsLoading(false)
     }, [router])
 
     if (isLoading) {
-      return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p>Loading...</p>
-          </div>
-        </div>
-      )
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                    <p>Loading...</p>
+                </div>
+            </div>
+        )
     }
 
     if (!isAuthenticated) {
-      return null
-    }*/
-
-    const renderContent = () => {
-
-
-        switch (activeSection) {
-            case "dashboard":
-                return <Dashboard/>
-            case "movies":
-                return <MovieManagement/>
-            case "showtimes":
-                return <ShowtimeManagement/>
-            case "rooms":
-                return <RoomManagement onSelectRoom={setSelectedRoom}/>
-            case "news":
-                return <NewsManagement/>
-            default:
-                return <Dashboard/>
-        }
+        return null
     }
 
-
     return (
-        <AdminLayout activeSection={activeSection} onSectionChange={setActiveSection}>
-            {renderContent()}
-        </AdminLayout>
+        <div className="min-h-screen bg-gray-50">
+            <h1 className="text-2xl font-bold p-4">Admin Dashboard</h1>
+            <p className="p-4">Welcome to admin panel!</p>
+        </div>
     )
 }
