@@ -8,6 +8,32 @@
     transition: all 0.3s ease-in-out;
 }
 
+/* Ensure dropdown menus appear above navbar */
+.home-navbar [data-radix-dropdown-menu-content] {
+    z-index: 60 !important;
+}
+
+/* Fix dropdown menu positioning and visibility */
+[data-radix-dropdown-menu-content] {
+    z-index: 60 !important;
+    position: relative;
+}
+
+/* Ensure dropdown menu items are clickable */
+[data-radix-dropdown-menu-item] {
+    cursor: pointer;
+    user-select: none;
+}
+
+/* Fix any overflow issues that might hide dropdown */
+.home-layout {
+    overflow-x: hidden;
+}
+
+.home-navbar {
+    overflow: visible;
+}
+
 .home-navbar.scrolled {
     @apply shadow-lg bg-white/98;
 }
