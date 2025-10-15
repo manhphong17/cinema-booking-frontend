@@ -6,7 +6,7 @@
     @apply min-h-screen bg-background;
 }
 
-.home-navbar {
+.home-layout .home-navbar {
     @apply fixed top-0 left-0 right-0 z-50 border-b border-border shadow-sm backdrop-blur-sm bg-background/95;
     transition: all 0.3s ease-in-out;
 }
@@ -16,14 +16,14 @@
     z-index: 60 !important;
 }
 
-/* Fix dropdown menu positioning and visibility */
-[data-radix-dropdown-menu-content] {
+/* Fix dropdown menu positioning and visibility (scoped to home only) */
+.home-layout [data-radix-dropdown-menu-content] {
     z-index: 60 !important;
     position: relative;
 }
 
-/* Ensure dropdown menu items are clickable */
-[data-radix-dropdown-menu-item] {
+/* Ensure dropdown menu items are clickable (scoped to home only) */
+.home-layout [data-radix-dropdown-menu-item] {
     cursor: pointer;
     user-select: none;
 }
@@ -33,11 +33,11 @@
     overflow-x: hidden;
 }
 
-.home-navbar {
+.home-layout .home-navbar {
     overflow: visible;
 }
 
-.home-navbar.scrolled {
+.home-layout .home-navbar.scrolled {
     @apply shadow-lg bg-background/98;
 }
 
