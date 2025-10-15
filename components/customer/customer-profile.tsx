@@ -8,9 +8,10 @@ import {Label} from "@/components/ui/label"
 import {Badge} from "@/components/ui/badge"
 import {Separator} from "@/components/ui/separator"
 import {RadioGroup, RadioGroupItem} from "@/components/ui/radio-group"
-import {Edit, Loader2, Save, Star, X} from "lucide-react"
+import {Edit, Loader2, Save, Star, X, User, Mail, Phone, MapPin, Calendar, Shield, Crown, Award} from "lucide-react"
 import {getMe, updateMe} from "@/src/api/user"
 import axios from "axios"
+import { useRouter } from "next/navigation"
 
 const getStoredEmail = () => {
     if (typeof window === "undefined") {
@@ -62,6 +63,8 @@ export function CustomerProfile() {
         confirmPassword: "",
     })
     const [passwordLoading, setPasswordLoading] = useState({ change: false })
+    const [showPasswordForm, setShowPasswordForm] = useState(false)
+    const router = useRouter()
     const resolvedEmail = useMemo(() => {
         const storedEmail = getStoredEmail()
         // eslint-disable-next-line no-console
@@ -246,20 +249,69 @@ export function CustomerProfile() {
         }
     }
 
+    const getMembershipTier = (points: number) => {
+        if (points >= 1000) return { name: "Platinum", color: "bg-purple-500", icon: Crown }
+        if (points >= 500) return { name: "Gold", color: "bg-yellow-500", icon: Award }
+        if (points >= 100) return { name: "Silver", color: "bg-gray-400", icon: Star }
+        return { name: "Bronze", color: "bg-orange-500", icon: Star }
+    }
+
+    const membership = getMembershipTier(formData.loyaltyPoints)
+    const MembershipIcon = membership.icon
+
     return (
-        <div id="view-profile" className="space-y-6">
-            <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-gray-900">Profile</h1>
+        <div id="view-profile" className="p-6">
+            {/* Header Section */}
+            <div className="mb-8">
+                <div className="flex items-center justify-between mb-4">
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-900 mb-2">Hồ sơ cá nhân</h1>
+                        <p className="text-gray-600">Quản lý thông tin tài khoản của bạn</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <div className="text-right">
+                            <div className="flex items-center gap-2 mb-1">
+                                <MembershipIcon className="h-5 w-5 text-yellow-500" />
+                                <span className="text-sm font-semibold text-gray-700">{membership.name} Member</span>
+                            </div>
+                            <Badge className={`${membership.color} text-white text-xs`}>
+                                {formData.loyaltyPoints.toLocaleString()} điểm
+                            </Badge>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-4">
+                    <h2 className="text-lg font-semibold text-gray-900">Thông tin cá nhân</h2>
+                    {!isEditing && (
+                        <Badge variant="outline" className="text-green-600 border-green-600">
+                            <Shield className="h-3 w-3 mr-1" />
+                            Đã xác thực
+                        </Badge>
+                    )}
+                </div>
                 {!isEditing ? (
-                    <Button onClick={() => setIsEditing(true)} className="flex items-center gap-2">
+                    <Button onClick={() => setIsEditing(true)} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700">
                         <Edit className="h-4 w-4"/>
-                        Edit Profile
+                        Chỉnh sửa
                     </Button>
                 ) : (
                     <div className="flex gap-2">
-                        <Button id="btnSaveProfile" disabled={loading} onClick={handleSave} className="flex items-center gap-2">
-                            <Save className="h-4 w-4"/>
-                            Save
+                        <Button 
+                            id="btnSaveProfile" 
+                            disabled={loading} 
+                            onClick={handleSave} 
+                            className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                        >
+                            {loading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Save className="h-4 w-4"/>
+                            )}
+                            Lưu thay đổi
                         </Button>
                         <Button
                             id="btnCancelProfile"
@@ -268,40 +320,64 @@ export function CustomerProfile() {
                             className="flex items-center gap-2"
                         >
                             <X className="h-4 w-4"/>
-                            Cancel
+                            Hủy
                         </Button>
                     </div>
                 )}
             </div>
 
             {/* Profile Information */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Personal Information</CardTitle>
+            <Card className="shadow-lg">
+                <CardHeader className="bg-gradient-to-r from-gray-50 to-blue-50">
+                    <CardTitle className="flex items-center gap-2">
+                        <User className="h-5 w-5 text-blue-600" />
+                        Thông tin cá nhân
+                    </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <CardContent className="p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Full Name */}
                         <div className="space-y-2">
-                            <Label htmlFor="name">Full Name</Label>
+                            <Label htmlFor="name" className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                                <User className="h-4 w-4" />
+                                Họ và tên
+                            </Label>
                             {isEditing ? (
                                 <Input
                                     id="name"
                                     value={formData.name}
                                     onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                    className="mt-1"
+                                    placeholder="Nhập họ và tên"
                                 />
                             ) : (
-                                <p className="text-gray-900 font-medium">{formData.name}</p>
+                                <p className="text-gray-900 font-medium text-lg">{formData.name || "Chưa cập nhật"}</p>
                             )}
                         </div>
 
+                        {/* Email */}
                         <div className="space-y-2">
-                            <Label>Gender</Label>
+                            <Label htmlFor="email" className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                                <Mail className="h-4 w-4" />
+                                Email
+                            </Label>
+                            <p id="email" className="text-gray-600 text-lg">
+                                {resolvedEmail}
+                            </p>
+                        </div>
+
+                        {/* Gender */}
+                        <div className="space-y-2">
+                            <Label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                                <User className="h-4 w-4" />
+                                Giới tính
+                            </Label>
                             {isEditing ? (
                                 <RadioGroup
                                     id="gender"
                                     value={formData.gender}
                                     onValueChange={(value) => setFormData({...formData, gender: value})}
-                                    className="flex gap-4"
+                                    className="flex gap-6 mt-2"
                                 >
                                     <div className="flex items-center space-x-2">
                                         <RadioGroupItem value="MALE" id="male"/>
@@ -317,147 +393,219 @@ export function CustomerProfile() {
                                     </div>
                                 </RadioGroup>
                             ) : (
-                                <p className="text-gray-900 font-medium capitalize">{formData.gender}</p>
+                                <p className="text-gray-900 font-medium text-lg capitalize">
+                                    {formData.gender === "MALE" ? "Nam" : formData.gender === "FEMALE" ? "Nữ" : "Khác"}
+                                </p>
                             )}
                         </div>
 
+                        {/* Date of Birth */}
                         <div className="space-y-2">
-                            <Label htmlFor="dob">Ngày sinh</Label>
+                            <Label htmlFor="dob" className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                                <Calendar className="h-4 w-4" />
+                                Ngày sinh
+                            </Label>
                             {isEditing ? (
                                 <Input
                                     id="dateOfBirth"
                                     type="date"
                                     value={formData.dateOfBirth || ""}
                                     onChange={(e) => setFormData({...formData, dateOfBirth: e.target.value})}
+                                    className="mt-1"
                                 />
                             ) : (
-                                <p id="dob" className="text-gray-600">
+                                <p id="dob" className="text-gray-600 text-lg">
                                     {formattedDob}
                                 </p>
                             )}
                         </div>
 
+                        {/* Phone Number */}
                         <div className="space-y-2">
-                            <Label htmlFor="email">Email</Label>
-                            <p id="email" className="text-gray-600">
-                                {resolvedEmail}
-                            </p>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="phone">Số điện thoại</Label>
+                            <Label htmlFor="phone" className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                                <Phone className="h-4 w-4" />
+                                Số điện thoại
+                            </Label>
                             {isEditing ? (
                                 <Input
                                     id="phoneNumber"
                                     value={formData.phoneNumber}
                                     onChange={(e) => setFormData({...formData, phoneNumber: e.target.value})}
                                     placeholder="Nhập số điện thoại"
+                                    className="mt-1"
                                 />
                             ) : (
-                                <p id="phone" className="text-gray-600">
+                                <p id="phone" className="text-gray-600 text-lg">
                                     {formData.phoneNumber || "Chưa cập nhật"}
                                 </p>
                             )}
                         </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="address">Địa chỉ</Label>
+                        {/* Address */}
+                        <div className="space-y-2 md:col-span-2">
+                            <Label htmlFor="address" className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                                <MapPin className="h-4 w-4" />
+                                Địa chỉ
+                            </Label>
                             {isEditing ? (
                                 <Input
                                     id="address"
                                     value={formData.address}
                                     onChange={(e) => setFormData({...formData, address: e.target.value})}
                                     placeholder="Nhập địa chỉ"
+                                    className="mt-1"
                                 />
                             ) : (
-                                <p id="address" className="text-gray-600">
+                                <p id="address" className="text-gray-600 text-lg">
                                     {formData.address || "Chưa cập nhật"}
                                 </p>
                             )}
                         </div>
                     </div>
 
-                    <Separator/>
+                    <Separator className="my-6"/>
 
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <Label>Loyalty Points</Label>
-                            <div className="flex items-center gap-2 mt-1">
-                                <Badge id="loyaltyPoints" variant="secondary" className="text-lg px-3 py-1">
-                                    <Star className="h-4 w-4 mr-1 text-yellow-500"/>
-                                    {formData.loyaltyPoints.toLocaleString()} Points
-                                </Badge>
+                    {/* Loyalty Points Section */}
+                    <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-yellow-100 rounded-full">
+                                    <Star className="h-6 w-6 text-yellow-600"/>
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold text-gray-900">Điểm tích lũy</h3>
+                                    <p className="text-sm text-gray-600">Tích lũy điểm để nâng cấp thành viên</p>
+                                </div>
                             </div>
-                        </div>
-                        <div className="text-right">
-                            <p className="text-sm text-gray-600">Gold Member Status</p>
-                            <p className="text-xs text-gray-500">Next tier: Platinum (500 points to go)</p>
+                            <div className="text-right">
+                                <Badge id="loyaltyPoints" className="text-lg px-4 py-2 bg-yellow-500 text-white">
+                                    {formData.loyaltyPoints.toLocaleString()} điểm
+                                </Badge>
+                                <p className="text-xs text-gray-500 mt-1">
+                                    {membership.name} Member
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </CardContent>
             </Card>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Đổi mật khẩu</CardTitle>
+            {/* Password Change Section */}
+            <Card className="shadow-lg">
+                <CardHeader className="bg-gradient-to-r from-red-50 to-pink-50">
+                    <CardTitle className="flex items-center gap-2">
+                        <Shield className="h-5 w-5 text-red-600" />
+                        Bảo mật tài khoản
+                    </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    <p className="text-sm text-gray-500">
-                        Vui lòng nhập mật khẩu hiện tại và mật khẩu mới.
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="currentPassword">Mật khẩu hiện tại</Label>
-                            <Input
-                                id="currentPassword"
-                                type="password"
-                                value={passwordForm.currentPassword}
-                                onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                                placeholder="Nhập mật khẩu hiện tại"
-                                autoComplete="current-password"
-                            />
+                <CardContent className="p-6">
+                    {!showPasswordForm ? (
+                        <div className="text-center py-8">
+                            <div className="p-4 bg-red-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                                <Shield className="h-8 w-8 text-red-600" />
+                            </div>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">Đổi mật khẩu</h3>
+                            <p className="text-gray-600 mb-4">
+                                Để bảo mật tài khoản, hãy thường xuyên thay đổi mật khẩu
+                            </p>
+                            <Button 
+                                onClick={() => setShowPasswordForm(true)}
+                                className="bg-red-600 hover:bg-red-700"
+                            >
+                                Đổi mật khẩu
+                            </Button>
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="newPassword">Mật khẩu mới</Label>
-                            <Input
-                                id="newPassword"
-                                type="password"
-                                value={passwordForm.newPassword}
-                                onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                                placeholder="Mật khẩu mới"
-                                autoComplete="new-password"
-                            />
+                    ) : (
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-lg font-semibold text-gray-900">Thay đổi mật khẩu</h3>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                        setShowPasswordForm(false)
+                                        setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" })
+                                    }}
+                                >
+                                    <X className="h-4 w-4 mr-1" />
+                                    Hủy
+                                </Button>
+                            </div>
+                            
+                            <p className="text-sm text-gray-500">
+                                Vui lòng nhập mật khẩu hiện tại và mật khẩu mới để bảo mật tài khoản.
+                            </p>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="currentPassword" className="text-sm font-medium text-gray-700">
+                                        Mật khẩu hiện tại
+                                    </Label>
+                                    <Input
+                                        id="currentPassword"
+                                        type="password"
+                                        value={passwordForm.currentPassword}
+                                        onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                                        placeholder="Nhập mật khẩu hiện tại"
+                                        autoComplete="current-password"
+                                        className="mt-1"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="newPassword" className="text-sm font-medium text-gray-700">
+                                        Mật khẩu mới
+                                    </Label>
+                                    <Input
+                                        id="newPassword"
+                                        type="password"
+                                        value={passwordForm.newPassword}
+                                        onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                                        placeholder="Mật khẩu mới (tối thiểu 6 ký tự)"
+                                        autoComplete="new-password"
+                                        className="mt-1"
+                                    />
+                                </div>
+                                <div className="space-y-2 md:col-span-2">
+                                    <Label htmlFor="confirmPassword" className="text-sm font-medium text-gray-700">
+                                        Xác nhận mật khẩu mới
+                                    </Label>
+                                    <Input
+                                        id="confirmPassword"
+                                        type="password"
+                                        value={passwordForm.confirmPassword}
+                                        onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                                        placeholder="Xác nhận mật khẩu mới"
+                                        autoComplete="new-password"
+                                        className="mt-1"
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div className="flex flex-wrap gap-3">
+                                <Button 
+                                    id="btnChangePassword" 
+                                    disabled={passwordLoading.change} 
+                                    onClick={handleChangePassword}
+                                    className="bg-red-600 hover:bg-red-700"
+                                >
+                                    {passwordLoading.change ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Đang đổi mật khẩu...
+                                        </>
+                                    ) : (
+                                        "Xác nhận đổi mật khẩu"
+                                    )}
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" })}
+                                >
+                                    Xóa thông tin
+                                </Button>
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="confirmPassword">Xác nhận mật khẩu</Label>
-                            <Input
-                                id="confirmPassword"
-                                type="password"
-                                value={passwordForm.confirmPassword}
-                                onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                                placeholder="Xác nhận mật khẩu"
-                                autoComplete="new-password"
-                            />
-                        </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        <Button id="btnChangePassword" disabled={passwordLoading.change} onClick={handleChangePassword}>
-                            {passwordLoading.change ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Đang đổi mật khẩu...
-                                </>
-                            ) : (
-                                "Đổi mật khẩu"
-                            )}
-                        </Button>
-                        <Button
-                            variant="outline"
-                            onClick={() => setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" })}
-                        >
-                            Xóa thông tin
-                        </Button>
-                    </div>
+                    )}
                 </CardContent>
             </Card>
         </div>

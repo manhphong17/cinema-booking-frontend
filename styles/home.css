@@ -1,11 +1,37 @@
 /* Home Layout Styles */
 .home-layout {
-    @apply min-h-screen bg-background;
+    @apply min-h-screen bg-white;
 }
 
 .home-navbar {
-    @apply fixed top-0 left-0 right-0 z-50 border-b border-border shadow-sm backdrop-blur-sm bg-white/95;
+    @apply fixed top-0 left-0 right-0 z-50 border-b border-gray-200 shadow-sm backdrop-blur-sm bg-white/95;
     transition: all 0.3s ease-in-out;
+}
+
+/* Ensure dropdown menus appear above navbar */
+.home-navbar [data-radix-dropdown-menu-content] {
+    z-index: 60 !important;
+}
+
+/* Fix dropdown menu positioning and visibility */
+[data-radix-dropdown-menu-content] {
+    z-index: 60 !important;
+    position: relative;
+}
+
+/* Ensure dropdown menu items are clickable */
+[data-radix-dropdown-menu-item] {
+    cursor: pointer;
+    user-select: none;
+}
+
+/* Fix any overflow issues that might hide dropdown */
+.home-layout {
+    overflow-x: hidden;
+}
+
+.home-navbar {
+    overflow: visible;
 }
 
 .home-navbar.scrolled {
@@ -21,32 +47,14 @@
 }
 
 .home-avatar {
-    @apply h-10 w-10 ring-2 ring-primary/30 hover: ring-primary/50 transition-all duration-200;
+    @apply h-10 w-10 ring-2 ring-blue-500/30 hover: ring-blue-500/50 transition-all duration-200;
 }
 
-.home-footer {
-    @apply bg-sidebar text-sidebar-foreground;
-}
-
-.home-footer-section {
-    @apply space-y-3 text-sm text-sidebar-foreground/70;
-}
-
-.home-footer-link {
-    @apply hover: text-sidebar-accent transition-colors;
-}
-
-.home-social-link {
-    @apply bg-sidebar-accent/20 hover: bg-sidebar-accent text-sidebar-foreground hover:text-sidebar-accent-foreground p-2 rounded-lg transition-colors hover:scale-110 transform duration-200;
-}
-
-.home-ministry-logo {
-    @apply bg-white p-3 rounded-lg inline-block hover: scale-105 transition-transform duration-200;
-}
+/* Footer styles are now handled inline for better control */
 
 /* Loading states */
 .home-loading-navbar {
-    @apply fixed top-0 left-0 right-0 z-50 bg-white border-b border-border shadow-sm;
+    @apply fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 shadow-sm;
 }
 
 .home-loading-content {
@@ -119,13 +127,101 @@
     @apply bg-sidebar-accent/50;
 }
 
-/* Enhanced visual effects */
+/* Enhanced visual effects with modern color scheme */
 .hero-gradient-text {
-    background: linear-gradient(135deg, #ffffff 0%, #f3f4f6 50%, #e5e7eb 100%);
+    background: linear-gradient(135deg, #ffffff 0%, #dbeafe 25%, #e0e7ff 50%, #f3e8ff 75%, #fce7f3 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
     filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+}
+
+/* Menu animations */
+@keyframes menu-slide-in {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.menu-slide-in {
+    animation: menu-slide-in 0.3s ease-out;
+}
+
+/* Menu item hover effects */
+.menu-item-hover {
+    position: relative;
+    overflow: hidden;
+}
+
+.menu-item-hover::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.15), rgba(147, 51, 234, 0.1), rgba(236, 72, 153, 0.1), transparent);
+    transition: left 0.5s;
+}
+
+.menu-item-hover:hover::before {
+    left: 100%;
+}
+
+/* Mobile menu animations */
+@keyframes mobile-menu-slide {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.mobile-menu-slide {
+    animation: mobile-menu-slide 0.3s ease-out;
+}
+
+/* Hero carousel slide animations */
+@keyframes slide-in-right {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slide-out-left {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(-100%);
+    }
+}
+
+.hero-slide-in {
+    animation: slide-in-right 1s ease-out;
+}
+
+.hero-slide-out {
+    animation: slide-out-left 1s ease-out;
 }
 
 .movie-card-glow {
@@ -196,4 +292,149 @@
     background: white;
     border-radius: 10px;
     z-index: -1;
+}
+
+/* Hero Carousel Animations */
+@keyframes slide-in {
+    0% {
+        transform: translateX(100%) scale(0.8);
+        opacity: 0;
+    }
+
+    100% {
+        transform: translateX(0) scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes zoom-in {
+    0% {
+        transform: scale(1.2) rotate(2deg);
+        opacity: 0;
+    }
+
+    100% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+    }
+}
+
+@keyframes flip-in {
+    0% {
+        transform: rotateY(90deg) scale(0.8);
+        opacity: 0;
+    }
+
+    100% {
+        transform: rotateY(0deg) scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes text-shimmer {
+    0% {
+        background-position: -200% center;
+    }
+
+    100% {
+        background-position: 200% center;
+    }
+}
+
+.animate-slide-in {
+    animation: slide-in 1s ease-out;
+}
+
+.animate-zoom-in {
+    animation: zoom-in 1s ease-out;
+}
+
+.animate-flip-in {
+    animation: flip-in 1s ease-out;
+}
+
+.animate-text-shimmer {
+    background: linear-gradient(90deg,
+            #ffffff 0%,
+            #f3f4f6 25%,
+            #e5e7eb 50%,
+            #f3f4f6 75%,
+            #ffffff 100%);
+    background-size: 200% auto;
+    animation: text-shimmer 3s linear infinite;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Enhanced button glow effect */
+.button-glow {
+    position: relative;
+    overflow: hidden;
+}
+
+.button-glow::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.6s;
+}
+
+.button-glow:hover::before {
+    left: 100%;
+}
+
+/* Parallax effect for background */
+.parallax-bg {
+    transform: translateZ(0);
+    will-change: transform;
+}
+
+/* Smooth transitions for all carousel elements */
+.carousel-transition {
+    transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Enhanced backdrop blur */
+.backdrop-blur-enhanced {
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+}
+
+/* Floating animation for dots */
+@keyframes float {
+
+    0%,
+    100% {
+        transform: translateY(0px);
+    }
+
+    50% {
+        transform: translateY(-4px);
+    }
+}
+
+.floating-dot {
+    animation: float 2s ease-in-out infinite;
+}
+
+/* Pulse effect for active elements */
+@keyframes pulse-glow {
+
+    0%,
+    100% {
+        box-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+    }
+
+    50% {
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.6), 0 0 30px rgba(255, 255, 255, 0.4);
+    }
+}
+
+.pulse-glow {
+    animation: pulse-glow 2s infinite;
 }
