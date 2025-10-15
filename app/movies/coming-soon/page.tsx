@@ -18,7 +18,7 @@ export default function ComingSoonPage() {
             </p>
           </div>
           
-          <ComingSoonCarousel />
+          <ComingSoonCarousel variant="page" />
         </div>
       </div>
     </HomeLayout>

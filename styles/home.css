@@ -1,4 +1,5 @@
 @reference "tailwindcss";
+@reference "../app/globals.css";
 
 /* Home Layout Styles */
 .home-layout {
