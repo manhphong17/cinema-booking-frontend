@@ -1,6 +1,8 @@
 "use client"
 
-
+// ===============================
+// 1️⃣ IMPORT & CONFIG CHUNG
+// ===============================
 import { BusinessManagerLayout } from "@/components/layouts/business-manager-layout"
 import {useEffect, useState} from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,7 +12,6 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
-
 import {
     AlertDialog,
     AlertDialogAction,
@@ -20,7 +21,6 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
-    AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -39,41 +39,37 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip as RechartsTooltip  } from "recharts"
 import {Plus, Search, Edit, Trash2, Package, Power, ChevronLeft, ChevronRight, XCircle, PlayCircle} from "lucide-react"
-import axios from "axios";
 import {toast} from "sonner";
-
+import apiClient from "@/src/api/interceptor";
 const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL;
 
-type ProductType = "ALL" | "DRINK" | "SNACK" | "COMBO"
+// ===============================
+// 2️⃣ TYPE DEFINITIONS
+// ===============================
 type StockStatus = "ALL" | "IN_STOCK" | "SOLD_OUT"
 type ProductStatus = "ALL" | "ACTIVE" | "INACTIVE"
 type TimeFilter = "week" | "month"
 
+interface ConcessionType {
+    id: number
+    name: string
+    status: string
+}
 interface Product {
     id: number
     name: string
     price: number
     description: string
-    image: string
+    image: string | File
     quantity: number
-    type: ProductType  // Thêm dòng này để fix lỗi type
+    concessionTypeId: number
     stockStatus: "IN_STOCK" | "SOLD_OUT"
     concessionStatus: "ACTIVE" | "INACTIVE" | "DELETED"
 }
 
-const bestSellerData = {
-    week: [
-        { name: "Bắp Rang Bơ Lớn", value: 450, color: "#2563eb" },
-        { name: "Combo Couple", value: 320, color: "#3b82f6" },
-        { name: "Coca Cola", value: 280, color: "#60a5fa" },
-    ],
-    month: [
-        { name: "Combo Couple", value: 1850, color: "#2563eb" },
-        { name: "Bắp Rang Bơ Lớn", value: 1620, color: "#3b82f6" },
-        { name: "Combo Family", value: 980, color: "#60a5fa" },
-    ],
-}
-
+// ===============================
+// 3️⃣ MOCK DATA & CUSTOM TOOLTIP
+// ===============================
 //  Custom Tooltip cho biểu đồ, dùng Tooltip của shadcn
 const CustomChartTooltip = ({ active, payload }: any) => {
     if (!active || !payload || !payload.length) return null;
@@ -95,51 +91,70 @@ const CustomChartTooltip = ({ active, payload }: any) => {
     );
 };
 
+// ===============================
+// 4️⃣ COMPONENT CHÍNH
+// ===============================
 
 export default function ConcessionPage() {
+    // =======================================
+    // 🟢 STATE CHÍNH & FILTER
+    // =======================================
     const [products, setProducts] = useState<Product[]>([])
     const [totalPages, setTotalPages] = useState(0)
     const [totalItems, setTotalItems] = useState(0)
     const [currentPage, setCurrentPage] = useState(1)
-    const [typeFilter, setTypeFilter] = useState<ProductType>("ALL")
+    const [itemsPerPage] = useState(10)
+    const [concessionTypeFilter, setConcessionTypeFilter] = useState<string>("ALL");
+    const [concessionTypes, setConcessionTypes] = useState<ConcessionType[]>([]);
+
+    // Bộ lọc & tìm kiếm
     const [stockFilter, setStockFilter] = useState<StockStatus>("ALL")
     const [statusFilter, setStatusFilter] = useState<ProductStatus>("ALL")
-    const itemsPerPage = 10
-    const [searchKeyword, setSearchKeyword] = useState("");
-
-    useEffect(() => {
-        const delayDebounce = setTimeout(() => { // Đặt timeout 500ms để debounce (tránh spam API khi user gõ nhanh)
-            fetchConcessions(currentPage - 1, itemsPerPage, {
-                stockStatus: stockFilter !== "ALL" ? stockFilter : undefined,
-                concessionType: typeFilter !== "ALL" ? typeFilter : undefined,
-                concessionStatus: statusFilter !== "ALL" ? statusFilter : undefined,
-                keyword: searchKeyword.trim() || undefined,
-            });
-        }, 500); // 500ms = 0.5 giây delay sau khi user ngừng gõ
-        return () => clearTimeout(delayDebounce);
-    }, [currentPage, typeFilter, stockFilter, statusFilter,searchKeyword]);
-
-    const [searchQuery, setSearchQuery] = useState("")
+    const [searchKeyword, setSearchKeyword] = useState("")
+        // Bộ lọc thống kê
     const [timeFilter, setTimeFilter] = useState<TimeFilter>("week")
+
+    // =======================================
+    // 🟢 DIALOG STATE (popup)
+    // =======================================
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+    const [isAddStockDialogOpen, setIsAddStockDialogOpen] = useState(false)
+    const [isToggleDialogOpen, setIsToggleDialogOpen] = useState(false)
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+    const [isAddTypeDialogOpen, setIsAddTypeDialogOpen] = useState(false);
+    const [isDeleteTypeDialogOpen, setIsDeleteTypeDialogOpen] = useState(false);
+    const [newTypeName, setNewTypeName] = useState("");
+    const [selectedTypeId, setSelectedTypeId] = useState<number | null>(null);
+
+
+    // =======================================
+    // 🟢 PRODUCT SELECTION / FORM DATA
+    // =======================================
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+    const [selectedProductId, setSelectedProductId] = useState<number | null>(null)
+    const [toggleProduct, setToggleProduct] = useState<Product | null>(null)
+    const [stockAmount, setStockAmount] = useState("")
+    // Form thêm mới
     const [newProduct, setNewProduct] = useState<{
-        name: string
-        price: string
-        quantity: string
-        description: string
-        type: ProductType
-        image: File | string
+        name: string;
+        price: string;
+        quantity: string;
+        description: string;
+        concessionTypeId: number | null; // ✅ chỉ lưu id
+        image: File | string;
     }>({
         name: "",
         price: "",
         quantity: "",
         description: "",
-        type: "DRINK",
+        concessionTypeId: null,
         image: "",
-    })
+    });
 
+    // =======================================
+    // 🟢 BIỂU ĐỒ TOP SẢN PHẨM BÁN CHẠY (mock)
+    // =======================================
     const bestSellerData = {
         week: [
             { name: "Bắp Rang Bơ Lớn", value: 450, color: "#2563eb" },
@@ -155,126 +170,112 @@ export default function ConcessionPage() {
     const bestSellers = bestSellerData[timeFilter] ?? []
     const topProduct = bestSellers[0]
 
-    const [isAddStockDialogOpen, setIsAddStockDialogOpen] = useState(false)
-    const [selectedProductId, setSelectedProductId] = useState<number | null>(null)
-    const [stockAmount, setStockAmount] = useState("")
+    // =======================================
+    // 🟢  useEffect — GỌI API KHI FILTER THAY ĐỔI
+    // =======================================
+    useEffect(() => {
+        const delayDebounce = setTimeout(() => {
+            fetchConcessions(currentPage - 1, itemsPerPage, {
+                stockStatus: stockFilter !== "ALL" ? stockFilter : undefined,
+                concessionType: concessionTypeFilter !== "ALL" ? concessionTypeFilter : undefined,
+                concessionStatus: statusFilter !== "ALL" ? statusFilter : undefined,
+                keyword: searchKeyword.trim() || undefined,
+            });
+        }, 500);
+
+        return () => clearTimeout(delayDebounce);
+    }, [currentPage, concessionTypeFilter, stockFilter, statusFilter, searchKeyword]);
+
+
+    // useEffect(() => {
+    //     const loadAll = async () => {
+    //         await fetchConcessions(currentPage - 1, itemsPerPage)
+    //     }
+    //     loadAll()
+    // }, [])
+
+    useEffect(() => {
+        const loadAll = async () => {
+            const cached = sessionStorage.getItem("concessionTypes");
+
+            if (cached) {
+                // ⚡ Dùng cache để render nhanh UI
+                setConcessionTypes(JSON.parse(cached));
+            } else {
+                // 🐢 Không có cache → gọi API
+                await fetchConcessionTypes();
+            }
+            // Dù có cache vẫn nên làm mới dữ liệu ngầm
+            fetchConcessionTypes();
+            await fetchConcessions(currentPage - 1, itemsPerPage);
+        };
+
+        loadAll();
+    }, []);
+
+    // =======================================
+    // 🟢  HÀM MỞ / ĐÓNG DIALOG
+    // =======================================
     const openAddStockDialog = (id: number) => {
         setSelectedProductId(id)
         setIsAddStockDialogOpen(true)
     }
-
-    const [isToggleDialogOpen, setIsToggleDialogOpen] = useState(false)
-    const [toggleProduct, setToggleProduct] = useState<Product | null>(null)
     const openToggleDialog = (product: Product) => {
         setToggleProduct(product)
         setIsToggleDialogOpen(true)
     }
-
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const openDeleteDialog = (id: number) => {
-        setSelectedProductId(id);
-        setIsDeleteDialogOpen(true);
-    };
+        setSelectedProductId(id)
+        setIsDeleteDialogOpen(true)
+    }
     const closeDeleteDialog = () => {
-        setSelectedProductId(null);
-        setIsDeleteDialogOpen(false);
-    };
+        setSelectedProductId(null)
+        setIsDeleteDialogOpen(false)
+    }
 
-
-//  Hàm xử lý ảnh (local / base64 / URL)
+    // =======================================
+    // 🟢 Helper
+    // =======================================
     const processImage = async (imageInput: string | File): Promise<File | null> => {
-        let file: File | null = null;
-
         try {
-            if (imageInput instanceof File) {
-                //  Ảnh chọn từ máy
-                file = imageInput;
-            }
-            else if (typeof imageInput === "string") {
+            if (imageInput instanceof File) return imageInput
+
+            if (typeof imageInput === "string") {
                 if (imageInput.startsWith("data:image")) {
-                    //  Ảnh kéo từ Internet (base64)
-                    const [meta, data] = imageInput.split(",");
-                    const mime = meta.match(/:(.*?);/)?.[1] || "image/jpeg";
-                    const bin = atob(data);
-                    const arr = Uint8Array.from(bin, (c) => c.charCodeAt(0));
-                    file = new File([arr], "image-base64.jpg", { type: mime });
+                    // base64
+                    const [meta, data] = imageInput.split(",")
+                    const mime = meta.match(/:(.*?);/)?.[1] || "image/jpeg"
+                    const bin = atob(data)
+                    const arr = Uint8Array.from(bin, (c) => c.charCodeAt(0))
+                    return new File([arr], "image-base64.jpg", { type: mime })
                 }
-                else if (imageInput.startsWith("http")) {
-                    //  Ảnh nhập từ URL
-                    const res = await fetch(imageInput);
+
+                if (imageInput.startsWith("http")) {
+                    // ảnh từ URL
+                    const res = await fetch(imageInput)
                     if (!res.ok) {
-                        toast.error("Không thể tải ảnh: liên kết không hợp lệ hoặc bị chặn.");
-                        return null;
+                        toast.error("Không thể tải ảnh từ liên kết.")
+                        return null
                     }
-
-                    const blob = await res.blob();
+                    const blob = await res.blob()
                     if (!blob.type.startsWith("image/")) {
-                        toast.error("Đường dẫn ảnh không hợp lệ hoặc không phải là file ảnh!");
-                        return null;
+                        toast.error("Liên kết không phải file ảnh!")
+                        return null
                     }
-
-                    const fileName = imageInput.split("/").pop() || "image-url.jpg";
-                    file = new File([blob], fileName, { type: blob.type });
+                    const fileName = imageInput.split("/").pop() || "image-url.jpg"
+                    return new File([blob], fileName, { type: blob.type })
                 }
             }
-
-            return file;
-        } catch (error) {
-            console.error("Lỗi khi xử lý ảnh:", error);
-            // toast.error("Không thể tải ảnh, vui lòng thử lại hoặc chọn ảnh khác!");
-            return null;
+            return null
+        } catch (err) {
+            console.error("Lỗi khi xử lý ảnh:", err)
+            return null
         }
-    };
+    }
 
-
-    const handleAddProduct = async () => {
-        try {
-            //  Validate trước khi gửi
-            if (!newProduct.name.trim()) return toast.error("Tên sản phẩm không được để trống!");
-            if (+newProduct.price <= 0) return toast.error("Giá bán phải lớn hơn 0!");
-            if (+newProduct.quantity <= 0) return toast.error("Số lượng phải lớn hơn 0!");
-            if (!newProduct.image) return toast.error("Vui lòng chọn hoặc nhập ảnh!");
-
-            const formData = new FormData();
-            formData.append("name", newProduct.name);
-            formData.append("price", newProduct.price);
-            formData.append("description", newProduct.description);
-            formData.append("concessionType", newProduct.type);
-            formData.append("unitInStock", newProduct.quantity);
-
-            //  Gọi hàm xử lý ảnh
-            const file = await processImage(newProduct.image);
-            if (!file) return; // nếu lỗi thì dừng
-
-            formData.append("file", file);
-
-            // Gửi request
-            const res = await axios.post(`${BACKEND_BASE_URL}/concession`, formData, {
-                headers: { "Content-Type": "multipart/form-data" },
-            });
-
-            toast.success("Thêm sản phẩm thành công!");
-            console.log("✅ Thêm sản phẩm:", res.data);
-
-            //  Làm mới list + reset form
-            await fetchConcessions(currentPage - 1, itemsPerPage);
-            setNewProduct({
-                name: "",
-                price: "",
-                quantity: "",
-                description: "",
-                type: "DRINK",
-                image: "",
-            });
-
-            setIsAddDialogOpen(false);
-
-        } catch (error: any) {
-            console.error(" Lỗi khi thêm sản phẩm:", error);
-            toast.error(error.response?.data?.message || "Không thể thêm sản phẩm. Vui lòng thử lại!");
-        }
-    };
-
+    // =======================================
+    // 🟢 FETCH API: LẤY DANH SÁCH
+    // =======================================
     const fetchConcessions = async (
         page = 0,
         size = 10,
@@ -285,12 +286,12 @@ export default function ConcessionPage() {
                 page: page.toString(),
                 size: size.toString(),
                 ...(filters?.stockStatus && { stockStatus: filters.stockStatus }),
-                ...(filters?.concessionType && { concessionType: filters.concessionType }),
+                ...(filters?.concessionType && { concessionTypeId: filters.concessionType }),
                 ...(filters?.concessionStatus && { concessionStatus: filters.concessionStatus }),
                 ...(filters?.keyword && { keyword: filters.keyword }),
             });
 
-            const res = await axios.get(`${BACKEND_BASE_URL}/concession?${params}`);
+            const res = await apiClient.get("/concession", { params })
 
             if (res.data.status !== 200) {
                 toast.error(res.data.message || "Không thể tải danh sách sản phẩm.");
@@ -306,8 +307,7 @@ export default function ConcessionPage() {
                 price: item.price,
                 description: item.description || "",
                 quantity: item.unitInStock,
-                type: item.concessionType,
-                stockStatus: item.stockStatus,
+                concessionTypeId: item.concessionType?.id ?? 0,                stockStatus: item.stockStatus,
                 concessionStatus: item.concessionStatus,
                 image: item.urlImage?.startsWith("http")
                     ? item.urlImage
@@ -325,6 +325,72 @@ export default function ConcessionPage() {
         }
     };
 
+    const fetchConcessionTypes = async () => {
+        try {
+            const res = await apiClient.get("/concession/types");
+            if (res.data.status !== 200) {
+                toast.error("Không thể tải loại sản phẩm!");
+                return;
+            }
+
+            const list = res.data.data;
+            setConcessionTypes(list); //  cập nhật state để rerender
+            sessionStorage.setItem("concessionTypes", JSON.stringify(list));
+            console.log("Concession Types loaded:", list);
+        } catch (error: any) {
+            toast.error("Lỗi khi tải danh sách loại sản phẩm.");
+        }
+    };
+
+    // =======================================
+    // 🟢 CRUD: THÊM / SỬA / XOÁ / CẬP NHẬT / ĐỔI TRẠNG THÁI
+    // =======================================
+    const handleAddProduct = async () => {
+        try {
+            //  Validate trước khi gửi
+            if (!newProduct.name.trim()) return toast.error("Tên sản phẩm không được để trống!");
+            if (+newProduct.price <= 0) return toast.error("Giá bán phải lớn hơn 0!");
+            if (+newProduct.quantity <= 0) return toast.error("Số lượng phải lớn hơn 0!");
+            if (!newProduct.image) return toast.error("Vui lòng chọn hoặc nhập ảnh!");
+
+            const formData = new FormData();
+            formData.append("name", newProduct.name);
+            formData.append("price", newProduct.price);
+            formData.append("description", newProduct.description);
+            formData.append("concessionTypeId", String(newProduct.concessionTypeId));
+            formData.append("unitInStock", newProduct.quantity);
+
+            //  Gọi hàm xử lý ảnh
+            const file = await processImage(newProduct.image);
+            if (!file) return; // nếu lỗi thì dừng
+
+            formData.append("file", file);
+
+            // Gửi request
+            const res = await apiClient.post("/concession", formData, {
+                headers: { "Content-Type": "multipart/form-data" },
+            })
+
+            toast.success("Thêm sản phẩm thành công!");
+            console.log("✅ Thêm sản phẩm:", res.data);
+
+            //  Làm mới list + reset form
+            await fetchConcessions(currentPage - 1, itemsPerPage);
+            setNewProduct({
+                name: "",
+                price: "",
+                quantity: "",
+                description: "",
+                concessionTypeId: null,
+                image: "",
+            });
+            setIsAddDialogOpen(false);
+
+        } catch (error: any) {
+            console.error(" Lỗi khi thêm sản phẩm:", error);
+            toast.error(error.response?.data?.message || "Không thể thêm sản phẩm. Vui lòng thử lại!");
+        }
+    };
 
     const handleEditProduct = async () => {
         if (!selectedProduct) return toast.error("Không có sản phẩm nào được chọn!");
@@ -339,7 +405,7 @@ export default function ConcessionPage() {
             formData.append("name", selectedProduct.name);
             formData.append("price", selectedProduct.price.toString());
             formData.append("description", selectedProduct.description || "");
-            formData.append("concessionType", selectedProduct.type);
+            formData.append("concessionTypeId", String(selectedProduct.concessionTypeId));
             formData.append("unitInStock", selectedProduct.quantity.toString());
 
             //  Gọi hàm xử lý ảnh
@@ -347,11 +413,9 @@ export default function ConcessionPage() {
             if (file) formData.append("file", file);
 
             //  Gửi request API
-            const res = await axios.put(
-                `${BACKEND_BASE_URL}/concession/${selectedProduct.id}`,
-                formData,
-                { headers: { "Content-Type": "multipart/form-data" } }
-            );
+            const res = await apiClient.put(`/concession/${selectedProduct.id}`, formData, {
+                headers: { "Content-Type": "multipart/form-data" },
+            })
 
             //  Thành công
             toast.success("Cập nhật sản phẩm thành công!");
@@ -379,8 +443,8 @@ export default function ConcessionPage() {
             return toast.error("Số lượng phải là số nguyên từ 1 đến 999!");
         }
         try {
-            const res = await axios.put(
-                `${BACKEND_BASE_URL}/concession/${selectedProductId}/stock`,
+            const res = await apiClient.put(
+                `/concession/${selectedProductId}/stock`,
                 null,
                 { params: { quantityToAdd: amount } }
             )
@@ -400,7 +464,7 @@ export default function ConcessionPage() {
     const handleDeleteProduct = async (id: number) => {
         try {
             //  Gọi API xóa
-            const res = await axios.delete(`${BACKEND_BASE_URL}/concession/${id}`);
+            const res = await apiClient.delete(`${BACKEND_BASE_URL}/concession/${id}`);
 
             if (res.data.status !== 200) {
                 toast.error(res.data.message || "Không thể xóa sản phẩm!");
@@ -420,15 +484,14 @@ export default function ConcessionPage() {
         }
     };
 
-
     const handleToggleStatus = async () => {
         if (!toggleProduct) return toast.error("Không có sản phẩm nào được chọn!")
 
         const newStatus = toggleProduct.concessionStatus === "ACTIVE" ? "INACTIVE" : "ACTIVE"
 
         try {
-            const res = await axios.put(
-                `${BACKEND_BASE_URL}/concession/${toggleProduct.id}/status`,
+            const res = await apiClient.put(
+                `/concession/${toggleProduct.id}/status`,
                 null,
                 { params: { status: newStatus } }
             )
@@ -444,10 +507,69 @@ export default function ConcessionPage() {
             toast.error(error.response?.data?.message || "Không thể thay đổi trạng thái sản phẩm!")
         }
     }
+// ➕ Thêm loại sản phẩm
+    const handleAddType = async () => {
+        if (!newTypeName.trim()) {
+            toast.error("Tên loại sản phẩm không được để trống!");
+            return;
+        }
 
+        try {
+            const res = await apiClient.post("/concession/type", { name: newTypeName });
+            if (res.data.status !== 200) {
+                toast.error(res.data.message || "Không thể thêm loại sản phẩm!");
+                return;
+            }
 
+            toast.success("Đã thêm loại sản phẩm mới!");
+            setIsAddTypeDialogOpen(false);
+            setNewTypeName("");
+            await fetchConcessionTypes();
+        } catch (err) {
+            const error = err as any;
+            if (error.response?.data?.status  === 1016) {
+                toast.error("Loại sản phẩm này đã tồn tại!");
+            } else {
+                toast.error("Không thể thêm loại sản phẩm. Vui lòng thử lại!");
+            }
+        }
+    };
 
+// 🗑 Xoá loại sản phẩm
+    const handleDeleteType = async (id: number) => {
+        setSelectedTypeId(id);
+        setIsDeleteTypeDialogOpen(true);
+    };
 
+    const confirmDeleteType = async () => {
+        if (!selectedTypeId) return;
+
+        try {
+            const res = await apiClient.put(`/concession/types/${selectedTypeId}/status`);
+            if (res.data.status !== 200) {
+                toast.error(res.data.message || "Không thể xoá loại sản phẩm!");
+                return;
+            }
+
+            toast.success("Đã xoá loại sản phẩm!");
+            await fetchConcessionTypes();
+            setIsDeleteTypeDialogOpen(false);
+            setSelectedTypeId(null);
+        } catch (err) {
+            const error = err as any;
+
+            console.error("Lỗi khi xoá loại:", error);
+            if (error.response?.data?.status  === 1015) {
+                toast.error("Không thể xoá loại sản phẩm này vì vẫn còn sản phẩm thuộc loại đó!");
+            } else {
+                toast.error("Không thể xoá loại sản phẩm. Vui lòng thử lại!");
+            }
+        }
+    };
+
+    // =======================================
+    // 🟢 12. RETURN UI
+    // =======================================
     // @ts-ignore
     return (
         <BusinessManagerLayout activeSection="concession">
@@ -529,19 +651,30 @@ export default function ConcessionPage() {
                     </Card>
                 </div>
 
+
                 {/* Filter Bar */}
                 <Card className="bg-white border-blue-100 shadow-md">
                     <CardContent className="pt-6">
                         <div className="flex flex-col md:flex-row gap-4">
-                            <Select value={typeFilter} onValueChange={(value: ProductType) => setTypeFilter(value)}>
+                            {/* Dropdown lọc loại sản phẩm */}
+                            <Select
+                                value={concessionTypeFilter}
+                                onValueChange={(value: string) => setConcessionTypeFilter(value)}
+                            >
                                 <SelectTrigger className="w-full md:w-48 border-blue-200">
                                     <SelectValue placeholder="Loại sản phẩm" />
                                 </SelectTrigger>
+
                                 <SelectContent>
+                                    {/* Mặc định chọn ALL */}
                                     <SelectItem value="ALL">Tất cả</SelectItem>
-                                    <SelectItem value="DRINK">Drink</SelectItem>
-                                    <SelectItem value="SNACK">Snack</SelectItem>
-                                    <SelectItem value="COMBO">Combo</SelectItem>
+
+                                    {/* ✅ Load các loại sản phẩm từ state concessionTypes */}
+                                    {concessionTypes.map((type) => (
+                                        <SelectItem key={type.id} value={type.id.toString()}>
+                                            {type.name}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
 
@@ -556,7 +689,7 @@ export default function ConcessionPage() {
                                 </SelectContent>
                             </Select>
 
-                            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "ALL" | "ACTIVE" | "INACTIVE" | "DELETED")}>
+                            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "ALL" | "ACTIVE" | "INACTIVE" )}>
                                 <SelectTrigger className="w-full md:w-48 border-blue-200">
                                     <SelectValue placeholder="Trạng thái hoạt động" />
                                 </SelectTrigger>
@@ -578,7 +711,7 @@ export default function ConcessionPage() {
                                         if (e.key === "Enter") {
                                             fetchConcessions(currentPage - 1, itemsPerPage, {
                                                 stockStatus: stockFilter !== "ALL" ? stockFilter : undefined,
-                                                concessionType: typeFilter !== "ALL" ? typeFilter : undefined,
+                                                concessionType: concessionTypeFilter !== "ALL" ? concessionTypeFilter : undefined,
                                                 concessionStatus: statusFilter !== "ALL" ? statusFilter : undefined,
                                                 keyword: searchKeyword.trim() || undefined,
                                             })
@@ -592,7 +725,7 @@ export default function ConcessionPage() {
                                     onClick={() =>
                                         fetchConcessions(currentPage - 1, itemsPerPage, {
                                             stockStatus: stockFilter !== "ALL" ? stockFilter : undefined,
-                                            concessionType: typeFilter !== "ALL" ? typeFilter : undefined,
+                                            concessionType: concessionTypeFilter !== "ALL" ? concessionTypeFilter : undefined,
                                             concessionStatus: statusFilter !== "ALL" ? statusFilter : undefined,
                                             keyword: searchKeyword.trim() || undefined,
                                         })
@@ -608,7 +741,10 @@ export default function ConcessionPage() {
                     </CardContent>
                 </Card>
 
+
+                <div className="flex gap-4">
                 {/* Products Table */}
+                    <div className="w-[85%]">
                 <Card className="bg-white border-blue-100 shadow-md">
                     <CardHeader>
                         <CardTitle className="text-gray-900">Danh sách sản phẩm</CardTitle>
@@ -619,7 +755,6 @@ export default function ConcessionPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>ID</TableHead>
-
                                     <TableHead>Tên sản phẩm</TableHead>
                                     <TableHead>Loại sản phẩm</TableHead>
                                     <TableHead>Giá bán</TableHead>
@@ -650,24 +785,26 @@ export default function ConcessionPage() {
                                                 </Badge>
                                             )}
                                         </TableCell>
-                                        <TableCell>
-                                            {product.type === "DRINK" && "Đồ uống"}
-                                            {product.type === "SNACK" && "Snack"}
-                                            {product.type === "COMBO" && "Combo"}
+                                        <TableCell className="text-gray-800">
+                                            {concessionTypes.find(t => t.id === product.concessionTypeId)?.name || "Không xác định"}
                                         </TableCell>
                                         <TableCell className="text-gray-900">{product.price.toLocaleString()}đ</TableCell>
                                         <TableCell className="text-gray-600 max-w-xs truncate">{product.description}</TableCell>
-
                                         <TableCell>
                                             <img
-                                                src={product.image || "/placeholder.svg"}
+                                                src={
+                                                    product.image instanceof File
+                                                        ? URL.createObjectURL(product.image)
+                                                        : product.image || "/placeholder.svg"
+                                                }
                                                 alt={product.name}
                                                 className="w-12 h-12 rounded-lg object-cover shadow-sm"
                                             />
                                         </TableCell>
 
+
                                         {/* Số lượng tồn kho */}
-                                        <TableCell>
+                                        <TableCell className="text-center align-middle">
                                             {product.quantity}
                                         </TableCell>
 
@@ -792,7 +929,7 @@ export default function ConcessionPage() {
                                 </Button>
                                 <span className="text-sm text-gray-600">
                   Trang {currentPage} / {totalPages}
-                </span>
+                 </span>
                                 <Button
                                     variant="outline"
                                     size="sm"
@@ -807,8 +944,61 @@ export default function ConcessionPage() {
                         </div>
                     </CardContent>
                 </Card>
+                   </div>
 
-                {/* Add Product Dialog */}
+                    {/* Bảng loại sản phẩm */}
+                    <div className="w-[15%]">
+                        <Card className="bg-white border-blue-100 shadow-md">
+                            <CardHeader className="flex flex-row items-center justify-between">
+                                <CardTitle className="text-gray-900 text-lg">Loại sản phẩm</CardTitle>
+
+                                {/* Nút thêm loại sản phẩm */}
+                                <Button
+                                    onClick={() => setIsAddTypeDialogOpen(true)}
+                                    className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700"
+                                    size="sm"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                </Button>
+                            </CardHeader>
+
+                            <CardContent>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Type Name</TableHead>
+                                            <TableHead>Action</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {concessionTypes.map((type) => (
+                                            <TableRow key={type.id}>
+                                                <TableCell className="font-medium">{type.name}</TableCell>
+                                                <TableCell>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                        onClick={() => handleDeleteType(type.id)}
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+
+
+                {/*=======================================
+                               DIALOG
+                 =======================================*/}
+                        {/* Add Product Dialog */}
                 <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                     <DialogContent className="sm:max-w-lg">
                         <DialogHeader>
@@ -863,19 +1053,26 @@ export default function ConcessionPage() {
                             <div className="space-y-2">
                                 <Label htmlFor="type">Loại sản phẩm</Label>
                                 <Select
-                                    value={newProduct.type}
-                                    onValueChange={(value: ProductType) => setNewProduct({ ...newProduct, type: value })}
+                                    value={newProduct.concessionTypeId?.toString() || ""}
+                                    onValueChange={(value: string) =>
+                                        setNewProduct({ ...newProduct, concessionTypeId: Number(value) })
+                                    }
                                 >
                                     <SelectTrigger className="border-blue-200">
-                                        <SelectValue />
+                                        <SelectValue placeholder="Chọn loại sản phẩm" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="DRINK">DRINK</SelectItem>
-                                        <SelectItem value="SNACK">SNACK</SelectItem>
-                                        <SelectItem value="COMBO">COMBO</SelectItem>
+                                        {concessionTypes.map((type) => (
+                                            <SelectItem key={type.id} value={type.id.toString()}>
+                                                {type.name}
+                                            </SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
+
                             </div>
+
+
                             <div className="space-y-2">
                                 <Label htmlFor="image">Ảnh sản phẩm</Label>
                                 <Input
@@ -975,21 +1172,26 @@ export default function ConcessionPage() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="edit-type">Loại sản phẩm</Label>
+                                    <Label htmlFor="type">Loại sản phẩm</Label>
                                     <Select
-                                        value={selectedProduct.type}
-                                        onValueChange={(value: ProductType) => setSelectedProduct({ ...selectedProduct, type: value })}
+                                        value={selectedProduct.concessionTypeId?.toString() || ""}
+                                        onValueChange={(value: string) =>
+                                            setSelectedProduct({ ...selectedProduct, concessionTypeId: Number(value) })
+                                        }
                                     >
                                         <SelectTrigger className="border-blue-200">
-                                            <SelectValue />
+                                            <SelectValue placeholder="Chọn loại sản phẩm" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="DRINK">DRINK</SelectItem>
-                                            <SelectItem value="SNACK">SNACK</SelectItem>
-                                            <SelectItem value="COMBO">COMBO</SelectItem>
+                                            {concessionTypes.map((type) => (
+                                                <SelectItem key={type.id} value={type.id.toString()}>
+                                                    {type.name}
+                                                </SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
                                 </div>
+
                                 <div className="space-y-2">
                                     <Label htmlFor="image">Ảnh sản phẩm</Label>
 
@@ -1142,6 +1344,50 @@ export default function ConcessionPage() {
                     </AlertDialogContent>
                 </AlertDialog>
 
+                {/* 🟢 Dialog thêm loại sản phẩm */}
+                <Dialog open={isAddTypeDialogOpen} onOpenChange={setIsAddTypeDialogOpen}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Thêm loại sản phẩm</DialogTitle>
+                            <DialogDescription>Nhập tên loại concession mới</DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                            <Label htmlFor="typeName">Tên loại</Label>
+                            <Input
+                                id="typeName"
+                                value={newTypeName}
+                                onChange={(e) => setNewTypeName(e.target.value)}
+                                placeholder="VD: Đồ uống, Bỏng, Snack..."
+                            />
+                        </div>
+                        <DialogFooter className="mt-4">
+                            <Button variant="outline" onClick={() => setIsAddTypeDialogOpen(false)}>
+                                Hủy
+                            </Button>
+                            <Button onClick={handleAddType} className="bg-blue-600 hover:bg-blue-700">
+                                Thêm
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* 🔴 Dialog xác nhận xoá loại */}
+                <AlertDialog open={isDeleteTypeDialogOpen} onOpenChange={setIsDeleteTypeDialogOpen}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Xác nhận xoá</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Bạn có chắc muốn xoá loại sản phẩm này không? Hành động này không thể hoàn tác.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setIsDeleteTypeDialogOpen(false)}>Hủy</AlertDialogCancel>
+                            <AlertDialogAction onClick={confirmDeleteType} className="bg-red-600 hover:bg-red-700">
+                                Xoá
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
 
             </div>
 
