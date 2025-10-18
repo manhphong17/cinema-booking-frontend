@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ChevronLeft, ChevronRight, Clock } from "lucide-react"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 import { useRouter } from "next/navigation"
 import apiClient from "@/src/api/interceptor"
 
@@ -136,16 +136,9 @@ export function MovieCarousel({ title, movies: movieList, showViewAll = true, va
                   </Badge>
                 </div>
                 <CardContent className={`${isHome ? "p-3" : "p-4"} border-t border-gray-100/50 bg-gradient-to-br from-slate-50 to-gray-100/50`}>
-                  <h3 className="font-semibold text-lg mb-2 text-foreground line-clamp-1 group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-300">
+                  <h3 className="font-semibold text-lg mb-4 text-foreground line-clamp-2 group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-300 min-h-[3.5rem] flex items-center">
                     {movie.title}
                   </h3>
-                  <p className="text-sm text-muted-foreground mb-2 line-clamp-1">{movie.genre}</p>
-                  <div className={`flex items-center gap-2 text-xs text-muted-foreground ${isHome ? "mb-1" : "mb-2"}`}>
-                    <Clock className="h-3 w-3" />
-                    <span>{movie.duration}</span>
-                    <span>•</span>
-                    <span>{movie.year}</span>
-                  </div>
                   <div className="flex gap-2">
                     <Button 
                       className="flex-1 bg-black hover:bg-black/90 text-white font-semibold py-2.5 transition-all duration-200 rounded-lg shadow-md hover:shadow-lg"
