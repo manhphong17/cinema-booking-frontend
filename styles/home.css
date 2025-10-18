@@ -41,19 +41,23 @@
     @apply shadow-lg bg-background/98;
 }
 
-/* Removed old logo styles - now using inline classes for better control */
-
-/* Removed old menu item styles - now using inline classes for better control */
-
+/* Auth button */
 .home-auth-button {
-    @apply hover: scale-105 transition-transform duration-200;
+    @apply transition-transform duration-200;
 }
 
+.home-auth-button:hover {
+    @apply scale-105;
+}
+
+/* Avatar */
 .home-avatar {
-    @apply h-10 w-10 ring-2 ring-primary/30 hover: ring-primary/50 transition-all duration-200;
+    @apply h-10 w-10 ring-2 ring-primary/30 transition-all duration-200;
 }
 
-/* Footer styles are now handled inline for better control */
+.home-avatar:hover {
+    @apply ring-primary/50;
+}
 
 /* Loading states */
 .home-loading-navbar {
@@ -83,7 +87,11 @@
     }
 
     .home-mobile-menu-item {
-        @apply block w-full text-left py-2 px-3 rounded-lg hover: bg-gray-100 transition-colors;
+        @apply block w-full text-left py-2 px-3 rounded-lg transition-colors;
+    }
+
+    .home-mobile-menu-item:hover {
+        @apply bg-gray-100;
     }
 }
 
@@ -106,11 +114,19 @@
 
 /* Hover effects */
 .home-hover-lift {
-    @apply hover: scale-105 transition-transform duration-200;
+    @apply transition-transform duration-200;
+}
+
+.home-hover-lift:hover {
+    @apply scale-105;
 }
 
 .home-hover-glow {
-    @apply hover: shadow-lg transition-shadow duration-200;
+    @apply transition-shadow duration-200;
+}
+
+.home-hover-glow:hover {
+    @apply shadow-lg;
 }
 
 /* Custom scrollbar for home layout */
@@ -326,6 +342,191 @@
     z-index: -1;
 }
 
+/* Hero Carousel Responsive Styles */
+.hero-carousel {
+    min-height: 400px;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-carousel img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+}
+
+@media (max-width: 640px) {
+    .hero-carousel {
+        min-height: 350px;
+    }
+}
+
+@media (min-width: 768px) {
+    .hero-carousel {
+        min-height: 450px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .hero-carousel {
+        min-height: 500px;
+    }
+}
+
+@media (min-width: 1280px) {
+    .hero-carousel {
+        min-height: 550px;
+    }
+}
+
+/* Banner Image Optimization - 70% Layout */
+.hero-banner-image {
+    width: 50%;
+    height: 50%;
+    object-fit: cover;
+    object-position: center center;
+    transition: transform 0.3s ease-in-out;
+    margin: auto;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.hero-banner-image:hover {
+    transform: scale(1.05);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+}
+
+/* Alternative banner sizes - uncomment to use */
+/* 
+.hero-banner-image {
+    width: 60%;  // Smaller
+    height: 60%;
+}
+
+.hero-banner-image {
+    width: 80%;  // Larger
+    height: 80%;
+}
+*/
+
+/* 70% Banner Layout */
+.hero-banner-70 {
+    position: relative;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: transform 0.3s ease-in-out;
+}
+
+.hero-banner-70:hover {
+    transform: scale(1.02);
+}
+
+.hero-banner-70 .banner-image-container {
+    position: relative;
+    width: 80%;
+    max-width: 1200px;
+    height: 60%;
+    overflow: hidden;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.hero-banner-70 .banner-gradient-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60%;
+    background: linear-gradient(to top, rgba(15, 23, 42, 0.3), transparent);
+    border-radius: 0 0 12px 12px;
+}
+
+/* Ensure proper aspect ratio for banner images */
+.hero-carousel .aspect-ratio {
+    aspect-ratio: 16/9;
+}
+
+@media (max-width: 768px) {
+    .hero-carousel .aspect-ratio {
+        aspect-ratio: 4/3;
+    }
+
+    .hero-banner-70 .banner-image-container {
+        width: 90%;
+        height: 65%;
+    }
+
+    .hero-banner-70 .banner-gradient-overlay {
+        height: 65%;
+    }
+
+    .hero-banner-image {
+        width: 100%;
+        height: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .hero-banner-70 .banner-image-container {
+        width: 95%;
+        height: 70%;
+    }
+
+    .hero-banner-70 .banner-gradient-overlay {
+        height: 70%;
+    }
+
+    .hero-banner-image {
+        width: 100%;
+        height: 100%;
+    }
+}
+
+/* Movie Carousel Responsive Styles */
+.movie-carousel-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.movie-carousel-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(2, 1fr);
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+@media (min-width: 640px) {
+    .movie-carousel-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.25rem;
+    }
+}
+
+@media (min-width: 768px) {
+    .movie-carousel-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .movie-carousel-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+        max-width: 100%;
+    }
+}
+
+@media (min-width: 1280px) {
+    .movie-carousel-grid {
+        gap: 2rem;
+    }
+}
+
 /* Hero Carousel Animations */
 @keyframes slide-in {
     0% {
@@ -399,27 +600,6 @@
     background-clip: text;
 }
 
-/* Enhanced button glow effect */
-.button-glow {
-    position: relative;
-    overflow: hidden;
-}
-
-.button-glow::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-    transition: left 0.6s;
-}
-
-.button-glow:hover::before {
-    left: 100%;
-}
-
 /* Parallax effect for background */
 .parallax-bg {
     transform: translateZ(0);
@@ -429,12 +609,6 @@
 /* Smooth transitions for all carousel elements */
 .carousel-transition {
     transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Enhanced backdrop blur */
-.backdrop-blur-enhanced {
-    backdrop-filter: blur(16px) saturate(180%);
-    -webkit-backdrop-filter: blur(16px) saturate(180%);
 }
 
 /* Floating animation for dots */
