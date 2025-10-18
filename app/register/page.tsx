@@ -25,25 +25,23 @@ export default function RegisterPage() {
     const [gender, setGender] = useState("")
     const [showPassword, setShowPassword] = useState(false)
     const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-    const [error, setError] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const router = useRouter()
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault()
-        setError("")
         setIsLoading(true)
 
         // Kiểm tra mật khẩu nhập lại
         if (password !== confirmPassword) {
-            setError("Mật khẩu và Xác nhận mật khẩu không khớp")
+            toast.error("Mật khẩu và Xác nhận mật khẩu không khớp")
             setIsLoading(false)
             return
         }
 
         // Kiểm tra bắt buộc nhập
         if (!email || !password || !name || !dateOfBirth || !gender) {
-            setError("Vui lòng điền đầy đủ các trường bắt buộc")
+            toast.error("Vui lòng điền đầy đủ các trường bắt buộc")
             setIsLoading(false)
             return
         }
@@ -51,20 +49,20 @@ export default function RegisterPage() {
         // Kiểm tra định dạng email
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
         if (!emailRegex.test(email)) {
-            setError("Email không hợp lệ")
+            toast.error("Email không hợp lệ")
             setIsLoading(false)
             return
         }
 
         // Kiểm tra độ dài mật khẩu
         if (password.length < 8) {
-            setError("Mật khẩu phải có ít nhất 8 ký tự")
+            toast.error("Mật khẩu phải có ít nhất 8 ký tự")
             setIsLoading(false)
             return
         }
 
         try {
-            const response = await fetch(BACKEND_BASE_URL + "/accounts/register-email", {
+            const response = await fetch(BACKEND_BASE_URL + "/auth/register-email", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -81,22 +79,19 @@ export default function RegisterPage() {
 
             const data = await response.json()
 
-            if (data.status === 201) {
-                toast.success(data.message || "Vui lòng kiểm tra email để xác thực OTP.")
-                sessionStorage.setItem("registerEmail", email)
-                router.push("/verify-otp")
+            if (response.ok && response.status === 201) {
+                toast.success(data.message || "Vui lòng kiểm tra email để xác thực OTP.");
+                sessionStorage.setItem("registerEmail", email);
+                router.push("/verify-otp");
             } else {
-                setError(data.message || "Đăng ký thất bại. Vui lòng thử lại.")
-                toast.error(data.message || "Đăng ký thất bại. Vui lòng thử lại.")
+                toast.error(data.message || `Đăng ký thất bại (${response.status})`);
             }
         } catch (err: unknown) {
             if (err instanceof Error) {
                 console.error("Lỗi khi đăng ký:", err.message)
-                setError("Lỗi kết nối mạng. Vui lòng kiểm tra lại và thử lại.")
                 toast.error("Lỗi kết nối mạng. Vui lòng kiểm tra lại và thử lại.")
             } else {
                 console.error("Lỗi không xác định:", err)
-                setError("Đã xảy ra lỗi. Vui lòng thử lại.")
                 toast.error("Đã xảy ra lỗi. Vui lòng thử lại.")
             }
         } finally {
@@ -235,12 +230,6 @@ export default function RegisterPage() {
                                 </Button>
                             </div>
                         </div>
-
-                        {error && (
-                            <Alert variant="destructive" className="text-sm">
-                                <AlertDescription>{error}</AlertDescription>
-                            </Alert>
-                        )}
 
                         <Button
                             type="submit"

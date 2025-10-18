@@ -126,3 +126,7 @@
         background-attachment: fixed;
     }
 }
+/* ===== FIX SHADCN DialogDescription text color ===== */
+.text-muted-foreground {
+    color: #111827 !important; /* text-gray-900 */
+}

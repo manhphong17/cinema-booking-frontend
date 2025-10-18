@@ -106,7 +106,7 @@ export default function LoginPage() {
                         } else if (roles.includes("STAFF")) {
                             window.location.href = "/staff"
                         } else if (roles.includes("BUSINESS")) {
-                            window.location.href = "/business"
+                            window.location.href = "/business-manager"
                         }
                     }
                 }, 100)
