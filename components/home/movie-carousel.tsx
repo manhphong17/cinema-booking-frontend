@@ -67,6 +67,26 @@ const movies = [
     imdbRating: 5.6,
     duration: "147 phút",
     year: "2022"
+  },
+  {
+    id: 7,
+    title: "Black Panther: Wakanda Forever",
+    genre: "Hành động, Phiêu lưu",
+    poster: "/placeholder.svg",
+    rating: "P13",
+    imdbRating: 7.3,
+    duration: "161 phút",
+    year: "2022"
+  },
+  {
+    id: 8,
+    title: "Avatar: The Way of Water",
+    genre: "Hành động, Phiêu lưu",
+    poster: "/placeholder.svg",
+    rating: "P13",
+    imdbRating: 7.8,
+    duration: "192 phút",
+    year: "2022"
   }
 ]
 
@@ -86,7 +106,7 @@ export function MovieCarousel({ title, movies: movieList, showViewAll = true, va
   const [selectedRating, setSelectedRating] = useState<string>("all")
   const router = useRouter()
   const itemsPerView = 4
-  const maxMoviesToShow = 4 // Trang home chỉ hiển thị 4 phim
+  const maxMoviesToShow = 4 // Trang home hiển thị 4 phim
 
   const isHome = variant === 'home'
   // Build genre list from data (split by comma)
@@ -140,7 +160,7 @@ export function MovieCarousel({ title, movies: movieList, showViewAll = true, va
 
   return (
     <section className="py-20 bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20">
-      <div className="container mx-auto px-4">
+      <div className="movie-carousel-container container mx-auto px-4">
         <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
           <div>
             <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1">
@@ -210,23 +230,23 @@ export function MovieCarousel({ title, movies: movieList, showViewAll = true, va
             <>
               <button
                 onClick={prevSlide}
-                className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 bg-gradient-to-r from-slate-100 to-slate-200 hover:from-blue-500 hover:to-purple-500 text-slate-600 hover:text-white p-2.5 rounded-full shadow-lg transition-all duration-300 hover:scale-110 border border-slate-300 hover:border-blue-400"
+                className="absolute left-2 md:left-0 top-1/2 -translate-y-1/2 -translate-x-2 md:-translate-x-4 z-10 bg-gradient-to-r from-slate-100 to-slate-200 hover:from-blue-500 hover:to-purple-500 text-slate-600 hover:text-white p-2 md:p-2.5 rounded-full shadow-lg transition-all duration-300 hover:scale-110 border border-slate-300 hover:border-blue-400"
                 disabled={currentIndex === 0}
               >
-                <ChevronLeft className="h-5 w-5" />
+                <ChevronLeft className="h-4 w-4 md:h-5 md:w-5" />
               </button>
               <button
                 onClick={nextSlide}
-                className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 bg-gradient-to-r from-slate-100 to-slate-200 hover:from-blue-500 hover:to-purple-500 text-slate-600 hover:text-white p-2.5 rounded-full shadow-lg transition-all duration-300 hover:scale-110 border border-slate-300 hover:border-blue-400"
+                className="absolute right-2 md:right-0 top-1/2 -translate-y-1/2 translate-x-2 md:translate-x-4 z-10 bg-gradient-to-r from-slate-100 to-slate-200 hover:from-blue-500 hover:to-purple-500 text-slate-600 hover:text-white p-2 md:p-2.5 rounded-full shadow-lg transition-all duration-300 hover:scale-110 border border-slate-300 hover:border-blue-400"
                 disabled={currentIndex + itemsPerView >= displayMovies.length}
               >
-                <ChevronRight className="h-5 w-5" />
+                <ChevronRight className="h-4 w-4 md:h-5 md:w-5" />
               </button>
             </>
           )}
 
           {/* Movie Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="movie-carousel-grid">
             {displayMovies.map((movie) => (
               <Card key={movie.id} className="overflow-hidden hover:shadow-xl transition-all duration-400 group bg-white border-0 shadow-md hover:-translate-y-1 cursor-pointer" onClick={() => handleViewDetails(movie.id)}>
                 <div className="relative aspect-[2/3] overflow-hidden">
@@ -320,26 +340,6 @@ export function NowShowingCarousel({ variant = 'home' }: { variant?: 'home' | 'p
 export function ComingSoonCarousel({ variant = 'home' }: { variant?: 'home' | 'page' }) {
   const comingSoonMovies = [
     {
-      id: 7,
-      title: "Black Panther: Wakanda Forever",
-      genre: "Hành động, Phiêu lưu",
-      poster: "/placeholder.svg",
-      rating: "P13",
-      imdbRating: 7.3,
-      duration: "161 phút",
-      year: "2022"
-    },
-    {
-      id: 8,
-      title: "Avatar: The Way of Water",
-      genre: "Hành động, Phiêu lưu",
-      poster: "/placeholder.svg",
-      rating: "P13",
-      imdbRating: 7.8,
-      duration: "192 phút",
-      year: "2022"
-    },
-    {
       id: 9,
       title: "Thor: Love and Thunder",
       genre: "Hành động, Hài kịch",
@@ -358,6 +358,26 @@ export function ComingSoonCarousel({ variant = 'home' }: { variant?: 'home' | 'p
       imdbRating: 6.2,
       duration: "125 phút",
       year: "2022"
+    },
+    {
+      id: 11,
+      title: "Ant-Man: Quantumania",
+      genre: "Hành động, Khoa học viễn tưởng",
+      poster: "/placeholder.svg",
+      rating: "P13",
+      imdbRating: 6.1,
+      duration: "125 phút",
+      year: "2023"
+    },
+    {
+      id: 12,
+      title: "Guardians of the Galaxy 3",
+      genre: "Hành động, Phiêu lưu",
+      poster: "/placeholder.svg",
+      rating: "P13",
+      imdbRating: 8.1,
+      duration: "150 phút",
+      year: "2023"
     }
   ]
 

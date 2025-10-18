@@ -45,6 +45,7 @@
 .home-auth-button {
     @apply transition-transform duration-200;
 }
+
 .home-auth-button:hover {
     @apply scale-105;
 }
@@ -53,6 +54,7 @@
 .home-avatar {
     @apply h-10 w-10 ring-2 ring-primary/30 transition-all duration-200;
 }
+
 .home-avatar:hover {
     @apply ring-primary/50;
 }
@@ -87,6 +89,7 @@
     .home-mobile-menu-item {
         @apply block w-full text-left py-2 px-3 rounded-lg transition-colors;
     }
+
     .home-mobile-menu-item:hover {
         @apply bg-gray-100;
     }
@@ -113,6 +116,7 @@
 .home-hover-lift {
     @apply transition-transform duration-200;
 }
+
 .home-hover-lift:hover {
     @apply scale-105;
 }
@@ -120,6 +124,7 @@
 .home-hover-glow {
     @apply transition-shadow duration-200;
 }
+
 .home-hover-glow:hover {
     @apply shadow-lg;
 }
@@ -242,6 +247,7 @@
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
 .movie-card-glow:hover {
     box-shadow: 0 25px 50px -12px rgba(59, 130, 246, 0.15), 0 0 0 1px rgba(147, 51, 234, 0.1), 0 0 20px rgba(236, 72, 153, 0.1);
     transform: translateY(-8px) scale(1.02);
@@ -251,6 +257,7 @@
     position: relative;
     overflow: hidden;
 }
+
 .button-glow::before {
     content: '';
     position: absolute;
@@ -261,15 +268,19 @@
     background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
     transition: left 0.5s;
 }
+
 .button-glow:hover::before {
     left: 100%;
 }
 
 /* Pulse animation for important elements with modern colors */
 @keyframes pulse-glow {
-    0%, 100% {
+
+    0%,
+    100% {
         box-shadow: 0 0 5px rgba(59, 130, 246, 0.5), 0 0 5px rgba(147, 51, 234, 0.3);
     }
+
     50% {
         box-shadow: 0 0 20px rgba(59, 130, 246, 0.8), 0 0 30px rgba(147, 51, 234, 0.6), 0 0 40px rgba(236, 72, 153, 0.4);
     }
@@ -290,6 +301,7 @@
 .modern-card-hover {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
 .modern-card-hover:hover {
     transform: translateY(-4px) scale(1.02);
     box-shadow: 0 20px 40px -12px rgba(59, 130, 246, 0.2), 0 0 0 1px rgba(147, 51, 234, 0.1);
@@ -300,6 +312,7 @@
     background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%);
     transition: all 0.3s ease;
 }
+
 .modern-button-primary:hover {
     background: linear-gradient(135deg, #2563eb 0%, #7c3aed 50%, #db2777 100%);
     transform: translateY(-2px);
@@ -319,6 +332,7 @@
     padding: 2px;
     border-radius: 12px;
 }
+
 .gradient-border::before {
     content: '';
     position: absolute;
@@ -328,12 +342,198 @@
     z-index: -1;
 }
 
+/* Hero Carousel Responsive Styles */
+.hero-carousel {
+    min-height: 400px;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-carousel img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+}
+
+@media (max-width: 640px) {
+    .hero-carousel {
+        min-height: 350px;
+    }
+}
+
+@media (min-width: 768px) {
+    .hero-carousel {
+        min-height: 450px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .hero-carousel {
+        min-height: 500px;
+    }
+}
+
+@media (min-width: 1280px) {
+    .hero-carousel {
+        min-height: 550px;
+    }
+}
+
+/* Banner Image Optimization - 70% Layout */
+.hero-banner-image {
+    width: 50%;
+    height: 50%;
+    object-fit: cover;
+    object-position: center center;
+    transition: transform 0.3s ease-in-out;
+    margin: auto;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.hero-banner-image:hover {
+    transform: scale(1.05);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+}
+
+/* Alternative banner sizes - uncomment to use */
+/* 
+.hero-banner-image {
+    width: 60%;  // Smaller
+    height: 60%;
+}
+
+.hero-banner-image {
+    width: 80%;  // Larger
+    height: 80%;
+}
+*/
+
+/* 70% Banner Layout */
+.hero-banner-70 {
+    position: relative;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: transform 0.3s ease-in-out;
+}
+
+.hero-banner-70:hover {
+    transform: scale(1.02);
+}
+
+.hero-banner-70 .banner-image-container {
+    position: relative;
+    width: 80%;
+    max-width: 1200px;
+    height: 60%;
+    overflow: hidden;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.hero-banner-70 .banner-gradient-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60%;
+    background: linear-gradient(to top, rgba(15, 23, 42, 0.3), transparent);
+    border-radius: 0 0 12px 12px;
+}
+
+/* Ensure proper aspect ratio for banner images */
+.hero-carousel .aspect-ratio {
+    aspect-ratio: 16/9;
+}
+
+@media (max-width: 768px) {
+    .hero-carousel .aspect-ratio {
+        aspect-ratio: 4/3;
+    }
+
+    .hero-banner-70 .banner-image-container {
+        width: 90%;
+        height: 65%;
+    }
+
+    .hero-banner-70 .banner-gradient-overlay {
+        height: 65%;
+    }
+
+    .hero-banner-image {
+        width: 100%;
+        height: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .hero-banner-70 .banner-image-container {
+        width: 95%;
+        height: 70%;
+    }
+
+    .hero-banner-70 .banner-gradient-overlay {
+        height: 70%;
+    }
+
+    .hero-banner-image {
+        width: 100%;
+        height: 100%;
+    }
+}
+
+/* Movie Carousel Responsive Styles */
+.movie-carousel-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.movie-carousel-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(2, 1fr);
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+@media (min-width: 640px) {
+    .movie-carousel-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.25rem;
+    }
+}
+
+@media (min-width: 768px) {
+    .movie-carousel-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .movie-carousel-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+        max-width: 100%;
+    }
+}
+
+@media (min-width: 1280px) {
+    .movie-carousel-grid {
+        gap: 2rem;
+    }
+}
+
 /* Hero Carousel Animations */
 @keyframes slide-in {
     0% {
         transform: translateX(100%) scale(0.8);
         opacity: 0;
     }
+
     100% {
         transform: translateX(0) scale(1);
         opacity: 1;
@@ -345,6 +545,7 @@
         transform: scale(1.2) rotate(2deg);
         opacity: 0;
     }
+
     100% {
         transform: scale(1) rotate(0deg);
         opacity: 1;
@@ -356,6 +557,7 @@
         transform: rotateY(90deg) scale(0.8);
         opacity: 0;
     }
+
     100% {
         transform: rotateY(0deg) scale(1);
         opacity: 1;
@@ -366,6 +568,7 @@
     0% {
         background-position: -200% center;
     }
+
     100% {
         background-position: 200% center;
     }
@@ -385,11 +588,11 @@
 
 .animate-text-shimmer {
     background: linear-gradient(90deg,
-    #ffffff 0%,
-    #f3f4f6 25%,
-    #e5e7eb 50%,
-    #f3f4f6 75%,
-    #ffffff 100%);
+            #ffffff 0%,
+            #f3f4f6 25%,
+            #e5e7eb 50%,
+            #f3f4f6 75%,
+            #ffffff 100%);
     background-size: 200% auto;
     animation: text-shimmer 3s linear infinite;
     -webkit-background-clip: text;
@@ -410,9 +613,12 @@
 
 /* Floating animation for dots */
 @keyframes float {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: translateY(0px);
     }
+
     50% {
         transform: translateY(-4px);
     }
@@ -424,9 +630,12 @@
 
 /* Pulse effect for active elements */
 @keyframes pulse-glow {
-    0%, 100% {
+
+    0%,
+    100% {
         box-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
     }
+
     50% {
         box-shadow: 0 0 20px rgba(255, 255, 255, 0.6), 0 0 30px rgba(255, 255, 255, 0.4);
     }
