@@ -41,13 +41,14 @@ interface Movie {
     director: string
     name: string
     posterUrl: string
+    bannerUrl?: string
     releaseDate: string
     trailerUrl?: string
     status: "UPCOMING" | "PLAYING" | "ENDED"
     country: { id: number; name: string }
     language: { id: number; name: string }
     genre: { id: number; name: string }[]
-    ageRating?: string
+    ageRating?: number
     duration?: number
 }
 
@@ -59,7 +60,7 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
     const router = useRouter()
     const [movie, setMovie] = useState<Movie | null>(null)
     const [isLoading, setIsLoading] = useState(true)
-    
+
     // Check auth on component mount
     useAuthGuard()
     const [isEditing, setIsEditing] = useState(false)
@@ -67,20 +68,22 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
     const [genres, setGenres] = useState<{id: number; name: string}[]>([])
     const [languages, setLanguages] = useState<{id: number; name: string}[]>([])
     const [countries, setCountries] = useState<{id: number; name: string}[]>([])
-    const [ageRatings] = useState(["P", "K", "T13", "T16", "T18", "C"])
     const [selectedGenres, setSelectedGenres] = useState<{id: number; name: string}[]>([])
     const [genreSearch, setGenreSearch] = useState("")
     const [showGenreDropdown, setShowGenreDropdown] = useState(false)
     const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 })
     const [posterFile, setPosterFile] = useState<File | null>(null)
+    const [bannerFile, setBannerFile] = useState<File | null>(null)
     const [posterPreview, setPosterPreview] = useState<string>("")
-    
+    const [bannerPreview, setBannerPreview] = useState<string>("")
+
     const [formData, setFormData] = useState({
         name: "",
         director: "",
         actor: "",
         description: "",
         posterUrl: "",
+        bannerUrl: "",
         trailerUrl: "",
         releaseDate: "",
         status: "" as Movie["status"],
@@ -119,7 +122,7 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
     }
 
     // Filter genres based on search
-    const filteredGenres = genres.filter(genre => 
+    const filteredGenres = genres.filter(genre =>
         genre.name.toLowerCase().includes(genreSearch.toLowerCase())
     )
 
@@ -166,20 +169,20 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
         setIsLoading(true)
         try {
             console.log("Fetching movie with ID:", movieId)
-            
+
             const response = await apiClient.get(`/movies/${movieId}`)
             console.log("Movie data received:", response.data)
-            
+
             if (!response.data.data) {
                 throw new Error("Dữ liệu phim không hợp lệ")
             }
-            
+
             setMovie(response.data.data)
-            
+
             // Set selected genres from movie data
             const movieGenres = response.data.data.genre || []
             setSelectedGenres(movieGenres)
-            
+
             // Populate form data
             setFormData({
                 name: response.data.data.name || "",
@@ -187,13 +190,14 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
                 actor: response.data.data.actor || "",
                 description: response.data.data.description || "",
                 posterUrl: response.data.data.posterUrl || "",
+                bannerUrl: response.data.data.bannerUrl || "",
                 trailerUrl: response.data.data.trailerUrl || "",
                 releaseDate: response.data.data.releaseDate || "",
                 status: response.data.data.status || "UPCOMING",
                 countryId: response.data.data.country?.id?.toString() || "",
                 languageId: response.data.data.language?.id?.toString() || "",
                 genreIds: movieGenres.map((g: {id: number; name: string}) => g.id),
-                ageRating: response.data.data.ageRating || "",
+                ageRating: response.data.data.ageRating?.toString() || "",
                 duration: response.data.data.duration?.toString() || "",
             })
         } catch (error) {
@@ -245,7 +249,7 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
         }
     }, [showGenreDropdown])
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'poster' | 'banner') => {
         const file = e.target.files?.[0]
         if (file) {
             if (!file.type.startsWith("image/")) {
@@ -253,18 +257,32 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
                 return
             }
 
-            setPosterFile(file)
             const reader = new FileReader()
             reader.onloadend = () => {
-                setPosterPreview(reader.result as string)
+                if (type === 'poster') {
+                    setPosterPreview(reader.result as string)
+                } else {
+                    setBannerPreview(reader.result as string)
+                }
             }
             reader.readAsDataURL(file)
+
+            if (type === 'poster') {
+                setPosterFile(file)
+            } else {
+                setBannerFile(file)
+            }
         }
     }
 
     const removePosterPreview = () => {
         setPosterPreview("")
         setPosterFile(null)
+    }
+
+    const removeBannerPreview = () => {
+        setBannerPreview("")
+        setBannerFile(null)
     }
 
     const handleEdit = () => {
@@ -283,21 +301,46 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
                 actor: movie.actor || "",
                 description: movie.description || "",
                 posterUrl: movie.posterUrl || "",
+                bannerUrl: movie.bannerUrl || "",
                 trailerUrl: movie.trailerUrl || "",
                 releaseDate: movie.releaseDate || "",
                 status: movie.status || "UPCOMING",
                 countryId: movie.country?.id?.toString() || "",
                 languageId: movie.language?.id?.toString() || "",
                 genreIds: movieGenres.map((g: {id: number; name: string}) => g.id),
-                ageRating: movie.ageRating || "",
+                ageRating: movie.ageRating?.toString() || "",
                 duration: movie.duration?.toString() || "",
             })
         }
-        // Reset poster file and preview
+        // Reset poster and banner file and preview
         setPosterFile(null)
+        setBannerFile(null)
         setPosterPreview("")
+        setBannerPreview("")
         setShowGenreDropdown(false)
         setGenreSearch("")
+    }
+
+    //nhúng trailer url
+    function toEmbedUrl(url: string): string {
+        if (!url) return ""
+
+        // YouTube
+        if (url.includes("youtube.com/watch?v=")) {
+            return url.replace("watch?v=", "embed/")
+        }
+
+        // youtu.be short link
+        if (url.includes("youtu.be/")) {
+            return url.replace("youtu.be/", "www.youtube.com/embed/")
+        }
+
+        // Vimeo
+        if (url.includes("vimeo.com/") && !url.includes("player.vimeo.com")) {
+            return url.replace("vimeo.com/", "player.vimeo.com/video/")
+        }
+
+        return url // Nếu đã đúng dạng hoặc là loại khác
     }
 
     const handleSave = async () => {
@@ -306,21 +349,28 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
             console.log("Saving movie with ID:", movieId)
             console.log("Form data:", formData)
             console.log("Has poster file:", !!posterFile)
-            
-            // If there's a poster file, use FormData for file upload
-            if (posterFile) {
+            console.log("Has banner file:", !!bannerFile)
+
+            // If there's a poster or banner file, use FormData for file upload
+
                 const formDataToSend = new FormData()
-                
+
                 // Add basic movie data (ID comes from URL path)
-                formDataToSend.append("name", formData.name)
                 formDataToSend.append("director", formData.director)
                 formDataToSend.append("actor", formData.actor)
                 formDataToSend.append("description", formData.description)
-                formDataToSend.append("trailerUrl", formData.trailerUrl)
+                if (formData.trailerUrl && formData.trailerUrl.trim() !== "") {
+                    formDataToSend.append("trailerUrl", formData.trailerUrl)
+                }
                 formDataToSend.append("releaseDate", formData.releaseDate)
-                formDataToSend.append("ageRating", formData.ageRating)
-                formDataToSend.append("duration", formData.duration)
-                
+                formDataToSend.append("status", formData.status)
+                if (formData.ageRating && formData.ageRating.trim() !== "") {
+                    formDataToSend.append("ageRating", formData.ageRating)
+                }
+                if (formData.duration && formData.duration.trim() !== "") {
+                    formDataToSend.append("duration", formData.duration)
+                }
+
                 // Add IDs
                 if (formData.countryId) {
                     formDataToSend.append("countryId", formData.countryId)
@@ -328,50 +378,34 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
                 if (formData.languageId) {
                     formDataToSend.append("languageId", formData.languageId)
                 }
-                
+
                 // Add genre IDs as Long values
                 formData.genreIds.forEach(genreId => {
                     formDataToSend.append("genreIds", genreId.toString())
                 })
-                
+
                 // Add poster file with correct field name
-                formDataToSend.append("poster", posterFile)
-                
+                if (posterFile) {
+                    formDataToSend.append("poster", posterFile)
+                }
+
+                // Add banner file with correct field name
+                if (bannerFile) {
+                    formDataToSend.append("banner", bannerFile)
+                }
+
                 console.log("Sending FormData update to:", `/movies/update-full/${movieId}`)
                 const response = await apiClient.put(`/movies/update-full/${movieId}`, formDataToSend, {
-                    headers: {
-                        'Content-Type': 'multipart/form-data'
-                    }
                 })
-                
+
                 console.log("FormData update response:", response.data)
-            } else {
-                // No file upload, use JSON
-                const updateData = {
-                    name: formData.name,
-                    director: formData.director,
-                    actor: formData.actor,
-                    description: formData.description,
-                    trailerUrl: formData.trailerUrl,
-                    releaseDate: formData.releaseDate,
-                    ageRating: formData.ageRating ? parseInt(formData.ageRating) : null,
-                    duration: formData.duration ? parseInt(formData.duration) : null,
-                    countryId: formData.countryId ? parseInt(formData.countryId) : null,
-                    languageId: formData.languageId ? parseInt(formData.languageId) : null,
-                    genreIds: formData.genreIds.map(id => parseInt(id.toString())) // Convert to Long array
-                }
-                
-                console.log("Sending JSON update to:", `/movies/update/${movieId}`)
-                console.log("Update data:", updateData)
-                const response = await apiClient.put(`/movies/update/${movieId}`, updateData)
-                
-                console.log("JSON update response:", response.data)
-            }
-            
+
             toast.success("Cập nhật phim thành công")
             setIsEditing(false)
             setPosterFile(null)
+            setBannerFile(null)
             setPosterPreview("")
+            setBannerPreview("")
             setShowGenreDropdown(false)
             setGenreSearch("")
             await fetchMovie() // Reload movie data
@@ -443,11 +477,12 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
 
     return (
         <div className="space-y-6 overflow-visible">
-            <div className="flex items-center justify-between">
+            {/* Header navigation ở đầu trang */}
+            <div className="flex items-center justify-between px-6 md:px-12 lg:px-20">
                 <div className="flex items-center gap-4">
                     <Link href="/operator-manager/movies">
-                        <Button 
-                            variant="outline" 
+                        <Button
+                            variant="outline"
                             size="sm"
                             className="border-border text-foreground hover:bg-muted"
                         >
@@ -463,11 +498,11 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
                         <p className="text-xs text-muted-foreground mt-1">ID: {movie.id}</p>
                     </div>
                 </div>
-                
+
                 <div className="flex gap-2">
                     {isEditing ? (
                         <>
-                            <Button 
+                            <Button
                                 onClick={handleCancel}
                                 variant="outline"
                                 size="sm"
@@ -476,7 +511,7 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
                                 <X className="w-4 h-4 mr-2"/>
                                 Hủy
                             </Button>
-                            <Button 
+                            <Button
                                 onClick={handleSave}
                                 disabled={isSaving}
                                 size="sm"
@@ -496,7 +531,7 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
                             </Button>
                         </>
                     ) : (
-                        <Button 
+                        <Button
                             onClick={handleEdit}
                             size="sm"
                             className="bg-primary text-primary-foreground hover:bg-primary/90"
@@ -508,7 +543,7 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 overflow-visible">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 px-6 md:px-12 lg:px-20 overflow-visible">
                 {/* Poster và thông tin cơ bản */}
                 <div className="lg:col-span-1">
                     <Card className="bg-card/50 backdrop-blur-sm border-border p-6 shadow-xl">
@@ -529,7 +564,7 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
                                         {statusBadge.label}
                                     </Badge>
                                 </div>
-                                
+
                                 {isEditing && (
                                     <div className="absolute bottom-4 left-4 right-4 z-50">
                                         <div className="bg-black/80 backdrop-blur-sm rounded-lg p-3 shadow-xl border border-white/10">
@@ -538,7 +573,7 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
                                                     id="poster-file"
                                                     type="file"
                                                     accept="image/*"
-                                                    onChange={handleFileChange}
+                                                    onChange={(e) => handleFileChange(e, 'poster')}
                                                     className="hidden"
                                                 />
                                                 <Button
@@ -573,7 +608,7 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
                                     </div>
                                 )}
                             </div>
-                            
+
                             <div className="space-y-3">
                                 <div className="flex items-center gap-2">
                                     <Calendar className="w-4 h-4 text-muted-foreground"/>
@@ -591,7 +626,7 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
                                         </span>
                                     )}
                                 </div>
-                                
+
                                 <div className="flex items-center gap-2">
                                     <Clock className="w-4 h-4 text-muted-foreground"/>
                                     <span className="text-sm text-muted-foreground">Thời lượng:</span>
@@ -612,37 +647,29 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
                                         </span>
                                     )}
                                 </div>
-                                
+
                                 <div className="flex items-center gap-2">
-                                    <Star className="w-4 h-4 text-muted-foreground"/>
+                                    <Star className="w-4 h-4 text-muted-foreground" />
                                     <span className="text-sm text-muted-foreground">Độ tuổi:</span>
+
                                     {isEditing ? (
-                                        <Select
+                                        <Input
+                                            type="number"
                                             value={formData.ageRating}
-                                            onValueChange={(value) => setFormData({...formData, ageRating: value})}
+                                            onChange={(e) => setFormData({ ...formData, ageRating: e.target.value })}
+                                            className="text-sm h-8 w-20"
+                                            placeholder="0"
+                                            min="0"
+                                        />
+                                    ) : movie.ageRating !== undefined && movie.ageRating !== null ? (
+                                        <Badge
+                                            variant="outline"
+                                            className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
                                         >
-                                            <SelectTrigger className="h-8 w-20 text-sm">
-                                                <SelectValue placeholder="Chọn"/>
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {ageRatings.map((rating) => (
-                                                    <SelectItem key={rating} value={rating}>
-                                                        {rating}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                            {movie.ageRating}
+                                        </Badge>
                                     ) : (
-                                        movie.ageRating ? (
-                                            <Badge
-                                                variant="outline"
-                                                className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-                                            >
-                                                {movie.ageRating}
-                                            </Badge>
-                                        ) : (
-                                            <span className="text-sm text-muted-foreground">Chưa cập nhật</span>
-                                        )
+                                        <span className="text-sm text-muted-foreground">Chưa cập nhật</span>
                                     )}
                                 </div>
                             </div>
@@ -650,15 +677,97 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
                     </Card>
                 </div>
 
-                {/* Thông tin chi tiết */}
-                <div className="lg:col-span-2 space-y-6">
+                {/* Banner Card */}
+                <div className="lg:col-span-2">
+                    <Card className="bg-card/50 backdrop-blur-sm border-border p-6 shadow-xl">
+                        <h2 className="text-2xl font-semibold text-foreground mb-4 flex items-center gap-2">
+                            <Film className="w-6 h-6"/>
+                            Banner phim
+                        </h2>
+                        <div className="relative">
+                            <Image
+                                src={bannerPreview || movie.bannerUrl || "/placeholder-banner.jpg"}
+                                alt={`${movie.name} - Banner`}
+                                width={800}
+                                height={300}
+                                className="w-full h-48 md:h-64 rounded-lg object-cover shadow-lg border-2 border-border"
+                            />
+                            {isEditing && (
+                                <div className="absolute bottom-4 left-4 right-4 z-50">
+                                    <div className="bg-black/80 backdrop-blur-sm rounded-lg p-3 shadow-xl border border-white/10">
+                                        <div className="flex gap-2">
+                                            <Input
+                                                id="banner-file"
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={(e) => handleFileChange(e, 'banner')}
+                                                className="hidden"
+                                            />
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => document.getElementById("banner-file")?.click()}
+                                                className="bg-white/10 border-white/20 text-white hover:bg-white/20 backdrop-blur-sm"
+                                            >
+                                                <Upload className="w-4 h-4 mr-2"/>
+                                                Chọn banner mới
+                                            </Button>
+                                            {bannerFile && (
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={removeBannerPreview}
+                                                    className="bg-red-500/20 border-red-500/30 text-red-200 hover:bg-red-500/30 backdrop-blur-sm"
+                                                >
+                                                    <X className="w-4 h-4 mr-2"/>
+                                                    Hủy
+                                                </Button>
+                                            )}
+                                        </div>
+                                        {bannerFile && (
+                                            <p className="text-xs text-white/90 mt-1 font-medium">
+                                                {bannerFile.name}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </Card>
+
+                    {/* Mô tả - Di chuyển xuống dưới banner */}
+                    <Card className="bg-card/50 backdrop-blur-sm border-border p-6 shadow-xl mt-6">
+                        <h2 className="text-2xl font-semibold text-foreground mb-4 flex items-center gap-2">
+                            <MessageSquare className="w-6 h-6"/>
+                            Mô tả
+                        </h2>
+
+                        {isEditing ? (
+                            <Textarea
+                                value={formData.description}
+                                onChange={(e) => setFormData({...formData, description: e.target.value})}
+                                placeholder="Nhập mô tả phim..."
+                                className="min-h-32"
+                            />
+                        ) : (
+                            <p className="text-foreground leading-relaxed text-lg">
+                                {movie.description || "Chưa có mô tả cho phim này."}
+                            </p>
+                        )}
+                    </Card>
+                </div>
+
+                {/* Các phần khác - span 3 cột */}
+                <div className="lg:col-span-3 space-y-6">
                     {/* Thông tin cơ bản */}
                     <Card className="bg-card/50 backdrop-blur-sm border-border p-6 shadow-xl">
                         <h2 className="text-2xl font-semibold text-foreground mb-4 flex items-center gap-2">
                             <Film className="w-6 h-6"/>
                             Thông tin cơ bản
                         </h2>
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <div className="flex items-center gap-2">
@@ -676,7 +785,7 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
                                     <p className="text-foreground">{movie.director || "Chưa cập nhật"}</p>
                                 )}
                             </div>
-                            
+
                             <div className="space-y-2">
                                 <div className="flex items-center gap-2">
                                     <Users className="w-4 h-4 text-muted-foreground"/>
@@ -745,187 +854,199 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
                                     <p className="text-foreground">{movie.language?.name || "Chưa cập nhật"}</p>
                                 )}
                             </div>
+
+                            {/* Thêm: Phần Status */}
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                    <Badge className="w-4 h-4 text-muted-foreground" variant="outline">
+                                        S
+                                    </Badge>
+                                    <span className="text-sm font-medium text-muted-foreground">Trạng thái:</span>
+                                </div>
+                                {isEditing ? (
+                                    <Select
+                                        value={formData.status}
+                                        onValueChange={(value) => setFormData({...formData, status: value as Movie["status"]})}
+                                    >
+                                        <SelectTrigger className="text-sm">
+                                            <SelectValue placeholder="Chọn trạng thái"/>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="UPCOMING">Sắp chiếu</SelectItem>
+                                            <SelectItem value="PLAYING">Đang chiếu</SelectItem>
+                                            <SelectItem value="ENDED">Đã kết thúc</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                ) : (
+                                    <Badge
+                                        variant={statusBadge.variant}
+                                        className={statusBadge.className}
+                                    >
+                                        {statusBadge.label}
+                                    </Badge>
+                                )}
+                            </div>
                         </div>
                     </Card>
 
-                     {/* Thể loại */}
-                     <Card className="bg-card/50 backdrop-blur-sm border-border p-6 shadow-xl overflow-visible">
-                         <h2 className="text-2xl font-semibold text-foreground mb-4 flex items-center gap-2">
-                             <Star className="w-6 h-6"/>
-                             Thể loại
-                         </h2>
-                         
-                         {isEditing ? (
-                             <div className="space-y-3">
-                                 {/* Selected Genres Display */}
-                                 {selectedGenres.length > 0 && (
-                                     <div className="flex flex-wrap gap-2">
-                                         {selectedGenres.map((genre) => (
-                                             <Badge
-                                                 key={genre.id}
-                                                 variant="secondary"
-                                                 className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"
-                                             >
-                                                 {genre.name}
-                                                 <button
-                                                     type="button"
-                                                     onClick={() => handleGenreRemove(genre.id)}
-                                                     className="ml-2 hover:text-destructive"
-                                                 >
-                                                     <X className="w-3 h-3" />
-                                                 </button>
-                                             </Badge>
-                                         ))}
-                                     </div>
-                                 )}
-                                 
-                                 {/* Genre Search Input */}
-                                 <div className="relative genre-dropdown-container">
-                                     <Input
-                                         placeholder="Tìm kiếm thể loại..."
-                                         value={genreSearch}
-                                         onChange={(e) => {
-                                             setGenreSearch(e.target.value)
-                                             updateDropdownPosition()
-                                             setShowGenreDropdown(true)
-                                         }}
-                                         onFocus={() => {
-                                             updateDropdownPosition()
-                                             setShowGenreDropdown(true)
-                                         }}
-                                         className="bg-input border-border text-foreground"
-                                     />
-                                 </div>
-                             </div>
-                         ) : (
-                             <div className="flex flex-wrap gap-2">
-                                 {movie.genre && movie.genre.length > 0 ? (
-                                     movie.genre.map((g) => (
-                                         <Badge
-                                             key={g.id}
-                                             variant="outline"
-                                             className="bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100"
-                                         >
-                                             {g.name}
-                                         </Badge>
-                                     ))
-                                 ) : (
-                                     <p className="text-muted-foreground">Chưa cập nhật</p>
-                                 )}
-                             </div>
-                         )}
-                     </Card>
+                    {/* Thể loại */}
+                    <Card className="bg-card/50 backdrop-blur-sm border-border p-6 shadow-xl overflow-visible">
+                        <h2 className="text-2xl font-semibold text-foreground mb-4 flex items-center gap-2">
+                            <Star className="w-6 h-6"/>
+                            Thể loại
+                        </h2>
 
-                     {/* Trailer */}
-                     <Card className="bg-card/50 backdrop-blur-sm border-border p-6 shadow-xl">
-                         <h2 className="text-2xl font-semibold text-foreground mb-4 flex items-center gap-2">
-                             <Video className="w-6 h-6"/>
-                             Trailer
-                         </h2>
-                         
-                         {isEditing ? (
-                             <div className="space-y-3">
-                                 <Label htmlFor="trailerUrl" className="text-sm font-medium text-muted-foreground">
-                                     URL Trailer (YouTube, Vimeo...)
-                                 </Label>
-                                 <Input
-                                     id="trailerUrl"
-                                     value={formData.trailerUrl}
-                                     onChange={(e) => setFormData({...formData, trailerUrl: e.target.value})}
-                                     placeholder="https://www.youtube.com/watch?v=..."
-                                     className="text-sm"
-                                 />
-                                 {formData.trailerUrl && (
-                                     <div className="aspect-video rounded-lg overflow-hidden">
-                                         <iframe
-                                             src={formData.trailerUrl}
-                                             title={`${movie.name} - Trailer`}
-                                             className="w-full h-full"
-                                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                             allowFullScreen
-                                         />
-                                     </div>
-                                 )}
-                             </div>
-                         ) : (
-                             movie.trailerUrl ? (
-                                 <div className="aspect-video rounded-lg overflow-hidden">
-                                     <iframe
-                                         src={movie.trailerUrl}
-                                         title={`${movie.name} - Trailer`}
-                                         className="w-full h-full"
-                                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                         allowFullScreen
-                                     />
-                                 </div>
-                             ) : (
-                                 <p className="text-muted-foreground">Chưa có trailer cho phim này.</p>
-                             )
-                         )}
-                     </Card>
+                        {isEditing ? (
+                            <div className="space-y-3">
+                                {/* Selected Genres Display */}
+                                {selectedGenres.length > 0 && (
+                                    <div className="flex flex-wrap gap-2">
+                                        {selectedGenres.map((genre) => (
+                                            <Badge
+                                                key={genre.id}
+                                                variant="secondary"
+                                                className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"
+                                            >
+                                                {genre.name}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleGenreRemove(genre.id)}
+                                                    className="ml-2 hover:text-destructive"
+                                                >
+                                                    <X className="w-3 h-3" />
+                                                </button>
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                )}
 
-                     {/* Mô tả */}
-                     <Card className="bg-card/50 backdrop-blur-sm border-border p-6 shadow-xl">
-                         <h2 className="text-2xl font-semibold text-foreground mb-4 flex items-center gap-2">
-                             <MessageSquare className="w-6 h-6"/>
-                             Mô tả
-                         </h2>
-                         
-                         {isEditing ? (
-                             <Textarea
-                                 value={formData.description}
-                                 onChange={(e) => setFormData({...formData, description: e.target.value})}
-                                 placeholder="Nhập mô tả phim..."
-                                 className="min-h-32"
-                             />
-                         ) : (
-                             <p className="text-foreground leading-relaxed">
-                                 {movie.description || "Chưa có mô tả cho phim này."}
-                             </p>
-                         )}
-                     </Card>
-                 </div>
-             </div>
+                                {/* Genre Search Input */}
+                                <div className="relative genre-dropdown-container">
+                                    <Input
+                                        placeholder="Tìm kiếm thể loại..."
+                                        value={genreSearch}
+                                        onChange={(e) => {
+                                            setGenreSearch(e.target.value)
+                                            updateDropdownPosition()
+                                            setShowGenreDropdown(true)
+                                        }}
+                                        onFocus={() => {
+                                            updateDropdownPosition()
+                                            setShowGenreDropdown(true)
+                                        }}
+                                        className="bg-input border-border text-foreground"
+                                    />
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex flex-wrap gap-2">
+                                {movie.genre && movie.genre.length > 0 ? (
+                                    movie.genre.map((g) => (
+                                        <Badge
+                                            key={g.id}
+                                            variant="outline"
+                                            className="bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 text-lg px-3 py-1"
+                                        >
+                                            {g.name}
+                                        </Badge>
+                                    ))
+                                ) : (
+                                    <p className="text-muted-foreground text-lg">Chưa cập nhật</p>
+                                )}
+                            </div>
 
-             {/* Genre Dropdown Portal */}
-             {showGenreDropdown && typeof window !== 'undefined' && createPortal(
-                 <div 
-                     className="fixed inset-0 z-[99999] pointer-events-none"
-                     onClick={() => setShowGenreDropdown(false)}
-                 >
-                     <div 
-                         data-genre-dropdown
-                         className="absolute bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-2xl max-h-60 overflow-y-auto pointer-events-auto"
-                         style={{
-                             top: dropdownPosition.top,
-                             left: dropdownPosition.left,
-                             width: dropdownPosition.width,
-                             minWidth: '200px'
-                         }}
-                     >
-                         {filteredGenres.length > 0 ? (
-                             filteredGenres.map((genre) => (
-                                 <button
-                                     key={genre.id}
-                                     type="button"
-                                     onClick={() => handleGenreSelect(genre)}
-                                     className="w-full px-3 py-2 text-left text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-between border-b border-gray-100 dark:border-gray-700 last:border-b-0"
-                                 >
-                                     <span className="font-medium">{genre.name}</span>
-                                     {selectedGenres.find(g => g.id === genre.id) && (
-                                         <span className="text-blue-600 dark:text-blue-400 text-sm font-bold">✓</span>
-                                     )}
-                                 </button>
-                             ))
-                         ) : (
-                             <div className="px-3 py-2 text-gray-500 dark:text-gray-400 text-sm">
-                                 Không tìm thấy thể loại
-                             </div>
-                         )}
-                     </div>
-                 </div>,
-                 document.body
-             )}
-         </div>
-     )
- }
+                        )}
+                    </Card>
+
+                    {/* Trailer */}
+                    <Card className="bg-card/50 backdrop-blur-sm border-border p-6 shadow-xl">
+                        <h2 className="text-2xl font-semibold text-foreground mb-4 flex items-center gap-2">
+                            <Video className="w-6 h-6"/>
+                            Trailer
+                        </h2>
+
+                        {isEditing ? (
+                            <div className="space-y-3">
+                                <Label htmlFor="trailerUrl" className="text-sm font-medium text-muted-foreground">
+                                    URL Trailer (YouTube, Vimeo...)
+                                </Label>
+                                <Input
+                                    id="trailerUrl"
+                                    value={formData.trailerUrl}
+                                    onChange={(e) => setFormData({...formData, trailerUrl: e.target.value})}
+                                    placeholder="https://www.youtube.com/watch?v=..."
+                                    className="text-sm"
+                                />
+                                {formData.trailerUrl && (
+                                    <div className="aspect-video rounded-lg overflow-hidden">
+                                        <iframe
+                                            src={toEmbedUrl(formData.trailerUrl)}
+                                            title={`${movie.name} - Trailer`}
+                                            className="w-full h-full"
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                            allowFullScreen
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            movie.trailerUrl ? (
+                                <div className="aspect-video rounded-lg overflow-hidden">
+                                    <iframe
+                                        src={toEmbedUrl(movie.trailerUrl)}
+                                        title={`${movie.name} - Trailer`}
+                                        className="w-full h-full"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                        allowFullScreen
+                                    />
+                                </div>
+                            ) : (
+                                <p className="text-muted-foreground">Chưa có trailer cho phim này.</p>
+                            )
+                        )}
+                    </Card>
+                </div>
+            </div>
+
+            {/* Genre Dropdown Portal */}
+            {showGenreDropdown && typeof window !== 'undefined' && createPortal(
+                <div
+                    className="fixed inset-0 z-[99999] pointer-events-none"
+                    onClick={() => setShowGenreDropdown(false)}
+                >
+                    <div
+                        data-genre-dropdown
+                        className="absolute bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-2xl max-h-60 overflow-y-auto pointer-events-auto"
+                        style={{
+                            top: dropdownPosition.top,
+                            left: dropdownPosition.left,
+                            width: dropdownPosition.width,
+                            minWidth: '200px'
+                        }}
+                    >
+                        {filteredGenres.length > 0 ? (
+                            filteredGenres.map((genre) => (
+                                <button
+                                    key={genre.id}
+                                    type="button"
+                                    onClick={() => handleGenreSelect(genre)}
+                                    className="w-full px-3 py-2 text-left text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-between border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+                                >
+                                    <span className="font-medium">{genre.name}</span>
+                                    {selectedGenres.find(g => g.id === genre.id) && (
+                                        <span className="text-blue-600 dark:text-blue-400 text-sm font-bold">✓</span>
+                                    )}
+                                </button>
+                            ))
+                        ) : (
+                            <div className="px-3 py-2 text-gray-500 dark:text-gray-400 text-sm">
+                                Không tìm thấy thể loại
+                            </div>
+                        )}
+                    </div>
+                </div>,
+                document.body
+            )}
+        </div>
+    )
+}

@@ -10,7 +10,6 @@ export default function DashboardPage() {
     const handleSectionChange = (section: string) => {
         router.push(`/operator-manager/${section}`)
     }
-
     return (
         <OperatorLayout>
             <Dashboard />

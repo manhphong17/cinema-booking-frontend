@@ -6,6 +6,7 @@ import {useRouter} from "next/navigation"
 import {Button} from "@/components/ui/button"
 import {Card} from "@/components/ui/card"
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table"
+import {Switch} from "@/components/ui/switch"
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger} from "@/components/ui/dialog"
 import {Input} from "@/components/ui/input"
 import {Label} from "@/components/ui/label"
@@ -45,10 +46,12 @@ interface Movie {
     genre: { id: number; name: string }[]
     ageRating?: string
     duration?: number
+    isFeatured: boolean
 }
 
+type FeaturedMap = Record<number, boolean>
 
-const AGE_RATINGS = ["P", "K", "T13", "T16", "T18", "C"]
+
 
 interface Genre {
     id: number
@@ -72,7 +75,8 @@ export function MovieManagement() {
     const [languages, setLanguages] = useState<Language[]>([])
     const [countries, setCountries] = useState<Country[]>([])
     const [isLoading, setIsLoading] = useState(false)
-    
+    const [confirmDeleteMovie, setConfirmDeleteMovie] = useState<Movie | null>(null)
+    const [isDeleting, setIsDeleting] = useState(false)
     // Check auth on component mount
     useAuthGuard()
     const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false)
@@ -100,6 +104,9 @@ export function MovieManagement() {
     const [currentPage, setCurrentPage] = useState(1)
     const [pageSize, setPageSize] = useState(10)
     const [totalMovies, setTotalMovies] = useState(0)
+
+    // Local featured (Banner/Nổi bật) state map by movie id
+    const [featuredByMovieId, setFeaturedByMovieId] = useState<FeaturedMap>({})
 
     const [formData, setFormData] = useState({
         name: "",
@@ -239,13 +246,38 @@ export function MovieManagement() {
 
             const response = await apiClient.get(`/movies/list-with-filter-many-column-and-sortBy?${query.toString()}`)
             
-            setMovies(response.data.data.items || [])
+            const items = response.data.data.items || []
+            setMovies(items)
+            // Initialize featured map for new items if not already present
+
+            const newFeatureMap: FeaturedMap = {}
+            for (const m of items){
+                newFeatureMap[m.id] = m.isFeatured
+            }
+            setFeaturedByMovieId(newFeatureMap)
+
             const totalItems = response.data.data.totalItems || 0
             setTotalMovies(totalItems)
         } catch (error) {
             toast.error("Lỗi kết nối server.")
         } finally {
             setIsLoading(false)
+        }
+    }
+
+    const handleToggleFeatured = async (movieId: number, checked: boolean) => {
+        // lưu trạng thái trước khi gọi API
+        const previousValue = featuredByMovieId[movieId]
+        setFeaturedByMovieId(prev => ({...prev, [movieId]: checked}))
+        try {
+            //call api update feature
+            await apiClient.patch(`/movies/update-feature/${movieId}`, {isFeatured: checked})
+            toast.success(checked ? "Đã bật Banner" : "Đã tắt Banner")
+        }
+        catch (error){
+            //hoan tac trang thai
+            setFeaturedByMovieId(prev => ({...prev, [movieId]: previousValue}))
+            toast.error("Không thể cập nhật trạng thái nổi bật.")
         }
     }
 
@@ -286,7 +318,6 @@ export function MovieManagement() {
 
     const validateDateRange = (from: string, to: string) => {
         if (from && to && new Date(from) > new Date(to)) {
-            setDateError("Ngày bắt đầu không được lớn hơn ngày kết thúc")
             toast.warning("Ngày bắt đầu không được lớn hơn ngày kết thúc")
             return false
         }
@@ -347,13 +378,18 @@ export function MovieManagement() {
         }
     }
 
-    const handleDelete = async (id: number) => {
+    const handleConfirmDelete = async () => {
+        if (!confirmDeleteMovie) return
         try {
-            await apiClient.put(`/movies/delete/${id}`)
+            setIsDeleting(true)
+            await apiClient.put(`/movies/delete/${confirmDeleteMovie.id}`)
             toast.success("Xóa phim thành công")
+            setConfirmDeleteMovie(null)
             await fetchMovies()
         } catch {
             toast.error("Không thể xóa phim. Vui lòng thử lại.")
+        } finally {
+            setIsDeleting(false)
         }
     }
 
@@ -1073,6 +1109,7 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                         <TableHead className="text-muted-foreground font-semibold">Quốc gia</TableHead>
                                         <TableHead className="text-muted-foreground font-semibold">Ngày phát
                                             hành</TableHead>
+                                        <TableHead className="text-muted-foreground font-semibold">Nổi bật</TableHead>
                                         <TableHead className="text-muted-foreground font-semibold">Trạng
                                             thái</TableHead>
                                         <TableHead className="text-muted-foreground font-semibold">Hành động</TableHead>
@@ -1095,6 +1132,14 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                                 <TableCell className="text-foreground">{movie.country?.name}</TableCell>
                                                 <TableCell className="text-foreground">
                                                     {new Date(movie.releaseDate).toLocaleDateString("vi-VN")}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Switch
+                                                        checked={!!featuredByMovieId[movie.id]}
+                                                        onCheckedChange={(checked) => handleToggleFeatured(movie.id, checked)}
+                                                        aria-label="Đánh dấu phim nổi bật"
+                                                        className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-muted-foreground/30"
+                                                    />
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge
@@ -1135,7 +1180,7 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                                                         <Button
                                                             size="sm"
                                                             variant="ghost"
-                                                            onClick={() => handleDelete(movie.id)}
+                                                            onClick={() => setConfirmDeleteMovie(movie)}
                                                             className="text-destructive hover:bg-destructive/10"
                                                             title="Xóa"
                                                         >
@@ -1233,6 +1278,38 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
                     </>
                 )}
             </Card>
+
+            {/* Delete confirmation dialog */}
+            <Dialog open={!!confirmDeleteMovie} onOpenChange={(open) => { if (!open) setConfirmDeleteMovie(null) }}>
+                <DialogContent className="bg-card text-card-foreground border-border max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="text-foreground text-lg">Xác nhận xoá</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-2">
+                        <p className="text-sm text-muted-foreground">
+                            Bạn có chắc muốn xoá phim <strong>{confirmDeleteMovie?.name}</strong> (ID: {confirmDeleteMovie?.id}) không?
+                            Hành động này không thể hoàn tác.
+                        </p>
+                    </div>
+                    <div className="flex justify-end gap-3 pt-4 border-t border-border">
+                        <Button
+                            variant="outline"
+                            onClick={() => setConfirmDeleteMovie(null)}
+                            className="border-border text-foreground hover:bg-muted"
+                            disabled={isDeleting}
+                        >
+                            Hủy
+                        </Button>
+                        <Button
+                            onClick={handleConfirmDelete}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            disabled={isDeleting}
+                        >
+                            {isDeleting ? "Đang xoá..." : "Xác nhận xoá"}
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
