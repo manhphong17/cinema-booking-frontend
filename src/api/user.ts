@@ -1,4 +1,4 @@
-import API from "./axios";
+import {apiClient} from "./interceptor";
 
 export type UserProfile = {
     id?: string;
@@ -41,7 +41,7 @@ export async function getMe(email: string) {
     // Debug log
     // eslint-disable-next-line no-console
     console.log("[userApi] GET /users/me params:", { email });
-    const response = await API.get(`/users/me`, { params: { email } });
+    const response = await apiClient.get(`/users/me`, { params: { email } });
     // eslint-disable-next-line no-console
     console.log("[userApi] GET /users/me response:", response?.data);
     const raw = response.data?.data as any;
@@ -61,7 +61,7 @@ export async function getMe(email: string) {
 export async function updateMe(email: string, payload: UpdateUserRequest) {
     // eslint-disable-next-line no-console
     console.log("[userApi] PUT /users/me", { email, payload });
-    const response = await API.put(`/users/me`, payload, { params: { email } });
+    const response = await apiClient.put(`/users/me`, payload, { params: { email } });
     // eslint-disable-next-line no-console
     console.log("[userApi] PUT /users/me response:", response?.data);
     return response.data?.data as UserProfile;
@@ -70,7 +70,7 @@ export async function updateMe(email: string, payload: UpdateUserRequest) {
 export async function requestPasswordOtp(email: string) {
     // eslint-disable-next-line no-console
     console.log("[userApi] POST /auth/forgot-password", { email });
-    const response = await API.post("/auth/forgot-password", { email });
+    const response = await apiClient.post("/auth/forgot-password", { email });
     // eslint-disable-next-line no-console
     console.log("[userApi] POST /auth/forgot-password response:", response?.data);
     return response.data as ForgotPasswordResponse;
@@ -79,7 +79,7 @@ export async function requestPasswordOtp(email: string) {
 export async function resetPassword(payload: ResetPasswordPayload) {
     // eslint-disable-next-line no-console
     console.log("[userApi] POST /auth/reset-password", payload);
-    const response = await API.post("/auth/reset-password", payload);
+    const response = await apiClient.post("/auth/reset-password", payload);
     // eslint-disable-next-line no-console
     console.log("[userApi] POST /auth/reset-password response:", response?.data);
     return response.data as ForgotPasswordResponse;
@@ -88,7 +88,7 @@ export async function resetPassword(payload: ResetPasswordPayload) {
 export async function changePassword(payload: ChangePasswordPayload) {
     // eslint-disable-next-line no-console
     console.log("[userApi] PUT /auth/change-password", payload);
-    const response = await API.put("/auth/change-password", payload);
+    const response = await apiClient.put("/auth/change-password", payload);
     // eslint-disable-next-line no-console
     console.log("[userApi] PUT /auth/change-password response:", response?.data);
     return response.data as ForgotPasswordResponse;

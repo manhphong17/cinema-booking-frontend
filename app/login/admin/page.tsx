@@ -55,13 +55,16 @@ export default function LoginPage() {
             const response = await fetch(BACKEND_BASE_URL + "/auth/log-in", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
+                credentials: "include", // Fix: Include credentials for cookie
                 body: JSON.stringify({email, password}),
             })
 
             const data = await response.json()
+            console.log("Admin login response:", data) // Debug log
 
             if (data.status === 200 && data.data.accessToken) {
                 const roles: string[] = data.data.roleName
+                console.log("Admin user roles:", roles) // Debug log
                 const allowedRoles = ["ADMIN", "OPERATION", "STAFF", "BUSINESS"];
 
                 if (!roles.some(r => allowedRoles.includes(r))) {
@@ -74,15 +77,39 @@ export default function LoginPage() {
                 localStorage.setItem("email", data.data.email)
 
                 toast.success(data.message)
-                if (roles.includes("ADMIN")) {
-                    router.push("/admin")
-                } else if (roles.includes("OPERATION")) {
-                    router.push("/operator-manager")
-                } else if (roles.includes("STAFF")) {
-                    router.push("/staff")
-                } else if (roles.includes("BUSINESS")) {
-                    router.push("/business")
-                }
+                console.log("Admin redirecting based on role:", roles) // Debug log
+                
+                // Add delay to ensure state is saved
+                setTimeout(() => {
+                    try {
+                        if (roles.includes("ADMIN")) {
+                            console.log("Redirecting to /admin")
+                            router.push("/admin")
+                        } else if (roles.includes("OPERATION")) {
+                            console.log("Redirecting to /operator-manager")
+                            router.push("/operator-manager")
+                        } else if (roles.includes("STAFF")) {
+                            console.log("Redirecting to /staff")
+                            router.push("/staff")
+                        } else if (roles.includes("BUSINESS")) {
+                            console.log("Redirecting to /business")
+                            router.push("/business-manager")
+                        }
+                        console.log("Admin router.push called successfully")
+                    } catch (error) {
+                        console.error("Admin router.push error:", error)
+                        // Fallback to window.location
+                        if (roles.includes("ADMIN")) {
+                            window.location.href = "/admin"
+                        } else if (roles.includes("OPERATION")) {
+                            window.location.href = "/operator-manager"
+                        } else if (roles.includes("STAFF")) {
+                            window.location.href = "/staff"
+                        } else if (roles.includes("BUSINESS")) {
+                            window.location.href = "/business-manager"
+                        }
+                    }
+                }, 100)
             } else if (data.status === 1003) {
                 setShowVerifyModal(true)
             } else if (data.status === 1004) {
