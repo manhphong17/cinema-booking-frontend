@@ -212,7 +212,7 @@ export function HeroCarousel() {
                                 />
                                 {/* Ảnh mặc định khi không load được */}
                                 <Image
-                                    src="https://d28ic9z7shvx92.cloudfront.net/uploads/b23dd309-047e-4707-a0dd-49e62f68cb0d-d4f775514a7c4c799a6a1b94ae153a80.jpg"
+                                    src="/modern-cinema-theater-interior-luxury.jpg"
                                     alt="Default Movie Banner"
                                     fill
                                     className="hero-banner-image object-cover transition-all duration-1000 ease-out hover:scale-105 hidden"

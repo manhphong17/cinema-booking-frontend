@@ -487,8 +487,38 @@
 
 /* Movie Carousel Responsive Styles */
 .movie-carousel-container {
-    max-width: 1200px;
+    max-width: 1280px;
     margin: 0 auto;
+}
+
+/* Enhanced movie card styles */
+.movie-card-enhanced {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1rem;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.movie-card-enhanced::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    padding: 2px;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899);
+    border-radius: inherit;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: xor;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.movie-card-enhanced:hover::before {
+    opacity: 1;
+}
+
+.movie-card-enhanced:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 25px 50px -12px rgba(59, 130, 246, 0.25);
 }
 
 .movie-carousel-grid {
@@ -523,7 +553,17 @@
 
 @media (min-width: 1280px) {
     .movie-carousel-grid {
+        grid-template-columns: repeat(4, 1fr);
         gap: 2rem;
+        max-width: 100%;
+    }
+}
+
+@media (min-width: 1536px) {
+    .movie-carousel-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 2.5rem;
+        max-width: 100%;
     }
 }
 
