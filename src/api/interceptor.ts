@@ -53,7 +53,7 @@ const refreshAccessToken = async (): Promise<string | null> => {
         if (response.data?.data?.accessToken) {
             const newAccessToken = response.data.data.accessToken
             localStorage.setItem("accessToken", newAccessToken)
-            console.log("✅ Access token refreshed successfully")
+            console.log("✅ Access token refreshed successfully: " + newAccessToken)
             return newAccessToken
         }
         
@@ -61,8 +61,6 @@ const refreshAccessToken = async (): Promise<string | null> => {
         return null
     } catch (error) {
         console.error("❌ Refresh token failed:", error)
-        console.error("❌ Error response:", error.response?.data)
-        console.error("❌ Error status:", error.response?.status)
         // Don't redirect here, let the interceptor handle it
         return null
     }
@@ -121,7 +119,7 @@ apiClient.interceptors.response.use(
         }
 
         // Nếu lỗi 401 và chưa retry
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        if (error.response?.status === 403 && !originalRequest._retry) {
             console.log("Response interceptor - 401 error detected, attempting refresh...")
             originalRequest._retry = true
 
@@ -143,7 +141,7 @@ apiClient.interceptors.response.use(
                 console.error("Refresh error in interceptor:", refreshError)
                 redirectToLogin()
             }
-        } else if (error.response?.status === 401) {
+        } else if (error.response?.status === 403) {
             // 401 error but already retried or not retryable
             console.log("Response interceptor - 401 error, redirecting to login")
             redirectToLogin()

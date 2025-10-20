@@ -41,7 +41,7 @@ export default function OTPVerifyPage() {
         setIsLoading(true)
         try {
             const response = await fetch(
-                `${BACKEND_BASE_URL}/accounts/verify-otp?email=${encodeURIComponent(email)}&otp=${otp}`,
+                `${BACKEND_BASE_URL}/auth/verify-otp?email=${encodeURIComponent(email)}&otp=${otp}`,
                 {method: "POST"}
             )
 
@@ -69,7 +69,7 @@ export default function OTPVerifyPage() {
         try {
             // Tạm thời gọi lại verify-otp (theo yêu cầu)
             const response = await fetch(
-                `${BACKEND_BASE_URL}/accounts/verify-otp?email=${encodeURIComponent(email || "")}&otp=${otp || "000000"}`,
+                `${BACKEND_BASE_URL}/auth/verify-otp?email=${encodeURIComponent(email || "")}&otp=${otp || "000000"}`,
                 {method: "POST"}
             )
 

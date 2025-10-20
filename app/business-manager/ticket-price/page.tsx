@@ -1,37 +1,151 @@
-"use client"
+    "use client"
 
-import { BusinessManagerLayout } from "@/components/layouts/business-manager-layout"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { DollarSign } from "lucide-react"
+    import { useState, useEffect } from "react"
+    import { BusinessManagerLayout } from "@/components/layouts/business-manager-layout"
+    import { DynamicPriceTable } from "@/components/business-manager/ticket-price/DynamicPriceTable"
+    import { HolidayCalendar } from "@/components/business-manager/ticket-price/HolidayCalendar"
+    import type { Holiday } from "@/components/business-manager/ticket-price/HolidayCalendar"
+    import apiClient from "@/src/api/interceptor";
+    import {toast} from "sonner";
 
-export default function TicketPricePage() {
-    return (
-        <BusinessManagerLayout activeSection="ticket-price">
-            <div className="space-y-6">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Quản lý Giá Vé</h1>
-                    <p className="text-gray-600 mt-2">Quản lý giá vé theo loại phòng và khung giờ</p>
+
+    interface RoomType {
+        id: number
+        name: string
+    }
+
+    interface SeatType {
+        id: number
+        name: string
+    }
+
+    interface TicketPrice {
+        roomTypeId: number
+        seatTypeId: number
+        normalDayPrice: number
+        weekendPrice: number
+    }
+
+    export default function TicketPricePage() {
+        const [roomTypes, setRoomTypes] = useState<RoomType[]>([])
+        const [seatTypes, setSeatTypes] = useState<SeatType[]>([])
+
+        const [prices, setPrices] = useState<TicketPrice[]>([])
+        const [holidays, setHolidays] = useState<Holiday[]>([])
+        const [loading, setLoading] = useState(false)
+        const [filterType, setFilterType] = useState("recurring")
+        const [currentYear, setCurrentYear] = useState(new Date().getFullYear())
+
+
+
+    // 🧩 Hàm thay đổi filter
+        const onFilterTypeChange = (type: string) => {
+            setFilterType(type)
+            // Có thể gọi lại API nếu cần, ví dụ:
+            fetchHolidays(type, currentYear)
+        }
+
+    // 🟢 Fetch holidays theo filterType
+        const fetchHolidays = async (type: string, year?: number) => {
+            try {
+                setLoading(true);
+                const res = await apiClient.get(`/holidays`, {
+                    params: {
+                        filterType: type,
+                        page: 1,
+                        limit: 100,
+                        year: year,
+                    },
+                });
+
+                const data = res.data.data;
+                if (data?.holidays) {
+                    setHolidays(data.holidays);
+                } else {
+                    setHolidays([]);
+                }
+            } catch (err) {
+                console.error("Lỗi khi fetch holidays:", err);
+                toast.error("Không thể tải danh sách ngày lễ");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        useEffect(() => {
+            fetchHolidays(filterType)
+        }, [filterType])  // 🟢 Gọi lại mỗi khi đổi dropdown
+
+        useEffect(() => {
+            const fetchData = async () => {
+                try {
+                    const [roomRes, seatRes] = await Promise.all([
+                        apiClient.get("/room-types"),
+                        apiClient.get("/seat-types/seat-types"),
+
+                    ])
+
+                    const roomList = roomRes.data.data || roomRes.data
+                    const seatListRaw = seatRes.data.data || seatRes.data
+                    const seatList = seatListRaw.map((s: any) => ({
+                        id: s.id,
+                        name: s.name,
+                    }))
+
+                    setRoomTypes(roomList)
+                    setSeatTypes(seatList)
+                } catch (error) {
+                    toast.error("Không thể tải dữ liệu bảng giá vé.")
+                    console.error(error)
+                } finally {
+                    setLoading(false)
+                }
+            }
+
+            fetchData()
+        }, [])
+
+        const fetchPrices = async () => {
+            try {
+                const res = await apiClient.get("/ticket-prices");
+                setPrices(res.data.data);
+            } catch (err) {
+                console.error("Lỗi khi fetch bảng giá vé:", err);
+                toast.error("Không thể tải bảng giá vé");
+            }
+        };
+        useEffect(() => {
+            fetchPrices();
+        }, []);
+
+
+        return (
+            <BusinessManagerLayout activeSection="ticket-price">
+                <div className="space-y-6">
+                    {/* Header */}
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-900">Quản lý Giá Vé</h1>
+                        <p className="text-gray-600 mt-2">Quản lý giá vé theo loại phòng, loại ghế và ngày chiếu</p>
+                    </div>
+
+                    {/* Price Table Section */}
+                    <DynamicPriceTable roomTypes={roomTypes} seatTypes={seatTypes} prices={prices} onPricesChange={setPrices} />
+
+                    {/* Holiday Calendar Section */}
+                    <HolidayCalendar
+                        holidays={holidays}
+                        onHolidaysChange={setHolidays}
+                        loading={loading}
+                        filterType={filterType}                // 🟢 thêm prop này
+                        onFilterTypeChange={onFilterTypeChange}// 🟢 thêm prop này
+                        onYearChange={(year) => {
+                       setCurrentYear(year);
+                       fetchHolidays(filterType, year);
+                     }}
+                    />
+
+
                 </div>
-
-                <Card className="bg-white border-blue-100 shadow-md">
-                    <CardHeader>
-                        <CardTitle className="text-gray-900">Tính năng đang phát triển</CardTitle>
-                        <CardDescription className="text-gray-600">Module quản lý giá vé sẽ sớm được cập nhật</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex flex-col items-center justify-center py-12">
-                            <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                                <DollarSign className="w-10 h-10 text-blue-600" />
-                            </div>
-                            <p className="text-gray-600 text-center">
-                                Tính năng quản lý giá vé đang được phát triển.
-                                <br />
-                                Vui lòng quay lại sau.
-                            </p>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-        </BusinessManagerLayout>
-    )
-}
+            </BusinessManagerLayout>
+        )
+    }
