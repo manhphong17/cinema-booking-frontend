@@ -1,12 +1,30 @@
 "use client"
 
+import { useState } from "react"
 import { NowShowingCarousel } from "@/components/home/movie-carousel"
+import { MovieFilter, FilterState } from "@/components/movie/movie-filter"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Star, Clock, Users, Calendar, Film } from "lucide-react"
 
 export function NowShowingPageContent() {
+    const [filters, setFilters] = useState<FilterState>({
+        search: "",
+        genre: ""
+    })
+
+    const handleFilterChange = (newFilters: FilterState) => {
+        setFilters(newFilters)
+    }
+
+    const handleClearFilters = () => {
+        setFilters({
+            search: "",
+            genre: ""
+        })
+    }
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20">
             {/* Hero Section */}
@@ -21,52 +39,19 @@ export function NowShowingPageContent() {
                 </div>
             </section>
 
-            {/* Stats Section */}
-            <section className="py-16 bg-white">
+
+            {/* Filter Section */}
+            <section className="py-8 bg-white">
                 <div className="container mx-auto px-4">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                        <Card className="text-center p-6 hover:shadow-lg transition-shadow">
-                            <CardContent className="pt-6">
-                                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <Film className="h-6 w-6 text-blue-600" />
-                                </div>
-                                <h3 className="text-2xl font-bold text-gray-900 mb-2">15+</h3>
-                                <p className="text-gray-600">Phim đang chiếu</p>
-                            </CardContent>
-                        </Card>
-                        <Card className="text-center p-6 hover:shadow-lg transition-shadow">
-                            <CardContent className="pt-6">
-                                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <Clock className="h-6 w-6 text-green-600" />
-                                </div>
-                                <h3 className="text-2xl font-bold text-gray-900 mb-2">50+</h3>
-                                <p className="text-gray-600">Suất chiếu/ngày</p>
-                            </CardContent>
-                        </Card>
-                        <Card className="text-center p-6 hover:shadow-lg transition-shadow">
-                            <CardContent className="pt-6">
-                                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <Users className="h-6 w-6 text-purple-600" />
-                                </div>
-                                <h3 className="text-2xl font-bold text-gray-900 mb-2">1000+</h3>
-                                <p className="text-gray-600">Khách hàng/ngày</p>
-                            </CardContent>
-                        </Card>
-                        <Card className="text-center p-6 hover:shadow-lg transition-shadow">
-                            <CardContent className="pt-6">
-                                <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <Star className="h-6 w-6 text-orange-600" />
-                                </div>
-                                <h3 className="text-2xl font-bold text-gray-900 mb-2">4.8/5</h3>
-                                <p className="text-gray-600">Đánh giá trung bình</p>
-                            </CardContent>
-                        </Card>
-                    </div>
+                    <MovieFilter 
+                        onFilterChange={handleFilterChange}
+                        onClearFilters={handleClearFilters}
+                    />
                 </div>
             </section>
 
             {/* Movies Section */}
-            <NowShowingCarousel variant="page" />
+            <NowShowingCarousel variant="page" filters={filters} />
 
             {/* Features Section */}
             <section className="py-20 bg-gray-50">
