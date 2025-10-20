@@ -165,3 +165,122 @@ const redirectToLogin = () => {
 }
 
 export default apiClient
+
+
+// ====== RoomType & SeatType DTOs ======
+export type CommonStatus = "active" | "inactive"
+
+export interface RoomTypeDto {
+    id: number
+    name: string
+    description?: string
+    status: CommonStatus
+}
+
+export interface SeatTypeDto {
+    id: number
+    name: string
+    description?: string
+    status: CommonStatus
+}
+
+export interface RoomTypeCreateRequest {
+    name: string
+    description?: string
+}
+
+export interface RoomTypeUpdateRequest {
+    name?: string
+    description?: string
+    status?: CommonStatus
+}
+
+export interface SeatTypeCreateRequest {
+    name: string
+    description?: string
+}
+
+export interface SeatTypeUpdateRequest {
+    name?: string
+    description?: string
+    status?: CommonStatus
+}
+
+
+
+// ====== Tiny wrappers (cho đỡ lặp đi lặp lại) ======
+async function GET<T>(url: string, params?: any): Promise<T> {
+    const { data } = await apiClient.get<T>(url, { params })
+    return data as T
+}
+async function POST<T>(url: string, body?: any, config?: any): Promise<T> {
+    const { data } = await apiClient.post<T>(url, body, config)
+    return data as T
+}
+async function PUT<T>(url: string, body?: any): Promise<T> {
+    const { data } = await apiClient.put<T>(url, body)
+    return data as T
+}
+async function PATCH<T>(url: string, body?: any): Promise<T> {
+    const { data } = await apiClient.patch<T>(url, body)
+    return data as T
+}
+async function DEL(url: string): Promise<void> {
+    await apiClient.delete(url)
+}
+
+
+
+// ====== Room Types API ======
+export const roomTypesApi = {
+    list: (onlyActive?: boolean) =>
+        GET<RoomTypeDto[]>("/api/room-types", { onlyActive }),
+
+    get: (id: number) =>
+        GET<RoomTypeDto>(`/api/room-types/${id}`),
+
+    create: (body: RoomTypeCreateRequest) =>
+        POST<RoomTypeDto>("/api/room-types", body),
+
+    update: (id: number, body: RoomTypeUpdateRequest) =>
+        PUT<RoomTypeDto>(`/api/room-types/${id}`, body),
+
+    patch: (id: number, body: RoomTypeUpdateRequest) =>
+        PATCH<RoomTypeDto>(`/api/room-types/${id}`, body),
+
+    delete: (id: number) =>
+        DEL(`/api/room-types/${id}`),
+
+    activate: (id: number) =>
+        POST<RoomTypeDto>(`/api/room-types/${id}/activate`),
+
+    deactivate: (id: number) =>
+        POST<RoomTypeDto>(`/api/room-types/${id}/deactivate`),
+}
+
+// ====== Seat Types API ======
+export const seatTypesApi = {
+    list: (onlyActive?: boolean) =>
+        GET<SeatTypeDto[]>("/api/seat-types", { onlyActive }),
+
+    get: (id: number) =>
+        GET<SeatTypeDto>(`/api/seat-types/${id}`),
+
+    create: (body: SeatTypeCreateRequest) =>
+        POST<SeatTypeDto>("/api/seat-types", body),
+
+    update: (id: number, body: SeatTypeUpdateRequest) =>
+        PUT<SeatTypeDto>(`/api/seat-types/${id}`, body),
+
+    patch: (id: number, body: SeatTypeUpdateRequest) =>
+        PATCH<SeatTypeDto>(`/api/seat-types/${id}`, body),
+
+    delete: (id: number) =>
+        DEL(`/api/seat-types/${id}`),
+
+    activate: (id: number) =>
+        POST<SeatTypeDto>(`/api/seat-types/${id}/activate`),
+
+    deactivate: (id: number) =>
+        POST<SeatTypeDto>(`/api/seat-types/${id}/deactivate`),
+}
