@@ -9,7 +9,7 @@ import {Badge} from "@/components/ui/badge"
 import {Separator} from "@/components/ui/separator"
 import {RadioGroup, RadioGroupItem} from "@/components/ui/radio-group"
 import {Edit, Loader2, Save, Star, X, User, Mail, Phone, MapPin, Calendar, Shield, Crown, Award} from "lucide-react"
-import {getMe, updateMe} from "@/src/api/user"
+import {getMe, updateMe} from "../../src/api/user"
 import axios from "axios"
 import { useRouter } from "next/navigation"
 

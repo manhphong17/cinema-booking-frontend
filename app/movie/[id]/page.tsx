@@ -6,7 +6,7 @@ import { ArrowLeft, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Movie } from "@/type/movie"
-import { apiClient } from "@/src/api/interceptor"
+import { apiClient } from "../../../src/api/interceptor"
 import { MovieDetail } from "@/components/movie/movie-detail"
 
 export default function MovieDetailPage({ params }: { params: { id: string } }) {

@@ -28,8 +28,8 @@ import {
 } from "lucide-react"
 import {OperatorCheckbox} from "@/components/ui/operator-checkbox"
 import {toast} from "sonner"
-import {apiClient} from "@/src/api/interceptor"
-import {useAuthGuard} from "@/src/api/auth-guard"
+import {apiClient} from "../../src/api/interceptor"
+import {useAuthGuard} from "../../src/api/auth-guard"
 
 interface Movie {
     id: number

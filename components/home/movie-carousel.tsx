@@ -13,7 +13,7 @@ import {
   getHomepageComingSoon,
   type Movie,
   type MoviesResponse 
-} from "@/src/api/movies"
+} from "../../src/api/movies"
 
 interface MovieCarouselProps {
   title: string

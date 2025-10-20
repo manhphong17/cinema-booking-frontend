@@ -30,8 +30,8 @@ import {toast} from "sonner"
 import Image from "next/image"
 import {useRouter} from "next/navigation"
 import Link from "next/link"
-import {apiClient} from "@/src/api/interceptor"
-import {useAuthGuard} from "@/src/api/auth-guard"
+import {apiClient} from "../../src/api/interceptor"
+import {useAuthGuard} from "../../src/api/auth-guard"
 
 
 interface Movie {
