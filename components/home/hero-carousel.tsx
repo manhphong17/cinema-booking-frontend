@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight, Loader2, AlertCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
-import apiClient from "@/src/api/interceptor";
+import apiClient from "../../src/api/interceptor";
 
 interface Banner {
     id: string
