@@ -158,25 +158,45 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                 <div className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-border shadow-sm">
                     <div className="container mx-auto px-4">
                         <div className="flex items-center justify-between h-16">
-                            <div className="flex items-center gap-2">
-                                <div className="bg-primary text-primary-foreground p-2 rounded-lg">
+                            {/* Logo */}
+                            <div className="flex items-center gap-3">
+                                <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 text-white p-3 rounded-xl shadow-lg">
                                     <Film className="h-5 w-5" />
                                 </div>
                                 <span className="text-xl font-bold text-foreground">Cinema</span>
                             </div>
-                            <div className="animate-pulse bg-gray-200 h-8 w-20 rounded"></div>
+                            
+                            {/* Navigation Menu Skeleton */}
+                            <div className="hidden md:flex items-center gap-2">
+                                <div className="animate-pulse bg-gray-200 h-9 w-16 rounded-lg"></div>
+                                <div className="animate-pulse bg-gray-200 h-9 w-20 rounded-lg"></div>
+                                <div className="animate-pulse bg-gray-200 h-9 w-18 rounded-lg"></div>
+                                <div className="animate-pulse bg-gray-200 h-9 w-16 rounded-lg"></div>
+                                <div className="animate-pulse bg-gray-200 h-9 w-14 rounded-lg"></div>
+                            </div>
+                            
+                            {/* Auth Section Skeleton */}
+                            <div className="hidden md:flex items-center gap-3">
+                                <div className="animate-pulse bg-gray-200 h-9 w-20 rounded-lg"></div>
+                                <div className="animate-pulse bg-gray-200 h-9 w-24 rounded-lg"></div>
+                            </div>
+                            
+                            {/* Mobile Menu Button Skeleton */}
+                            <div className="md:hidden">
+                                <div className="animate-pulse bg-gray-200 h-10 w-10 rounded-full"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
                 <div className="pt-16">
                     {children}
                 </div>
-                <div className="bg-sidebar text-sidebar-foreground">
-                    <div className="container mx-auto px-4 py-12">
+                <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+                    <div className="container mx-auto px-4 py-16">
                         <div className="animate-pulse space-y-4">
-                            <div className="h-4 bg-sidebar-accent/30 rounded w-1/4"></div>
-                            <div className="h-4 bg-sidebar-accent/20 rounded w-1/2"></div>
-                            <div className="h-4 bg-sidebar-accent/20 rounded w-3/4"></div>
+                            <div className="h-4 bg-slate-700 rounded w-1/4"></div>
+                            <div className="h-4 bg-slate-700 rounded w-1/2"></div>
+                            <div className="h-4 bg-slate-700 rounded w-3/4"></div>
                         </div>
                     </div>
                 </div>
@@ -269,7 +289,13 @@ export function HomeLayout({ children }: HomeLayoutProps) {
 
                         {/* Desktop Auth Section */}
                         <div className="hidden md:flex items-center gap-3">
-                            {!isAuthenticated ? (
+                            {!mounted ? (
+                                // Loading state để tránh hydration mismatch
+                                <>
+                                    <div className="w-20 h-9 bg-gray-200 rounded animate-pulse"></div>
+                                    <div className="w-24 h-9 bg-gray-200 rounded animate-pulse"></div>
+                                </>
+                            ) : !isAuthenticated ? (
                                 <>
                                     <Button
                                         variant="outline"

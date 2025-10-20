@@ -23,7 +23,7 @@ import {
 } from "lucide-react"
 import {toast} from "sonner"
 import Image from "next/image"
-import {apiClient} from "@/src/api/interceptor"
+import {apiClient} from "../../src/api/interceptor"
 
 interface Genre {
     id: number

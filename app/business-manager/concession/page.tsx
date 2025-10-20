@@ -40,7 +40,7 @@ import { Badge } from "@/components/ui/badge"
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip as RechartsTooltip  } from "recharts"
 import {Plus, Search, Edit, Trash2, Package, Power, ChevronLeft, ChevronRight, XCircle, PlayCircle} from "lucide-react"
 import {toast} from "sonner";
-import apiClient from "@/src/api/interceptor";
+import apiClient from "../../../src/api/interceptor";
 const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL;
 
 // ===============================
