@@ -684,3 +684,291 @@
 .pulse-glow {
     animation: pulse-glow 2s infinite;
 }
+
+/* Compact movie cards for home page - nhỏ xinh như staff */
+.home-movie-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    width: 200px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 380px;
+    flex-shrink: 0;
+}
+
+.home-movie-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-color: #3b82f6;
+}
+
+.home-movie-poster {
+    aspect-ratio: 2/3;
+    height: auto;
+    width: 100%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.home-movie-content {
+    padding: 16px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.home-movie-title {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.3;
+    margin-bottom: 12px;
+    color: #1f2937;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 42px;
+    flex-shrink: 0;
+}
+
+.home-movie-buttons {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.home-movie-btn {
+    flex: 1;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.home-movie-btn-primary {
+    background: #1f2937;
+    color: white;
+    border: none;
+}
+
+.home-movie-btn-primary:hover {
+    background: #374151;
+    transform: translateY(-1px);
+}
+
+.home-movie-btn-secondary {
+    background: transparent;
+    color: #6b7280;
+    border: 1px solid #d1d5db;
+}
+
+.home-movie-btn-secondary:hover {
+    background: #f3f4f6;
+    color: #374151;
+    border-color: #9ca3af;
+}
+
+.home-movie-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Compact carousel grid - nhỏ xinh hơn */
+.home-movie-grid-compact {
+    display: grid;
+    grid-template-columns: repeat(2, 240px);
+    gap: 24px;
+    padding: 0 8px;
+    align-items: start;
+    justify-content: center;
+    width: 100%;
+}
+
+@media (min-width: 640px) {
+    .home-movie-grid-compact {
+        grid-template-columns: repeat(3, 240px);
+        gap: 28px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .home-movie-grid-compact {
+        grid-template-columns: repeat(4, 240px);
+        gap: 32px;
+    }
+}
+
+/* Cố định chiều cao và rộng cho movie cards responsive */
+@media (min-width: 640px) {
+    .home-movie-card {
+        min-height: 440px;
+        width: 240px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .home-movie-card {
+        min-height: 460px;
+        width: 240px;
+    }
+}
+
+/* CSS cho trang phim đang chiếu và sắp chiếu - tương tự home */
+.movie-page-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 240px);
+    gap: 24px;
+    padding: 0 8px;
+    align-items: start;
+    justify-content: center;
+}
+
+@media (min-width: 640px) {
+    .movie-page-grid {
+        grid-template-columns: repeat(3, 240px);
+        gap: 28px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .movie-page-grid {
+        grid-template-columns: repeat(4, 240px);
+        gap: 32px;
+    }
+}
+
+.movie-page-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    width: 240px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 420px;
+    flex-shrink: 0;
+}
+
+.movie-page-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-color: #3b82f6;
+}
+
+.movie-page-poster {
+    aspect-ratio: 2/3;
+    height: auto;
+    width: 100%;
+    object-fit: cover;
+    border-radius: 8px 8px 0 0;
+}
+
+.movie-page-content {
+    padding: 16px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.movie-page-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 12px;
+    line-height: 1.4;
+    min-height: 42px;
+    flex-shrink: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.movie-page-buttons {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.movie-page-btn {
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    flex: 1;
+    text-align: center;
+    border: none;
+    cursor: pointer;
+}
+
+.movie-page-btn-primary {
+    background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+    color: white;
+}
+
+.movie-page-btn-primary:hover {
+    background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
+    transform: translateY(-1px);
+}
+
+.movie-page-btn-secondary {
+    background: #f8fafc;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+}
+
+.movie-page-btn-secondary:hover {
+    background: #e2e8f0;
+    color: #475569;
+    transform: translateY(-1px);
+}
+
+.movie-page-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Responsive cho movie page cards */
+@media (min-width: 640px) {
+    .movie-page-card {
+        min-height: 440px;
+        width: 240px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .movie-page-card {
+        min-height: 460px;
+        width: 240px;
+    }
+}
