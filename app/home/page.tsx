@@ -1,6 +1,6 @@
 import { HomeLayout } from "@/components/layouts/home-layout"
 import { HeroCarousel } from "@/components/home/hero-carousel"
-import { NowShowingCarousel, ComingSoonCarousel } from "@/components/home/movie-carousel"
+import { HomeNowShowingCarousel, HomeComingSoonCarousel } from "@/components/home/home-movie-carousel"
 import { AboutUs } from "@/components/home/about-us"
 
 export default function HomePage() {
@@ -11,10 +11,10 @@ export default function HomePage() {
                 <HeroCarousel />
 
                 {/* Now Showing Movies */}
-                <NowShowingCarousel variant="home" />
+                <HomeNowShowingCarousel />
 
                 {/* Coming Soon Movies */}
-                <ComingSoonCarousel variant="home" />
+                <HomeComingSoonCarousel />
 
                 {/* About Us */}
                 <AboutUs />

@@ -38,6 +38,8 @@ export interface MoviesResponse {
       name: string
       releaseDate: string
       status: string
+      poster?: string
+      posterUrl?: string
       country: {
         id: number
         name: string
@@ -63,8 +65,17 @@ export interface MoviesResponse {
 export interface MovieFilters {
   search?: string
   genre?: string
+  genreId?: number
   pageNo?: number
   pageSize?: number
+}
+
+export interface UserSearchMovieRequest {
+  name?: string
+  genreId?: number
+  status: 'PLAYING' | 'UPCOMING' | 'ENDED'
+  pageNo: number
+  pageSize: number
 }
 
 export interface PaginatedMoviesResult {
@@ -83,38 +94,29 @@ export interface PaginatedMoviesResult {
  */
 export const getNowShowingMoviesPaginated = async (filters?: MovieFilters): Promise<PaginatedMoviesResult> => {
   try {
-    const queryParams = new URLSearchParams()
-    
-    // Map frontend filters to backend parameters
-    if (filters?.search) {
-      queryParams.append('keyword', filters.search)
-    }
-    if (filters?.genre) {
-      queryParams.append('genre', filters.genre)
+    const requestBody: UserSearchMovieRequest = {
+      name: filters?.search || undefined,
+      genreId: filters?.genreId || undefined,
+      status: 'PLAYING',
+      pageNo: filters?.pageNo || 1,
+      pageSize: filters?.pageSize || 8
     }
     
-    // Set status to PLAYING for now showing movies
-    queryParams.append('statuses', 'PLAYING')
-    
-    // Set pagination and sorting
-    queryParams.append('pageNo', (filters?.pageNo || 1).toString())
-    queryParams.append('pageSize', (filters?.pageSize || 8).toString())
-    queryParams.append('sortBy', 'releaseDate:desc')
-    
-    const queryString = queryParams.toString()
-    const cacheKey = `now-showing-${queryString}`
+    const cacheKey = `now-showing-${JSON.stringify(requestBody)}`
     
     // Check cache first
     const cachedData = getCachedData(cacheKey)
     if (cachedData) {
-      console.log('Using cached data for now showing movies')
+      console.log('Using cached data for now showing movies:', {
+        pageSize: requestBody.pageSize,
+        cachedMoviesCount: cachedData.movies.length
+      })
       return cachedData
     }
     
-    const url = `/movies/list-with-filter-many-column-and-sortBy?${queryString}`
-    console.log('Fetching now showing movies with URL:', url)
+    console.log('Fetching now showing movies with request body:', requestBody)
     
-    const response = await apiClient.get<MoviesResponse>(url)
+    const response = await apiClient.post<MoviesResponse>('/movies/search', requestBody)
     
     if (response.data.status === 200 && response.data.data?.items) {
       const movies = response.data.data.items.map(movie => ({
@@ -122,8 +124,8 @@ export const getNowShowingMoviesPaginated = async (filters?: MovieFilters): Prom
         name: movie.name || 'Unknown Movie',
         title: movie.name || 'Unknown Movie',
         genre: movie.genre?.map(g => g.name).join(', ') || 'Unknown',
-        poster: '/placeholder.svg',
-        posterUrl: '/placeholder.svg',
+        poster: movie.poster || '/placeholder.svg',
+        posterUrl: movie.posterUrl || movie.poster || '/placeholder.svg',
         ageRating: movie.ageRating || 13,
         duration: '120 phút',
         year: new Date(movie.releaseDate).getFullYear().toString(),
@@ -167,30 +169,17 @@ export const getNowShowingMoviesPaginated = async (filters?: MovieFilters): Prom
  */
 export const getNowShowingMovies = async (filters?: MovieFilters): Promise<Movie[]> => {
   try {
-    const queryParams = new URLSearchParams()
-    
-    // Map frontend filters to backend parameters
-    if (filters?.search) {
-      queryParams.append('keyword', filters.search)
-    }
-    if (filters?.genre) {
-      queryParams.append('genre', filters.genre)
+    const requestBody: UserSearchMovieRequest = {
+      name: filters?.search || undefined,
+      genreId: filters?.genreId || undefined,
+      status: 'PLAYING',
+      pageNo: 1,
+      pageSize: 8 // Get more movies
     }
     
-    // Set status to PLAYING for now showing movies
-    queryParams.append('statuses', 'PLAYING')
+    console.log('Fetching now showing movies with request body:', requestBody)
     
-    // Set pagination to get all movies
-    queryParams.append('pageNo', '1')
-    queryParams.append('pageSize', '100') // Get more movies
-    queryParams.append('sortBy', 'releaseDate:desc')
-    
-    const queryString = queryParams.toString()
-    const url = `/movies/list-with-filter-many-column-and-sortBy?${queryString}`
-    
-    console.log('Fetching now showing movies with URL:', url)
-    
-    const response = await apiClient.get<MoviesResponse>(url)
+    const response = await apiClient.post<MoviesResponse>('/movies/search', requestBody)
     
     if (response.data.status === 200 && response.data.data?.items) {
       const movies = response.data.data.items.map(movie => ({
@@ -198,8 +187,8 @@ export const getNowShowingMovies = async (filters?: MovieFilters): Promise<Movie
         name: movie.name || 'Unknown Movie',
         title: movie.name || 'Unknown Movie',
         genre: movie.genre?.map(g => g.name).join(', ') || 'Unknown',
-        poster: '/placeholder.svg',
-        posterUrl: '/placeholder.svg',
+        poster: movie.poster || '/placeholder.svg',
+        posterUrl: movie.posterUrl || movie.poster || '/placeholder.svg',
         ageRating: movie.ageRating || 13,
         duration: '120 phút',
         year: new Date(movie.releaseDate).getFullYear().toString(),
@@ -221,22 +210,15 @@ export const getNowShowingMovies = async (filters?: MovieFilters): Promise<Movie
  */
 export const getComingSoonMoviesPaginated = async (filters?: MovieFilters): Promise<PaginatedMoviesResult> => {
   try {
-    const queryParams = new URLSearchParams()
-    
-    if (filters?.search) {
-      queryParams.append('keyword', filters.search)
+    const requestBody: UserSearchMovieRequest = {
+      name: filters?.search || undefined,
+      genreId: filters?.genreId || undefined,
+      status: 'UPCOMING',
+      pageNo: filters?.pageNo || 1,
+      pageSize: filters?.pageSize || 8
     }
-    if (filters?.genre) {
-      queryParams.append('genre', filters.genre)
-    }
     
-    queryParams.append('statuses', 'UPCOMING')
-    queryParams.append('pageNo', (filters?.pageNo || 1).toString())
-    queryParams.append('pageSize', (filters?.pageSize || 8).toString())
-    queryParams.append('sortBy', 'releaseDate:asc')
-    
-    const queryString = queryParams.toString()
-    const cacheKey = `coming-soon-${queryString}`
+    const cacheKey = `coming-soon-${JSON.stringify(requestBody)}`
     
     // Check cache first
     const cachedData = getCachedData(cacheKey)
@@ -245,10 +227,9 @@ export const getComingSoonMoviesPaginated = async (filters?: MovieFilters): Prom
       return cachedData
     }
     
-    const url = `/movies/list-with-filter-many-column-and-sortBy?${queryString}`
-    console.log('Fetching coming soon movies with URL:', url)
+    console.log('Fetching coming soon movies with request body:', requestBody)
     
-    const response = await apiClient.get<MoviesResponse>(url)
+    const response = await apiClient.post<MoviesResponse>('/movies/search', requestBody)
     
     if (response.data.status === 200 && response.data.data?.items) {
       const movies = response.data.data.items.map(movie => ({
@@ -256,8 +237,8 @@ export const getComingSoonMoviesPaginated = async (filters?: MovieFilters): Prom
         name: movie.name || 'Unknown Movie',
         title: movie.name || 'Unknown Movie',
         genre: movie.genre?.map(g => g.name).join(', ') || 'Unknown',
-        poster: '/placeholder.svg',
-        posterUrl: '/placeholder.svg',
+        poster: movie.poster || '/placeholder.svg',
+        posterUrl: movie.posterUrl || movie.poster || '/placeholder.svg',
         ageRating: movie.ageRating || 13,
         duration: '120 phút',
         year: new Date(movie.releaseDate).getFullYear().toString(),
@@ -301,26 +282,17 @@ export const getComingSoonMoviesPaginated = async (filters?: MovieFilters): Prom
  */
 export const getComingSoonMovies = async (filters?: MovieFilters): Promise<Movie[]> => {
   try {
-    const queryParams = new URLSearchParams()
-    
-    if (filters?.search) {
-      queryParams.append('keyword', filters.search)
+    const requestBody: UserSearchMovieRequest = {
+      name: filters?.search || undefined,
+      genreId: filters?.genreId || undefined,
+      status: 'UPCOMING',
+      pageNo: 1,
+      pageSize: 100 // Get more movies
     }
-    if (filters?.genre) {
-      queryParams.append('genre', filters.genre)
-    }
     
-    queryParams.append('statuses', 'UPCOMING')
-    queryParams.append('pageNo', '1')
-    queryParams.append('pageSize', '100') // Get more movies
-    queryParams.append('sortBy', 'releaseDate:asc')
+    console.log('Fetching coming soon movies with request body:', requestBody)
     
-    const queryString = queryParams.toString()
-    const url = `/movies/list-with-filter-many-column-and-sortBy?${queryString}`
-    
-    console.log('Fetching coming soon movies with URL:', url)
-    
-    const response = await apiClient.get<MoviesResponse>(url)
+    const response = await apiClient.post<MoviesResponse>('/movies/search', requestBody)
     
     if (response.data.status === 200 && response.data.data?.items) {
       const movies = response.data.data.items.map(movie => ({
@@ -328,8 +300,8 @@ export const getComingSoonMovies = async (filters?: MovieFilters): Promise<Movie
         name: movie.name || 'Unknown Movie',
         title: movie.name || 'Unknown Movie',
         genre: movie.genre?.map(g => g.name).join(', ') || 'Unknown',
-        poster: '/placeholder.svg',
-        posterUrl: '/placeholder.svg',
+        poster: movie.poster || '/placeholder.svg',
+        posterUrl: movie.posterUrl || movie.poster || '/placeholder.svg',
         ageRating: movie.ageRating || 13,
         duration: '120 phút',
         year: new Date(movie.releaseDate).getFullYear().toString(),
@@ -471,6 +443,8 @@ export const getMovieById = async (id: number): Promise<Movie | null> => {
         name: string
         releaseDate: string
         status: string
+        poster?: string
+        posterUrl?: string
         country: {
           id: number
           name: string
@@ -495,8 +469,8 @@ export const getMovieById = async (id: number): Promise<Movie | null> => {
         name: movie.name,
         title: movie.name,
         genre: movie.genre?.map(g => g.name).join(', ') || 'Unknown',
-        poster: '/placeholder.svg',
-        posterUrl: '/placeholder.svg',
+        poster: movie.poster || '/placeholder.svg',
+        posterUrl: movie.posterUrl || movie.poster || '/placeholder.svg',
         ageRating: movie.ageRating,
         duration: '120 phút',
         year: new Date(movie.releaseDate).getFullYear().toString(),
