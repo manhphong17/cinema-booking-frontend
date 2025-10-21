@@ -80,11 +80,6 @@ export default function ConfirmationPage() {
             <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-4">
               <CheckCircle className="h-10 w-10 text-green-600" />
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-              <span className="bg-gradient-to-r from-green-600 to-green-500 bg-clip-text text-transparent">
-                Đặt vé thành công!
-              </span>
-            </h1>
             <p className="text-lg text-muted-foreground mb-6">
               Cảm ơn bạn đã đặt vé. Vé điện tử đã được gửi đến email của bạn.
             </p>

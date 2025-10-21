@@ -208,20 +208,6 @@ export default function PaymentPage() {
         <div className="container mx-auto px-4 py-8">
           {/* Header */}
           <div className="mb-8">
-            <Button
-              variant="ghost"
-              onClick={() => router.back()}
-              className="mb-6 text-foreground hover:text-primary"
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Quay lại
-            </Button>
-            
-            <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-              <span className="bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
-                Thanh toán
-              </span>
-            </h1>
             <div className="w-20 h-1 bg-gradient-to-r from-primary to-primary/50 rounded-full"></div>
           </div>
 
