@@ -17,11 +17,11 @@ export default function ResetPasswordPage() {
     const [showPassword, setShowPassword] = useState(false)
     const [showConfirmPassword, setShowConfirmPassword] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
-    const [email, setEmail] = useState("") // chỉ hiển thị
+    const [email, setEmail] = useState("") // display-only
 
     const router = useRouter()
 
-    // Lấy email (chỉ để hiển thị) & kiểm tra token có sẵn trong sessionStorage không
+    // Resolve email for display and ensure reset token exists in sessionStorage
     useEffect(() => {
         if (typeof window === "undefined") return
         const em = sessionStorage.getItem("fp_email") || ""
@@ -37,12 +37,12 @@ export default function ResetPasswordPage() {
     const pwd = password.trim()
     const cpwd = confirmPassword.trim()
     const validLength = pwd.length >= 8
-
     const canSubmit = useMemo(() => validLength && pwd === cpwd && !isLoading, [validLength, pwd, cpwd, isLoading])
 
     const handleResetPassword = async (e: React.FormEvent) => {
         e.preventDefault()
 
+        // Client-side validation
         if (!pwd || !cpwd) {
             toast.error("Vui lòng nhập đầy đủ mật khẩu")
             return
@@ -69,30 +69,57 @@ export default function ResetPasswordPage() {
             const res = await fetch(`${BACKEND_BASE_URL}/accounts/reset-password`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ resetToken, newPassword: pwd }), // ✅ token + password trong BODY
+                // Send token + password in JSON body (not URL / not headers)
+                body: JSON.stringify({ resetToken, newPassword: pwd }),
             })
 
+            // Try parse JSON both on success and error.
+            // BE success: ResponseData { status, message, data }
+            // BE error:   { timestamp, status, path, error }
             let data: any = null
-            try {
-                data = await res.json()
-            } catch {
-                data = null
-            }
+            try { data = await res.json() } catch { data = null }
 
             if (res.ok) {
-                // Dọn dữ liệu tạm
+                // Cleanup ephemeral data after success
                 try {
                     sessionStorage.removeItem("reset_token")
                     sessionStorage.removeItem("fp_email")
                 } catch {}
                 toast.success("Đặt lại mật khẩu thành công, vui lòng đăng nhập")
                 router.push("/")
-            } else {
-                const msg = data?.message || data?.error || "Đặt lại mật khẩu thất bại"
-                toast.error(msg)
+                return
+            }
+
+            // Map server errors to friendly messages
+            const errMsg = (data?.error || data?.message || "").toString() || undefined
+            switch (res.status) {
+                case 400:
+                    // Invalid/expired token, wrong token format, or invalid payload
+                    toast.error(errMsg ?? "Token không hợp lệ hoặc đã hết hạn")
+                    break
+                case 401:
+                    // Unauthorized (unlikely for this public endpoint, depends on security config)
+                    toast.error(errMsg ?? "Bạn chưa được xác thực")
+                    break
+                case 403:
+                    // Forbidden (policy/security)
+                    toast.error(errMsg ?? "Access Denied")
+                    break
+                case 404:
+                    // User not found for the email bound to token
+                    toast.error(errMsg ?? "Không tìm thấy người dùng cho token này")
+                    break
+                case 500:
+                    // Internal server error
+                    toast.error(errMsg ?? "Đã có lỗi máy chủ, vui lòng thử lại")
+                    break
+                default:
+                    // Fallback for any unlisted status
+                    toast.error(errMsg ?? `Lỗi không xác định (HTTP ${res.status})`)
             }
         } catch {
-            toast.error("Có lỗi xảy ra, vui lòng thử lại")
+            // Network/CORS errors on client side
+            toast.error("Không thể kết nối máy chủ. Kiểm tra mạng hoặc cấu hình CORS.")
         } finally {
             setIsLoading(false)
         }
