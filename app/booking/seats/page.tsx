@@ -4,9 +4,9 @@ import { HomeLayout } from "@/components/layouts/home-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Users, Sofa, CreditCard, Calendar, Clock, MapPin } from "lucide-react"
+import { ArrowLeft, Users, Sofa, CreditCard, Calendar, Clock, MapPin, Star, Play, Monitor, Crown, Zap, Volume2 } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 // Mock data
 const movieData = {
@@ -19,7 +19,7 @@ const movieData = {
   price: "100,000đ"
 }
 
-// Seat layout - 8 rows, 12 seats per row
+// Seat layout - 8 rows, 12 seats per row (only Standard and VIP)
 const seatLayout = [
   { row: "A", seats: Array.from({ length: 12 }, (_, i) => ({ id: `A${i + 1}`, type: "standard", price: 100000 })) },
   { row: "B", seats: Array.from({ length: 12 }, (_, i) => ({ id: `B${i + 1}`, type: "standard", price: 100000 })) },
@@ -28,7 +28,7 @@ const seatLayout = [
   { row: "E", seats: Array.from({ length: 12 }, (_, i) => ({ id: `E${i + 1}`, type: "vip", price: 150000 })) },
   { row: "F", seats: Array.from({ length: 12 }, (_, i) => ({ id: `F${i + 1}`, type: "vip", price: 150000 })) },
   { row: "G", seats: Array.from({ length: 12 }, (_, i) => ({ id: `G${i + 1}`, type: "vip", price: 150000 })) },
-  { row: "H", seats: Array.from({ length: 12 }, (_, i) => ({ id: `H${i + 1}`, type: "premium", price: 200000 })) }
+  { row: "H", seats: Array.from({ length: 12 }, (_, i) => ({ id: `H${i + 1}`, type: "vip", price: 150000 })) }
 ]
 
 // Mock occupied seats
@@ -43,14 +43,59 @@ export default function SeatSelectionPage() {
   const hall = searchParams.get('hall') || movieData.hall
   
   const [selectedSeats, setSelectedSeats] = useState<string[]>([])
+  const [countdown, setCountdown] = useState(900) // 15 minutes in seconds
+
+  // Countdown timer effect
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          // Time's up - redirect back to booking page
+          router.push('/booking')
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [router])
+
+  // Format countdown time
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = seconds % 60
+    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
+  }
 
   const handleSeatClick = (seatId: string, isOccupied: boolean) => {
     if (isOccupied) return
 
     setSelectedSeats(prev => {
       if (prev.includes(seatId)) {
+        // Remove seat if already selected
         return prev.filter(id => id !== seatId)
       } else {
+        const seatType = getSeatType(seatId)
+        
+        // Check if there are already seats of different type selected
+        const existingSeatTypes = [...new Set(prev.map(id => getSeatType(id)))]
+        
+        if (existingSeatTypes.length > 0 && !existingSeatTypes.includes(seatType)) {
+          // Show alert that only one seat type is allowed
+          alert(`Bạn chỉ có thể chọn 1 loại ghế trong 1 lần đặt vé. Vui lòng bỏ chọn ghế ${existingSeatTypes[0] === 'vip' ? 'VIP' : 'thường'} trước khi chọn ghế ${seatType === 'vip' ? 'VIP' : 'thường'}.`)
+          return prev
+        }
+        
+        // Check if adding this seat would exceed the limit
+        const seatsOfSameType = prev.filter(id => getSeatType(id) === seatType)
+        
+        if (seatsOfSameType.length >= 8) {
+          // Show alert or notification that limit is reached
+          alert(`Bạn chỉ có thể chọn tối đa 8 ghế ${seatType === 'vip' ? 'VIP' : 'thường'} cùng loại`)
+          return prev
+        }
+        
         return [...prev, seatId]
       }
     })
@@ -58,15 +103,13 @@ export default function SeatSelectionPage() {
 
   const getSeatType = (seatId: string) => {
     const row = seatId[0]
-    if (row === 'H') return 'premium'
-    if (['E', 'F', 'G'].includes(row)) return 'vip'
+    if (['E', 'F', 'G', 'H'].includes(row)) return 'vip'
     return 'standard'
   }
 
   const getSeatPrice = (seatId: string) => {
     const type = getSeatType(seatId)
     switch (type) {
-      case 'premium': return 200000
       case 'vip': return 150000
       default: return 100000
     }
@@ -74,6 +117,24 @@ export default function SeatSelectionPage() {
 
   const calculateTotal = () => {
     return selectedSeats.reduce((total, seatId) => total + getSeatPrice(seatId), 0)
+  }
+
+  const getSeatTypeCount = (type: string) => {
+    return selectedSeats.filter(seatId => getSeatType(seatId) === type).length
+  }
+
+  const isSeatTypeLimitReached = (type: string) => {
+    return getSeatTypeCount(type) >= 8
+  }
+
+  const getSelectedSeatType = () => {
+    if (selectedSeats.length === 0) return null
+    return getSeatType(selectedSeats[0])
+  }
+
+  const isDifferentSeatType = (type: string) => {
+    const selectedType = getSelectedSeatType()
+    return selectedType !== null && selectedType !== type
   }
 
   const handleContinue = () => {
@@ -96,73 +157,133 @@ export default function SeatSelectionPage() {
         <div className="container mx-auto px-4 py-8">
           {/* Header */}
           <div className="mb-8">
-            <Button
-              variant="ghost"
-              onClick={() => router.back()}
-              className="mb-6 text-foreground hover:text-primary"
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Quay lại
-            </Button>
+            <div className="flex items-center justify-end mb-6">
+              {/* Countdown Timer */}
+              <div className="flex items-center gap-2 bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-lg px-4 py-2">
+                <Clock className="h-4 w-4 text-red-600" />
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Thời gian còn lại:</span>
+                  <span className={`ml-2 font-bold text-lg ${
+                    countdown <= 300 ? 'text-red-600 animate-pulse' : 
+                    countdown <= 600 ? 'text-orange-600' : 'text-green-600'
+                  }`}>
+                    {formatTime(countdown)}
+                  </span>
+                </div>
+              </div>
+            </div>
             
-            <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-              <span className="bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
-                Chọn ghế
-              </span>
-            </h1>
             <div className="w-20 h-1 bg-gradient-to-r from-primary to-primary/50 rounded-full"></div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            {/* Movie Info - Moved to top right */}
-            <Card className="lg:col-span-1 lg:order-2">
-              <CardContent className="p-6">
-                <div className="text-center mb-6">
+            {/* Movie Info - Fixed Left Sidebar */}
+            <div className="lg:col-span-1 lg:sticky lg:top-8 lg:h-fit">
+              <Card className="shadow-xl border-0 bg-gradient-to-br from-background to-gray-50/50 backdrop-blur-sm">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-2 text-primary font-semibold">
+                    <Play className="h-4 w-4" />
+                    <span>Thông tin suất chiếu</span>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6 pt-0">
+                  <div className="text-center mb-4">
                   <img
                     src={movieData.poster}
                     alt={movieData.title}
-                    className="w-full max-w-xs mx-auto rounded-lg shadow-lg mb-4"
-                  />
-                  <h2 className="text-xl font-bold mb-2">{movieData.title}</h2>
-                  <div className="space-y-2 text-sm text-muted-foreground">
-                    <div className="flex items-center justify-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      <span>{date}</span>
+                      className="w-full max-w-48 mx-auto rounded-lg shadow-lg mb-3"
+                    />
+                    <h2 className="text-lg font-bold mb-2 text-foreground">{movieData.title}</h2>
+                    <div className="space-y-2 text-sm">
+                      <div className="bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg p-2">
+                        <div className="flex items-center justify-center gap-2 text-muted-foreground mb-1">
+                          <Calendar className="h-3 w-3" />
+                          <span className="text-xs">Ngày chiếu</span>
+                        </div>
+                        <span className="font-semibold text-foreground text-sm">{date}</span>
+                      </div>
+                      <div className="bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg p-2">
+                        <div className="flex items-center justify-center gap-2 text-muted-foreground mb-1">
+                          <Clock className="h-3 w-3" />
+                          <span className="text-xs">Giờ chiếu</span>
+                        </div>
+                        <span className="font-semibold text-foreground text-sm">{time}</span>
                     </div>
-                    <div className="flex items-center justify-center gap-2">
-                      <Clock className="h-4 w-4" />
-                      <span>{time}</span>
+                      <div className="bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg p-2">
+                        <div className="flex items-center justify-center gap-2 text-muted-foreground mb-1">
+                          <MapPin className="h-3 w-3" />
+                          <span className="text-xs">Phòng chiếu</span>
                     </div>
-                    <div className="flex items-center justify-center gap-2">
-                      <MapPin className="h-4 w-4" />
-                      <span>{hall}</span>
+                        <span className="font-semibold text-foreground text-sm">{hall}</span>
                     </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
+            </div>
 
-            {/* Seat Selection */}
-            <Card className="lg:col-span-2 lg:order-1">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+            {/* Seat Selection - Main Content */}
+            <div className="lg:col-span-2">
+              <Card className="shadow-xl border-0">
+                <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10">
+                  <CardTitle className="flex items-center gap-2 text-primary">
                   <Sofa className="h-5 w-5" />
-                  Chọn ghế ngồi
+                    <span className="text-lg">Sơ đồ ghế</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                {/* Screen */}
+                <CardContent className="p-6">
+                  {/* Screen - Enhanced 3D Design */}
                 <div className="text-center mb-8">
-                  <div className="bg-gradient-to-r from-gray-300 to-gray-400 text-gray-700 py-4 px-8 rounded-lg mx-auto inline-block font-semibold">
-                    MÀN HÌNH
+                    <div className="relative">
+                      {/* Main Screen */}
+                      <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-6 px-12 rounded-2xl mx-auto inline-block font-bold text-lg shadow-2xl border-4 border-slate-600 transform hover:scale-105 transition-all duration-300" style={{
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(148, 163, 184, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+                        background: 'linear-gradient(135deg, #1e293b 0%, #334155 25%, #475569 50%, #334155 75%, #1e293b 100%)'
+                      }}>
+                        {/* Screen glow effect */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/30 via-purple-500/20 to-cyan-500/30 rounded-2xl blur-sm animate-pulse"></div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-transparent via-blue-400/10 to-transparent rounded-2xl"></div>
+                        
+                        {/* Screen content */}
+                        <div className="relative z-10 flex items-center justify-center gap-3">
+                          <div className="relative">
+                            <Monitor className="h-6 w-6 text-blue-400 drop-shadow-lg animate-pulse" />
+                            <div className="absolute inset-0 bg-blue-400/40 blur-lg animate-ping"></div>
+                            <div className="absolute inset-0 bg-cyan-400/20 blur-md"></div>
+                          </div>
+                          <span className="text-white drop-shadow-lg tracking-wider font-extrabold">MÀN HÌNH</span>
+                        </div>
+                        
+                        {/* Screen reflection */}
+                        <div className="absolute top-2 left-2 right-2 h-8 bg-gradient-to-b from-white/20 to-transparent rounded-t-2xl"></div>
+                        
+                        {/* Screen frame */}
+                        <div className="absolute inset-0 border-2 border-slate-500/50 rounded-2xl"></div>
+                        <div className="absolute inset-1 border border-slate-400/30 rounded-xl"></div>
+                      </div>
+                      
+                      {/* Screen stand */}
+                      <div className="relative mx-auto mt-3">
+                        <div className="w-16 h-4 bg-gradient-to-b from-slate-600 to-slate-800 rounded-b-lg shadow-lg border border-slate-500/50"></div>
+                        <div className="w-20 h-3 bg-gradient-to-b from-slate-700 to-slate-900 rounded-b-md shadow-md mx-auto -mt-1 border border-slate-600/50"></div>
+                        <div className="w-24 h-1 bg-gradient-to-b from-slate-800 to-black rounded-full mx-auto -mt-1 shadow-lg"></div>
+                      </div>
+                      
+                      {/* Screen shadow */}
+                      <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 w-40 h-6 bg-black/30 rounded-full blur-lg"></div>
+                      <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-32 h-4 bg-black/20 rounded-full blur-md"></div>
+                      
+                      {/* Ambient lighting */}
+                      <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 w-48 h-8 bg-blue-500/10 rounded-full blur-xl"></div>
+                      <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-36 h-4 bg-cyan-500/5 rounded-full blur-lg"></div>
                   </div>
                 </div>
 
-                {/* Seat Layout - centered grid */}
+                  {/* Seat Layout - Enhanced */}
                 <div className="space-y-4 flex flex-col items-center">
                   {seatLayout.map((row) => (
                     <div key={row.row} className="flex items-center gap-4">
-                      <div className="w-8 text-center font-semibold text-foreground">
+                        <div className="w-8 text-center font-bold text-sm text-foreground bg-gradient-to-r from-primary/10 to-primary/20 rounded-lg py-1">
                         {row.row}
                       </div>
                       <div className="flex gap-2 justify-center">
@@ -170,28 +291,46 @@ export default function SeatSelectionPage() {
                           const isOccupied = occupiedSeats.includes(seat.id)
                           const isSelected = selectedSeats.includes(seat.id)
                           const seatType = getSeatType(seat.id)
+                            
+                            const getSeatIcon = (type: string) => {
+                              switch (type) {
+                                case 'vip': return <Crown className="h-3 w-3" />
+                                default: return <Sofa className="h-3 w-3" />
+                              }
+                            }
+                          
+                            const isLimitReached = !isOccupied && !isSelected && isSeatTypeLimitReached(seatType)
+                            const isDifferentType = !isOccupied && !isSelected && isDifferentSeatType(seatType)
                           
                           return (
                             <button
                               key={seat.id}
                               onClick={() => handleSeatClick(seat.id, isOccupied)}
-                              disabled={isOccupied}
+                                disabled={isOccupied || isLimitReached || isDifferentType}
                               className={`
-                                w-8 h-8 rounded text-xs font-medium transition-all duration-200
+                                  w-10 h-10 rounded-lg text-xs font-bold transition-all duration-300 flex flex-col items-center justify-center relative
                                 ${isOccupied 
-                                  ? 'bg-gray-400 text-gray-600 cursor-not-allowed' 
+                                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed shadow-inner' 
+                                    : isLimitReached
+                                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
+                                      : isDifferentType
+                                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-30'
                                   : isSelected
-                                    ? 'bg-primary text-primary-foreground scale-110 shadow-lg'
-                                    : seatType === 'premium'
-                                      ? 'bg-gradient-to-br from-yellow-400 to-yellow-500 text-yellow-900 hover:from-yellow-300 hover:to-yellow-400'
+                                          ? 'bg-primary text-primary-foreground scale-110 shadow-xl ring-4 ring-primary/30'
                                       : seatType === 'vip'
-                                        ? 'bg-gradient-to-br from-purple-400 to-purple-500 text-purple-900 hover:from-purple-300 hover:to-purple-400'
-                                        : 'bg-gradient-to-br from-blue-400 to-blue-500 text-blue-900 hover:from-blue-300 hover:to-blue-400'
-                                }
-                                hover:scale-105 active:scale-95
-                              `}
-                            >
-                              {seat.id.slice(1)}
+                                            ? 'bg-gradient-to-br from-purple-400 to-purple-600 text-purple-900 hover:from-purple-300 hover:to-purple-500 shadow-lg hover:shadow-purple-400/50'
+                                            : 'bg-gradient-to-br from-blue-400 to-blue-600 text-blue-900 hover:from-blue-300 hover:to-blue-500 shadow-lg hover:shadow-blue-400/50'
+                                  }
+                                  hover:scale-110 active:scale-95
+                                `}
+                              >
+                                {getSeatIcon(seatType)}
+                                <span className="text-xs font-bold">{seat.id.slice(1)}</span>
+                                {isSelected && (
+                                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                                    <span className="text-white text-xs">✓</span>
+                                  </div>
+                                )}
                             </button>
                           )
                         })}
@@ -200,65 +339,185 @@ export default function SeatSelectionPage() {
                   ))}
                 </div>
 
-                {/* Legend */}
-                <div className="mt-8 grid grid-cols-3 gap-4 text-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-gradient-to-br from-blue-400 to-blue-500 rounded"></div>
-                    <span>Ghế thường</span>
+                  {/* Enhanced Legend */}
+                  <div className="mt-8 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4">
+                    <h4 className="font-semibold text-center mb-3 text-foreground text-sm">Chú thích loại ghế</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm max-w-sm mx-auto">
+                      <div className={`flex items-center gap-2 bg-white rounded-lg p-3 shadow-sm border-2 ${
+                        isSeatTypeLimitReached('standard') ? 'border-red-300 bg-red-50' : 'border-transparent'
+                      }`}>
+                        <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg flex items-center justify-center">
+                          <Sofa className="h-4 w-4 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-semibold text-foreground text-sm">Ghế thường</div>
+                          <div className="text-muted-foreground text-xs">100,000đ</div>
+                          <div className={`text-xs font-medium ${
+                            isSeatTypeLimitReached('standard') ? 'text-red-600' : 'text-green-600'
+                          }`}>
+                            {getSeatTypeCount('standard')}/8 ghế
+                          </div>
+                        </div>
+                        {isSeatTypeLimitReached('standard') && (
+                          <div className="text-red-500 text-xs">⚠️</div>
+                        )}
+                      </div>
+                      <div className={`flex items-center gap-2 bg-white rounded-lg p-3 shadow-sm border-2 ${
+                        isSeatTypeLimitReached('vip') ? 'border-red-300 bg-red-50' : 'border-transparent'
+                      }`}>
+                        <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-purple-600 rounded-lg flex items-center justify-center">
+                          <Crown className="h-4 w-4 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-semibold text-foreground text-sm">Ghế VIP</div>
+                          <div className="text-muted-foreground text-xs">150,000đ</div>
+                          <div className={`text-xs font-medium ${
+                            isSeatTypeLimitReached('vip') ? 'text-red-600' : 'text-green-600'
+                          }`}>
+                            {getSeatTypeCount('vip')}/8 ghế
+                          </div>
+                        </div>
+                        {isSeatTypeLimitReached('vip') && (
+                          <div className="text-red-500 text-xs">⚠️</div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-3 text-center">
+                      <div className="text-xs text-muted-foreground">
+                        Chỉ được chọn 1 loại ghế trong 1 lần đặt vé
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-gradient-to-br from-purple-400 to-purple-500 rounded"></div>
-                    <span>Ghế VIP</span>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Tối đa 8 ghế mỗi loại
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded"></div>
-                    <span>Ghế Premium</span>
                   </div>
                 </div>
               </CardContent>
             </Card>
+            </div>
 
-            {/* Booking Summary */}
-            <Card className="lg:col-span-1 lg:order-3">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5" />
-                  Tóm tắt đặt vé
+            {/* Booking Summary - Enhanced */}
+            <div className="lg:col-span-1 lg:sticky lg:top-8 lg:h-fit">
+              <Card className="shadow-xl border-0 bg-gradient-to-br from-background to-gray-50/50 backdrop-blur-sm">
+                <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10">
+                  <CardTitle className="flex items-center gap-2 text-primary">
+                    <CreditCard className="h-6 w-6" />
+                    <span className="text-xl">Tóm tắt đặt vé</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+                <CardContent className="p-6 space-y-6">
+                  {/* Selected Seats */}
                 <div>
-                  <h4 className="font-semibold text-foreground mb-2">Ghế đã chọn</h4>
-                  {selectedSeats.length > 0 ? (
-                    <div className="space-y-2">
-                      {selectedSeats.map(seatId => (
-                        <div key={seatId} className="flex justify-between items-center text-sm">
-                          <span>Ghế {seatId}</span>
-                          <span className="font-medium">{getSeatPrice(seatId).toLocaleString()}đ</span>
+                    <h4 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      Ghế đã chọn ({selectedSeats.length})
+                    </h4>
+                    
+                    {/* Seat type summary */}
+                    <div className="mb-4 space-y-2">
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground">Ghế thường:</span>
+                        <span className={`font-medium ${
+                          isSeatTypeLimitReached('standard') ? 'text-red-600' : 
+                          getSeatTypeCount('standard') > 0 ? 'text-green-600' : 'text-muted-foreground'
+                        }`}>
+                          {getSeatTypeCount('standard')}/8
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground">Ghế VIP:</span>
+                        <span className={`font-medium ${
+                          isSeatTypeLimitReached('vip') ? 'text-red-600' : 
+                          getSeatTypeCount('vip') > 0 ? 'text-green-600' : 'text-muted-foreground'
+                        }`}>
+                          {getSeatTypeCount('vip')}/8
+                        </span>
+                      </div>
+                      {getSelectedSeatType() && (
+                        <div className="mt-2 p-2 bg-primary/10 rounded-lg">
+                          <div className="text-xs text-primary font-medium text-center">
+                            Đang chọn: {getSelectedSeatType() === 'vip' ? 'Ghế VIP' : 'Ghế thường'}
+                          </div>
                         </div>
-                      ))}
+                      )}
+                    </div>
+                  {selectedSeats.length > 0 ? (
+                      <div className="space-y-3">
+                        {selectedSeats.map(seatId => {
+                          const seatType = getSeatType(seatId)
+                          const getSeatIcon = (type: string) => {
+                            switch (type) {
+                              case 'vip': return <Crown className="h-4 w-4 text-purple-600" />
+                              default: return <Sofa className="h-4 w-4 text-blue-600" />
+                            }
+                          }
+                          
+                          return (
+                            <div key={seatId} className="flex justify-between items-center bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg p-3">
+                              <div className="flex items-center gap-2">
+                                {getSeatIcon(seatType)}
+                                <span className="font-medium">Ghế {seatId}</span>
+                                <Badge variant="outline" className="text-xs">
+                                  {seatType === 'vip' ? 'VIP' : 'Thường'}
+                                </Badge>
+                              </div>
+                              <span className="font-bold text-primary">{getSeatPrice(seatId).toLocaleString()}đ</span>
+                        </div>
+                          )
+                        })}
                     </div>
                   ) : (
-                    <p className="text-muted-foreground text-sm">Chưa chọn ghế</p>
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Sofa className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                        <p>Chưa chọn ghế nào</p>
+                        <p className="text-sm">Hãy chọn ghế từ sơ đồ bên trái</p>
+                      </div>
                   )}
                 </div>
 
-                <div className="border-t pt-4">
-                  <div className="flex justify-between items-center font-semibold text-lg">
-                    <span>Tổng cộng:</span>
-                    <span className="text-primary">{calculateTotal().toLocaleString()}đ</span>
+                  {/* Countdown Timer in Summary */}
+                  <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-red-600" />
+                        <span className="text-sm font-medium text-muted-foreground">Thời gian còn lại:</span>
+                      </div>
+                      <span className={`font-bold text-lg ${
+                        countdown <= 300 ? 'text-red-600 animate-pulse' : 
+                        countdown <= 600 ? 'text-orange-600' : 'text-green-600'
+                      }`}>
+                        {formatTime(countdown)}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {countdown <= 300 ? 'Hãy hoàn tất đặt vé sớm!' : 
+                       countdown <= 600 ? 'Thời gian sắp hết!' : 'Bạn có đủ thời gian để chọn ghế'}
+                    </div>
+                  </div>
+
+                  {/* Total */}
+                  {selectedSeats.length > 0 && (
+                    <div className="bg-gradient-to-r from-primary/10 to-primary/20 rounded-xl p-4 border border-primary/20">
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold text-lg text-foreground">Tổng cộng:</span>
+                        <span className="font-bold text-2xl text-primary">{calculateTotal().toLocaleString()}đ</span>
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        {selectedSeats.length} ghế × giá trung bình {Math.round(calculateTotal() / selectedSeats.length).toLocaleString()}đ
                   </div>
                 </div>
+                  )}
 
+                  {/* Continue Button */}
                 <Button
                   onClick={handleContinue}
                   disabled={selectedSeats.length === 0}
-                  className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary text-white font-semibold py-3 transition-all duration-300 hover:scale-105 shadow-md hover:shadow-primary/20 rounded-lg"
+                    className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary text-white font-semibold py-4 transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-primary/30 rounded-xl text-lg"
                 >
-                  Tiếp tục thanh toán
+                    {selectedSeats.length > 0 ? 'Tiếp tục chọn combo' : 'Vui lòng chọn ghế'}
                 </Button>
               </CardContent>
             </Card>
+            </div>
           </div>
         </div>
       </div>

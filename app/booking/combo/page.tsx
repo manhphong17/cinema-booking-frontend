@@ -198,20 +198,8 @@ export default function ComboSelectionPage() {
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => router.back()}
-                  className="flex items-center gap-2"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Quay lại
-                </Button>
-                <div>
-                  <h1 className="text-3xl font-bold text-foreground">Chọn Combo</h1>
-                  <p className="text-muted-foreground">Thêm đồ ăn và thức uống cho buổi xem phim</p>
-                </div>
+              <div>
+                <p className="text-muted-foreground">Thêm đồ ăn và thức uống cho buổi xem phim</p>
               </div>
               <div className="text-right">
                 <div className="text-sm text-muted-foreground">Thời gian còn lại</div>
@@ -412,15 +400,6 @@ export default function ComboSelectionPage() {
 
           {/* Action Buttons */}
           <div className="flex items-center justify-between">
-            <Button
-              variant="outline"
-              onClick={() => router.back()}
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Quay lại chọn ghế
-            </Button>
-            
             <div className="flex items-center gap-4">
               <div className="text-right">
                 <div className="text-sm text-muted-foreground">Tổng combo</div>

@@ -33,8 +33,9 @@ export default function VerifyMailPage() {
                 body: JSON.stringify({ email: trimmed }),
             })
 
-            // BE dùng ResponseData<T> { status, message, data }
-            // Ta cố gắng parse, nếu lỗi vẫn fallback theo res.ok
+            // Try parsing JSON body (either success or error shape).
+            // BE error shape: { timestamp, status, path, error }
+            // BE success shape (ResponseData): { status, message, data }
             let payload: any = null
             try {
                 payload = await res.json()
@@ -42,19 +43,44 @@ export default function VerifyMailPage() {
                 payload = null
             }
 
+            // 200 OK → proceed normally
             if (res.ok) {
-                // Lưu email tạm để bước Verify dùng gửi kèm body
+                // Save email temporarily for the next step (Verify OTP)
                 if (typeof window !== "undefined") {
                     sessionStorage.setItem("fp_email", trimmed)
                 }
                 toast.success("Mã xác nhận đã được gửi tới email của bạn")
                 router.push("/verify-otp-reset")
-            } else {
-                const msg = payload?.message || "Gửi mã thất bại"
-                toast.error(msg)
+                return
             }
-        } catch (err) {
-            toast.error("Có lỗi xảy ra, vui lòng thử lại")
+
+            // Map server status codes to user-friendly toasts.
+            // Note: If you prefer neutral UX (avoid email enumeration),
+            // you can treat 404 like success (save email + redirect).
+            const errMsg = (payload?.error || payload?.message || "").toString() || undefined
+
+            switch (res.status) {
+                case 400:
+                    toast.error(errMsg ?? "Token không hợp lệ hoặc đã hết hạn")
+                    break
+                case 401:
+                    toast.error(errMsg ?? "Bạn chưa được xác thực")
+                    break
+                case 403:
+                    toast.error(errMsg ?? "Truy cập bị từ chối")
+                    break
+                case 404:
+                    toast.error(errMsg ?? "Không tìm thấy người dùng cho token này")
+                    break
+                case 500:
+                    toast.error(errMsg ?? "Lỗi máy chủ, vui lòng thử lại")
+                    break
+                default:
+                    toast.error(errMsg ?? `Lỗi không xác định (HTTP ${res.status})`)
+            }
+        } catch {
+            // Network/CORS failure (client-side)
+            toast.error("Không thể kết nối máy chủ. Kiểm tra mạng hoặc cấu hình CORS.")
         } finally {
             setIsLoading(false)
         }
