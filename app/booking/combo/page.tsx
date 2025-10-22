@@ -397,7 +397,16 @@ export default function ComboSelectionPage() {
                     </div>
                   </div>
                 </CardContent>
+
+                  <Button
+                      onClick={handleContinue}
+                      className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary text-white font-semibold px-8 py-3 shadow-lg hover:shadow-primary/30 transition-all duration-300 hover:scale-105"
+                  >
+                      Tiếp tục thanh toán
+                      <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
               </Card>
+
             </div>
           </div>
 
@@ -419,13 +428,7 @@ export default function ComboSelectionPage() {
                   {getTotalPrice().toLocaleString('vi-VN')} VNĐ
                 </div>
               </div>
-              <Button
-                onClick={handleContinue}
-                className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary text-white font-semibold px-8 py-3 shadow-lg hover:shadow-primary/30 transition-all duration-300 hover:scale-105"
-              >
-                Tiếp tục thanh toán
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Button>
+
             </div>
           </div>
         </div>
