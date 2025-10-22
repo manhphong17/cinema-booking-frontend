@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Users, Sofa, CreditCard, Calendar, Clock, MapPin, Star, Play, Monitor, Crown, Zap, Volume2 } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useState, useEffect } from "react"
+import { Movie } from "@/type/movie"
+import { apiClient } from "@/src/api/interceptor"
 
 // Mock data
 const movieData = {
@@ -34,6 +36,9 @@ const seatLayout = [
 // Mock occupied seats
 const occupiedSeats = ["A5", "A6", "B3", "B4", "C8", "C9", "D1", "D2", "E7", "E8", "F5", "F6", "G3", "G4", "H9", "H10"]
 
+// Mock maintenance seats
+const maintenanceSeats = ["A1", "B12", "C1", "D12", "E1", "F12", "G1", "H12"]
+
 export default function SeatSelectionPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -44,6 +49,33 @@ export default function SeatSelectionPage() {
   
   const [selectedSeats, setSelectedSeats] = useState<string[]>([])
   const [countdown, setCountdown] = useState(900) // 15 minutes in seconds
+  const [movie, setMovie] = useState<Movie | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  // Fetch movie data
+  useEffect(() => {
+    const fetchMovieData = async () => {
+      if (!movieId) {
+        setLoading(false)
+        return
+      }
+      
+      try {
+        setLoading(true)
+        const response = await apiClient.get(`/movies/${movieId}`)
+        
+        if (response.data?.status === 200 && response.data?.data) {
+          setMovie(response.data.data)
+        }
+      } catch (error) {
+        console.error("Error fetching movie details:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchMovieData()
+  }, [movieId])
 
   // Countdown timer effect
   useEffect(() => {
@@ -189,11 +221,14 @@ export default function SeatSelectionPage() {
                 <CardContent className="p-6 pt-0">
                   <div className="text-center mb-4">
                   <img
-                    src={movieData.poster}
-                    alt={movieData.title}
+                    src={movie?.posterUrl || movieData.poster}
+                    alt={movie?.name || movieData.title}
                       className="w-full max-w-48 mx-auto rounded-lg shadow-lg mb-3"
+                      onError={(e) => {
+                        e.currentTarget.src = movieData.poster
+                      }}
                     />
-                    <h2 className="text-lg font-bold mb-2 text-foreground">{movieData.title}</h2>
+                    <h2 className="text-lg font-bold mb-2 text-foreground">{movie?.name || movieData.title}</h2>
                     <div className="space-y-2 text-sm">
                       <div className="bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg p-2">
                         <div className="flex items-center justify-center gap-2 text-muted-foreground mb-1">
@@ -289,6 +324,7 @@ export default function SeatSelectionPage() {
                       <div className="flex gap-2 justify-center">
                         {row.seats.map((seat) => {
                           const isOccupied = occupiedSeats.includes(seat.id)
+                          const isMaintenance = maintenanceSeats.includes(seat.id)
                           const isSelected = selectedSeats.includes(seat.id)
                           const seatType = getSeatType(seat.id)
                             
@@ -299,22 +335,24 @@ export default function SeatSelectionPage() {
                               }
                             }
                           
-                            const isLimitReached = !isOccupied && !isSelected && isSeatTypeLimitReached(seatType)
-                            const isDifferentType = !isOccupied && !isSelected && isDifferentSeatType(seatType)
+                            const isLimitReached = !isOccupied && !isMaintenance && !isSelected && isSeatTypeLimitReached(seatType)
+                            const isDifferentType = !isOccupied && !isMaintenance && !isSelected && isDifferentSeatType(seatType)
                           
                           return (
                             <button
                               key={seat.id}
-                              onClick={() => handleSeatClick(seat.id, isOccupied)}
-                                disabled={isOccupied || isLimitReached || isDifferentType}
+                              onClick={() => handleSeatClick(seat.id, isOccupied || isMaintenance)}
+                                disabled={isOccupied || isMaintenance || isLimitReached || isDifferentType}
                               className={`
                                   w-10 h-10 rounded-lg text-xs font-bold transition-all duration-300 flex flex-col items-center justify-center relative
                                 ${isOccupied 
-                                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed shadow-inner' 
-                                    : isLimitReached
-                                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
-                                      : isDifferentType
-                                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-30'
+                                    ? 'bg-gradient-to-br from-orange-400 to-orange-600 text-white cursor-not-allowed shadow-inner' 
+                                    : isMaintenance
+                                      ? 'bg-gradient-to-br from-gray-500 to-gray-700 text-white cursor-not-allowed shadow-inner'
+                                      : isLimitReached
+                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
+                                        : isDifferentType
+                                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-30'
                                   : isSelected
                                           ? 'bg-primary text-primary-foreground scale-110 shadow-xl ring-4 ring-primary/30'
                                       : seatType === 'vip'
@@ -331,6 +369,11 @@ export default function SeatSelectionPage() {
                                     <span className="text-white text-xs">✓</span>
                                   </div>
                                 )}
+                                {isOccupied && (
+                                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                                    <span className="text-white text-xs">✕</span>
+                                  </div>
+                                )}
                             </button>
                           )
                         })}
@@ -341,7 +384,25 @@ export default function SeatSelectionPage() {
 
                   {/* Enhanced Legend */}
                   <div className="mt-8 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4">
-                    <h4 className="font-semibold text-center mb-3 text-foreground text-sm">Chú thích loại ghế</h4>
+                    <h4 className="font-semibold text-center mb-3 text-foreground text-sm">Chú thích ghế</h4>
+                    
+                    {/* Seat Status Legend */}
+                    <div className="grid grid-cols-3 gap-2 text-xs mb-4 max-w-sm mx-auto">
+                      <div className="flex items-center gap-1 bg-white rounded-lg p-2 shadow-sm">
+                        <div className="w-4 h-4 bg-gradient-to-br from-blue-400 to-blue-600 rounded"></div>
+                        <span className="text-muted-foreground">Có thể chọn</span>
+                      </div>
+                      <div className="flex items-center gap-1 bg-white rounded-lg p-2 shadow-sm">
+                        <div className="w-4 h-4 bg-gradient-to-br from-green-400 to-green-600 rounded"></div>
+                        <span className="text-muted-foreground">Đã chọn</span>
+                      </div>
+                      <div className="flex items-center gap-1 bg-white rounded-lg p-2 shadow-sm">
+                        <div className="w-4 h-4 bg-gradient-to-br from-red-400 to-red-600 rounded"></div>
+                        <span className="text-muted-foreground">Đã đặt</span>
+                      </div>
+                    </div>
+                    
+                    <h5 className="font-semibold text-center mb-3 text-foreground text-sm">Loại ghế</h5>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm max-w-sm mx-auto">
                       <div className={`flex items-center gap-2 bg-white rounded-lg p-3 shadow-sm border-2 ${
                         isSeatTypeLimitReached('standard') ? 'border-red-300 bg-red-50' : 'border-transparent'
