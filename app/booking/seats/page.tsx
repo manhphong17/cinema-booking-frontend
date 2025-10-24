@@ -354,7 +354,7 @@ export default function SeatSelectionPage() {
                                         : isDifferentType
                                           ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-30'
                                   : isSelected
-                                          ? 'bg-primary text-primary-foreground scale-110 shadow-xl ring-4 ring-primary/30'
+                                          ? 'bg-gradient-to-br from-green-200 to-green-400 text-green-800 scale-110 shadow-xl ring-4 ring-green-300/30'
                                       : seatType === 'vip'
                                             ? 'bg-gradient-to-br from-purple-400 to-purple-600 text-purple-900 hover:from-purple-300 hover:to-purple-500 shadow-lg hover:shadow-purple-400/50'
                                             : 'bg-gradient-to-br from-blue-400 to-blue-600 text-blue-900 hover:from-blue-300 hover:to-blue-500 shadow-lg hover:shadow-blue-400/50'
@@ -364,16 +364,6 @@ export default function SeatSelectionPage() {
                               >
                                 {getSeatIcon(seatType)}
                                 <span className="text-xs font-bold">{seat.id.slice(1)}</span>
-                                {isSelected && (
-                                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                                    <span className="text-white text-xs">✓</span>
-                                  </div>
-                                )}
-                                {isOccupied && (
-                                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
-                                    <span className="text-white text-xs">✕</span>
-                                  </div>
-                                )}
                             </button>
                           )
                         })}
@@ -387,7 +377,7 @@ export default function SeatSelectionPage() {
                     <h4 className="font-semibold text-center mb-3 text-foreground text-sm">Chú thích ghế</h4>
                     
                     {/* Seat Status Legend */}
-                    <div className="grid grid-cols-3 gap-2 text-xs mb-4 max-w-sm mx-auto">
+                    <div className="grid grid-cols-2 gap-2 text-xs mb-4 max-w-sm mx-auto">
                       <div className="flex items-center gap-1 bg-white rounded-lg p-2 shadow-sm">
                         <div className="w-4 h-4 bg-gradient-to-br from-blue-400 to-blue-600 rounded"></div>
                         <span className="text-muted-foreground">Có thể chọn</span>
@@ -397,8 +387,12 @@ export default function SeatSelectionPage() {
                         <span className="text-muted-foreground">Đã chọn</span>
                       </div>
                       <div className="flex items-center gap-1 bg-white rounded-lg p-2 shadow-sm">
-                        <div className="w-4 h-4 bg-gradient-to-br from-red-400 to-red-600 rounded"></div>
+                        <div className="w-4 h-4 bg-gradient-to-br from-orange-400 to-orange-600 rounded"></div>
                         <span className="text-muted-foreground">Đã đặt</span>
+                      </div>
+                      <div className="flex items-center gap-1 bg-white rounded-lg p-2 shadow-sm">
+                        <div className="w-4 h-4 bg-gradient-to-br from-gray-500 to-gray-700 rounded"></div>
+                        <span className="text-muted-foreground">Bảo trì</span>
                       </div>
                     </div>
                     
