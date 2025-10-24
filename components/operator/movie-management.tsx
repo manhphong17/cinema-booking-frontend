@@ -326,8 +326,12 @@ export function MovieManagement() {
     }
 
     const validateForm = () => {
-        if (!formData.name.trim()) {
+        if (!formData.name || !formData.name.trim()) {
             toast.error("Vui lòng nhập tên phim")
+            return false
+        }
+        if (formData.name.length < 2 || formData.name.length > 200) {
+            toast.error("Độ dài tên phim phải từ 2 đến 200 kí tự")
             return false
         }
         if (!formData.genreIds || formData.genreIds.length === 0) {
@@ -373,8 +377,12 @@ export function MovieManagement() {
 
             resetForm()
             await fetchMovies()
-        } catch (error) {
-            toast.error("Không thể lưu phim. Vui lòng thử lại.")
+        } catch (error: any) {
+            if(error.response?.data?.status === 409) {
+                toast.error("Phim đã tồn tại trong hệ thống.")
+            } else {
+                toast.error("Không thể lưu phim. Vui lòng thử lại.")
+            }
         }
     }
 
@@ -382,7 +390,7 @@ export function MovieManagement() {
         if (!confirmDeleteMovie) return
         try {
             setIsDeleting(true)
-            await apiClient.put(`/movies/delete/${confirmDeleteMovie.id}`)
+            await apiClient.patch(`/movies/delete/${confirmDeleteMovie.id}`)
             toast.success("Xóa phim thành công")
             setConfirmDeleteMovie(null)
             await fetchMovies()
