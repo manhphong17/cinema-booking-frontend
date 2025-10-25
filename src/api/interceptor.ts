@@ -119,7 +119,7 @@ apiClient.interceptors.response.use(
         }
 
         // Nếu lỗi 401 và chưa retry
-        if (error.response?.status === 403 && !originalRequest._retry) {
+        if (error.response?.status === 401 && !originalRequest._retry) {
             console.log("Response interceptor - 401 error detected, attempting refresh...")
             originalRequest._retry = true
 
@@ -141,7 +141,7 @@ apiClient.interceptors.response.use(
                 console.error("Refresh error in interceptor:", refreshError)
                 redirectToLogin()
             }
-        } else if (error.response?.status === 403) {
+        } else if (error.response?.status === 401) {
             // 401 error but already retried or not retryable
             console.log("Response interceptor - 401 error, redirecting to login")
             redirectToLogin()

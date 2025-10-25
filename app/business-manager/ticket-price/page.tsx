@@ -80,8 +80,8 @@
             const fetchData = async () => {
                 try {
                     const [roomRes, seatRes] = await Promise.all([
-                        apiClient.get("/room-types"),
-                        apiClient.get("/seat-types/seat-types"),
+                        apiClient.get("/api/room-types"),
+                        apiClient.get("/api/seat-types"),
 
                     ])
 

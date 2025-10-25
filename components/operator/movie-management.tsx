@@ -99,7 +99,7 @@ export function MovieManagement() {
 
 
     const [sortField, setSortField] = useState<"id" | "name" | "releaseDate">("id")
-    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
+    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
 
     const [currentPage, setCurrentPage] = useState(1)
     const [pageSize, setPageSize] = useState(10)
@@ -201,7 +201,6 @@ export function MovieManagement() {
                             return k.toUpperCase()
                     }
                 })
-                .join(",")
 
             // Build query parameters only for non-empty values
             const queryParams: Record<string, string> = {
@@ -237,9 +236,8 @@ export function MovieManagement() {
             })
 
             // Add statuses as multiple parameters
-            if (statuses) {
-                const statusArray = statuses.split(',')
-                statusArray.forEach(status => {
+            if (statuses && statuses.length > 0) {
+                statuses.forEach(status => {
                     query.append('statuses', status)
                 })
             }
@@ -439,7 +437,7 @@ export function MovieManagement() {
             setSortDirection(sortDirection === "asc" ? "desc" : "asc")
         } else {
             setSortField(field)
-            setSortDirection("asc")
+            setSortDirection("desc") // Mặc định giảm dần cho tất cả field
         }
     }
 
