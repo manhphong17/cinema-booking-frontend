@@ -343,7 +343,70 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
         return url // Nếu đã đúng dạng hoặc là loại khác
     }
 
+    const validateForm = () => {
+        if (!formData.name || !formData.name.trim()) {
+            toast.error("Vui lòng nhập tên phim")
+            return false
+        }
+        if (formData.name.length < 2 || formData.name.length > 200) {
+            toast.error("Độ dài tên phim phải từ 2 đến 200 kí tự")
+            return false
+        }
+        if (!formData.description || !formData.description.trim()) {
+            toast.error("Vui lòng nhập mô tả phim")
+            return false
+        }
+        if (formData.description.length < 1 || formData.description.length > 2000) {
+            toast.error("Mô tả phim phải dưới 2000 ký tự")
+            return false
+        }
+        if (!formData.director || !formData.director.trim()) {
+            toast.error("Vui lòng nhập tên đạo diễn")
+            return false
+        }
+        if (formData.director.length < 1 || formData.director.length > 100) {
+            toast.error("Tên đạo diễn phải từ 1 đến 100 kí tự")
+            return false
+        }
+        if (!formData.actor || !formData.actor.trim()) {
+            toast.error("Vui lòng nhập tên diễn viên")
+            return false
+        }
+        if (formData.actor.length < 1 || formData.actor.length > 500) {
+            toast.error("Tên diễn viên phải từ 1 đến 500 kí tự")
+            return false
+        }
+        if (!formData.duration || formData.duration === "" || parseInt(formData.duration) <= 0) {
+            toast.error("Vui lòng nhập thời lượng phim hợp lệ")
+            return false
+        }
+        if (!formData.genreIds || formData.genreIds.length === 0) {
+            toast.error("Vui lòng chọn ít nhất một thể loại")
+            return false
+        }
+        if (!formData.languageId || formData.languageId === "") {
+            toast.error("Vui lòng chọn ngôn ngữ")
+            return false
+        }
+        if (!formData.countryId || formData.countryId === "") {
+            toast.error("Vui lòng chọn quốc gia")
+            return false
+        }
+        if (!formData.releaseDate || formData.releaseDate === "") {
+            toast.error("Vui lòng chọn ngày phát hành")
+            return false
+        }
+        if (!formData.status || formData.status === "") {
+            toast.error("Vui lòng chọn trạng thái")
+            return false
+        }
+        
+        return true
+    }
+
     const handleSave = async () => {
+        if (!validateForm()) return
+        
         setIsSaving(true)
         try {
             console.log("Saving movie with ID:", movieId)
@@ -356,6 +419,7 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
                 const formDataToSend = new FormData()
 
                 // Add basic movie data (ID comes from URL path)
+                formDataToSend.append("name", formData.name)
                 formDataToSend.append("director", formData.director)
                 formDataToSend.append("actor", formData.actor)
                 formDataToSend.append("description", formData.description)
@@ -409,8 +473,12 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
             setShowGenreDropdown(false)
             setGenreSearch("")
             await fetchMovie() // Reload movie data
-        } catch (error) {
-            toast.error("Không thể cập nhật phim. Vui lòng thử lại.")
+        } catch (error: any) {
+            if(error.response?.data?.status === 409) {
+                toast.error("Phim đã tồn tại trong hệ thống.")
+            } else {
+                toast.error("Không thể cập nhật phim. Vui lòng thử lại.")
+            }
             console.error("Error updating movie:", error)
         } finally {
             setIsSaving(false)
@@ -769,6 +837,23 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
                         </h2>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2 md:col-span-2">
+                                <div className="flex items-center gap-2">
+                                    <Film className="w-4 h-4 text-muted-foreground"/>
+                                    <span className="text-sm font-medium text-muted-foreground">Tên phim:</span>
+                                </div>
+                                {isEditing ? (
+                                    <Input
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                        placeholder="Nhập tên phim"
+                                        className="text-sm"
+                                    />
+                                ) : (
+                                    <p className="text-foreground font-semibold text-lg">{movie.name}</p>
+                                )}
+                            </div>
+
                             <div className="space-y-2">
                                 <div className="flex items-center gap-2">
                                     <Users className="w-4 h-4 text-muted-foreground"/>

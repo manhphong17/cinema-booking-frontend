@@ -25,23 +25,27 @@ export default function RegisterPage() {
     const [gender, setGender] = useState("")
     const [showPassword, setShowPassword] = useState(false)
     const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+    const [error, setError] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const router = useRouter()
+    const [address, setAddress] = useState("");
+
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault()
+        setError("")
         setIsLoading(true)
 
         // Kiểm tra mật khẩu nhập lại
         if (password !== confirmPassword) {
-            toast.error("Mật khẩu và Xác nhận mật khẩu không khớp")
+            setError("Mật khẩu và Xác nhận mật khẩu không khớp")
             setIsLoading(false)
             return
         }
 
         // Kiểm tra bắt buộc nhập
         if (!email || !password || !name || !dateOfBirth || !gender) {
-            toast.error("Vui lòng điền đầy đủ các trường bắt buộc")
+            setError("Vui lòng điền đầy đủ các trường bắt buộc")
             setIsLoading(false)
             return
         }
@@ -49,14 +53,14 @@ export default function RegisterPage() {
         // Kiểm tra định dạng email
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
         if (!emailRegex.test(email)) {
-            toast.error("Email không hợp lệ")
+            setError("Email không hợp lệ")
             setIsLoading(false)
             return
         }
 
         // Kiểm tra độ dài mật khẩu
         if (password.length < 8) {
-            toast.error("Mật khẩu phải có ít nhất 8 ký tự")
+            setError("Mật khẩu phải có ít nhất 8 ký tự")
             setIsLoading(false)
             return
         }
@@ -73,25 +77,32 @@ export default function RegisterPage() {
                     confirmPassword,
                     name,
                     dateOfBirth,
-                    gender
+                    gender,
+                    address: address.trim() || null,
                 }),
             })
 
             const data = await response.json()
 
-            if (response.ok && response.status === 201) {
-                toast.success(data.message || "Vui lòng kiểm tra email để xác thực OTP.");
+            if (data.status === 201) {
+                toast.success(data.message || "Vui lòng kiểm tra email để xác thực OTP.")
+                sessionStorage.setItem("registerEmail", email)
+
                 sessionStorage.setItem("registerEmail", email);
-                router.push("/verify-otp");
+                sessionStorage.setItem("registerName",name)
+                router.push("/verify-otp")
             } else {
-                toast.error(data.message || `Đăng ký thất bại (${response.status})`);
+                setError(data.message || "Đăng ký thất bại. Vui lòng thử lại.")
+                toast.error(data.message || "Đăng ký thất bại. Vui lòng thử lại.")
             }
         } catch (err: unknown) {
             if (err instanceof Error) {
                 console.error("Lỗi khi đăng ký:", err.message)
+                setError("Lỗi kết nối mạng. Vui lòng kiểm tra lại và thử lại.")
                 toast.error("Lỗi kết nối mạng. Vui lòng kiểm tra lại và thử lại.")
             } else {
                 console.error("Lỗi không xác định:", err)
+                setError("Đã xảy ra lỗi. Vui lòng thử lại.")
                 toast.error("Đã xảy ra lỗi. Vui lòng thử lại.")
             }
         } finally {
@@ -101,9 +112,6 @@ export default function RegisterPage() {
 
     const handleGoogleSignIn = () => {
         window.location.href = BACKEND_BASE_URL + "/oauth2/authorization/google-user"
-    }
-    const handleVerifyOtpRedirect = () => {
-        router.push("/verify-otp")
     }
 
     const handleLoginRedirect = () => {
@@ -170,6 +178,17 @@ export default function RegisterPage() {
                             </div>
                         </div>
                         <div className="space-y-2">
+                            <Label htmlFor="address" className="text-sm font-medium text-gray-700">Địa chỉ (không bắt buộc)</Label>
+                            <Input
+                                id="address"
+                                type="text"
+                                placeholder="Nhập địa chỉ của bạn (nếu có)"
+                                value={address}
+                                onChange={(e) => setAddress(e.target.value)}
+                                className="border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/50"
+                            />
+                        </div>
+                        <div className="space-y-2">
                             <Label htmlFor="email" className="text-sm font-medium text-gray-700">Email</Label>
                             <Input
                                 id="email"
@@ -231,6 +250,12 @@ export default function RegisterPage() {
                             </div>
                         </div>
 
+                        {error && (
+                            <Alert variant="destructive" className="text-sm">
+                                <AlertDescription>{error}</AlertDescription>
+                            </Alert>
+                        )}
+
                         <Button
                             type="submit"
                             className="w-full bg-primary hover:bg-primary/90 text-white py-2 rounded-lg transition-all"
@@ -267,7 +292,7 @@ export default function RegisterPage() {
                                     fill="#EA4335"
                                 />
                             </svg>
-                            Đăng ký với Google
+                            Đăng nhập với Google
                         </Button>
 
                         <div className="text-center">

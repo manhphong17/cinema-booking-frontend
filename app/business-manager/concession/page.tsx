@@ -527,7 +527,7 @@ export default function ConcessionPage() {
             await fetchConcessionTypes();
         } catch (err) {
             const error = err as any;
-            if (error.response?.data?.status  === 1016) {
+            if (error.response?.data?.status  === 1027) {
                 toast.error("Loại sản phẩm này đã tồn tại!");
             } else {
                 toast.error("Không thể thêm loại sản phẩm. Vui lòng thử lại!");
@@ -559,7 +559,7 @@ export default function ConcessionPage() {
             const error = err as any;
 
             console.error("Lỗi khi xoá loại:", error);
-            if (error.response?.data?.status  === 1015) {
+            if (error.response?.data?.status  === 1026) {
                 toast.error("Không thể xoá loại sản phẩm này vì vẫn còn sản phẩm thuộc loại đó!");
             } else {
                 toast.error("Không thể xoá loại sản phẩm. Vui lòng thử lại!");

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -9,35 +9,71 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Plus, Trash2, Settings, Eye, Users, Monitor } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
-interface Seat {
-  id: string
+type SeatVisualType = "standard" | "vip" | "disabled"
+type SeatVisualStatus = "available" | "occupied" | "reserved" | "blocked"
+
+interface SeatCell {
+  id: string | null
   row: number
   column: number
-  type: "standard" | "vip" | "disabled"
-  status: "available" | "occupied" | "reserved"
+  type: SeatVisualType
+  status: SeatVisualStatus
+  seatTypeId?: number
+  seatTypeName?: string
 }
 
-interface Room {
-  id: string
+interface RoomSummary {
+  id: number
   name: string
-  type: string
+  roomTypeName?: string
   capacity: number
   status: "active" | "inactive"
-  seatMatrix: Seat[][]
   rows: number
   columns: number
 }
 
 interface SeatSetupProps {
-  room: Room
+  room: RoomSummary
+  initialMatrix: SeatCell[][]
+  seatTypes: { id: number; name: string; description?: string | null }[]
   onBack: () => void
-  onSave: (room: Room) => void
+  onSave: (matrix: SeatCell[][]) => void
 }
 
-export function SeatSetup({ room, onBack, onSave }: SeatSetupProps) {
+const createEmptyMatrix = (rows: number, columns: number): SeatCell[][] => {
+  const matrix: SeatCell[][] = []
+  for (let row = 0; row < rows; row++) {
+    matrix[row] = []
+    for (let col = 0; col < columns; col++) {
+      matrix[row][col] = {
+        id: null,
+        row,
+        column: col,
+        type: "standard",
+        status: "available"
+      }
+    }
+  }
+  return matrix
+}
+
+export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: SeatSetupProps) {
   const { toast } = useToast()
-  const [seatMatrix, setSeatMatrix] = useState<Seat[][]>(room.seatMatrix)
-  const [selectedSeatType, setSelectedSeatType] = useState<"standard" | "vip" | "disabled">("standard")
+  const [seatMatrix, setSeatMatrix] = useState<SeatCell[][]>(initialMatrix.length ? initialMatrix : createEmptyMatrix(room.rows, room.columns))
+  const visualTypeToSeatTypeId = useMemo(() => {
+    const mapping: Record<SeatVisualType, number | undefined> = { standard: undefined, vip: undefined, disabled: undefined }
+    seatTypes.forEach((type) => {
+      const normalized = type.name.toLowerCase()
+      if (normalized.includes('vip')) mapping.vip = mapping.vip ?? type.id
+      else if (normalized.includes('disable') || normalized.includes('khuyết') || normalized.includes('block')) mapping.disabled = mapping.disabled ?? type.id
+      else mapping.standard = mapping.standard ?? type.id
+    })
+    return mapping
+  }, [seatTypes])
+
+  const fallbackSeatTypeId = visualTypeToSeatTypeId.standard ?? visualTypeToSeatTypeId.vip ?? visualTypeToSeatTypeId.disabled ?? seatTypes[0]?.id ?? 0
+
+  const [selectedSeatType, setSelectedSeatType] = useState<SeatVisualType>("standard")
   const [selectedRow, setSelectedRow] = useState<number | null>(null)
   const [isRowTypeDialogOpen, setIsRowTypeDialogOpen] = useState(false)
   const [isPreviewMode, setIsPreviewMode] = useState(false)
@@ -49,32 +85,20 @@ export function SeatSetup({ room, onBack, onSave }: SeatSetupProps) {
   const [selectedSeats, setSelectedSeats] = useState<Set<string>>(new Set())
 
   useEffect(() => {
-    if (seatMatrix.length === 0) {
-      // Generate initial seat matrix if empty
-      const matrix: Seat[][] = []
-      for (let row = 0; row < room.rows; row++) {
-        matrix[row] = []
-        for (let col = 0; col < room.columns; col++) {
-          matrix[row][col] = {
-            id: `${row}-${col}`,
-            row,
-            column: col,
-            type: "standard",
-            status: "available"
-          }
-        }
-      }
-      setSeatMatrix(matrix)
+    if (initialMatrix.length) {
+      setSeatMatrix(initialMatrix)
+    } else if (room.rows && room.columns) {
+      setSeatMatrix(createEmptyMatrix(room.rows, room.columns))
     }
-  }, [room.rows, room.columns, seatMatrix.length])
+  }, [initialMatrix, room.rows, room.columns])
 
   const handleSeatClick = (row: number, col: number, event: React.MouseEvent) => {
     if (isPreviewMode) return
 
     const seatId = `${row}-${col}`
-    const newMatrix = [...seatMatrix]
-    
-    // Handle multi-select with Ctrl key
+    const newMatrix = seatMatrix.map((r) => [...r])
+    const seat = newMatrix[row][col]
+
     if (event.ctrlKey || event.metaKey) {
       const newSelectedSeats = new Set(selectedSeats)
       if (newSelectedSeats.has(seatId)) {
@@ -85,10 +109,9 @@ export function SeatSetup({ room, onBack, onSave }: SeatSetupProps) {
       setSelectedSeats(newSelectedSeats)
       return
     }
-    
-    // Single click - cycle through types
-    const currentType = newMatrix[row][col].type
-    let newType: "standard" | "vip" | "disabled"
+
+    const currentType = seat.type
+    let newType: SeatVisualType
     switch (currentType) {
       case "standard":
         newType = "vip"
@@ -97,23 +120,27 @@ export function SeatSetup({ room, onBack, onSave }: SeatSetupProps) {
         newType = "disabled"
         break
       case "disabled":
-        newType = "standard"
-        break
       default:
         newType = "standard"
+        break
     }
-    
-    newMatrix[row][col].type = newType
+
+    const seatTypeId = visualTypeToSeatTypeId[newType] ?? fallbackSeatTypeId
+    newMatrix[row][col] = {
+      ...seat,
+      type: newType,
+      seatTypeId: seatTypeId ?? seat.seatTypeId,
+      status: seat.status === "blocked" ? "available" : seat.status,
+    }
     setSeatMatrix(newMatrix)
-    
-    // Show toast with seat info
+
     const seatLabel = `${String.fromCharCode(65 + row)}${col + 1}`
-    const typeLabels = {
+    const typeLabels: Record<SeatVisualType, string> = {
       standard: "Standard",
-      vip: "VIP", 
-      disabled: "Vô hiệu hóa"
+      vip: "VIP",
+      disabled: "Vô hiệu hóa",
     }
-    
+
     toast({
       title: "Thay đổi loại ghế",
       description: `Ghế ${seatLabel} đã được đổi thành ${typeLabels[newType]}`
@@ -129,31 +156,52 @@ export function SeatSetup({ room, onBack, onSave }: SeatSetupProps) {
       return
     }
 
-    const newMatrix = [...seatMatrix]
+    const targetSeatTypeId = visualTypeToSeatTypeId[selectedSeatType] ?? fallbackSeatTypeId
+    const newMatrix = seatMatrix.map((row) => [...row])
     let changedCount = 0
 
-    selectedSeats.forEach(seatId => {
-      const [row, col] = seatId.split('-').map(Number)
-      if (newMatrix[row] && newMatrix[row][col]) {
-        newMatrix[row][col].type = selectedSeatType
+    selectedSeats.forEach((seatId) => {
+      const [rowStr, colStr] = seatId.split("-")
+      const row = Number(rowStr)
+      const col = Number(colStr)
+      const seat = newMatrix[row]?.[col]
+      if (seat) {
+        newMatrix[row][col] = {
+          ...seat,
+          type: selectedSeatType,
+          seatTypeId: targetSeatTypeId ?? seat.seatTypeId,
+          status: seat.status === "blocked" ? "available" : seat.status,
+        }
         changedCount++
       }
     })
 
     setSeatMatrix(newMatrix)
     setSelectedSeats(new Set())
-    
+
+    const typeLabels: Record<SeatVisualType, string> = {
+      standard: "Standard",
+      vip: "VIP",
+      disabled: "Vô hiệu hóa",
+    }
+
     toast({
       title: "Cập nhật thành công",
-      description: `Đã thay đổi ${changedCount} ghế thành ${selectedSeatType === 'standard' ? 'Standard' : selectedSeatType === 'vip' ? 'VIP' : 'Vô hiệu hóa'}`
+      description: `Đã thay đổi ${changedCount} ghế thành ${typeLabels[selectedSeatType]}`
     })
   }
 
-  const handleRowTypeChange = (rowIndex: number, newType: "standard" | "vip" | "disabled") => {
-    const newMatrix = [...seatMatrix]
-    for (let col = 0; col < room.columns; col++) {
-      newMatrix[rowIndex][col].type = newType
-    }
+  const handleRowTypeChange = (rowIndex: number, newType: SeatVisualType) => {
+    const targetSeatTypeId = visualTypeToSeatTypeId[newType] ?? fallbackSeatTypeId
+    const newMatrix = seatMatrix.map((row, rIdx) => {
+      if (rIdx !== rowIndex) return [...row]
+      return row.map((seat) => ({
+        ...seat,
+        type: newType,
+        seatTypeId: targetSeatTypeId ?? seat.seatTypeId,
+        status: seat.status === "blocked" ? "available" : seat.status,
+      }))
+    })
     setSeatMatrix(newMatrix)
     setIsRowTypeDialogOpen(false)
     toast({
@@ -185,27 +233,30 @@ export function SeatSetup({ room, onBack, onSave }: SeatSetupProps) {
   }
 
   const insertRow = (afterRow: number) => {
-    const newMatrix = [...seatMatrix]
-    const newRow: Seat[] = []
-    for (let col = 0; col < (seatMatrix[0]?.length || room.columns); col++) {
+    const newMatrix = seatMatrix.map((row) => [...row])
+    const columns = seatMatrix[0]?.length || room.columns
+    const newRow: SeatCell[] = []
+    for (let col = 0; col < columns; col++) {
       newRow[col] = {
-        id: `${afterRow + 1}-${col}`,
+        id: null,
         row: afterRow + 1,
         column: col,
         type: "standard",
-        status: "available"
+        status: "available",
+        seatTypeId: visualTypeToSeatTypeId.standard ?? fallbackSeatTypeId,
       }
     }
     newMatrix.splice(afterRow + 1, 0, newRow)
-    
-    // Update row indices
+
     for (let row = afterRow + 1; row < newMatrix.length; row++) {
       for (let col = 0; col < newMatrix[row].length; col++) {
-        newMatrix[row][col].row = row
-        newMatrix[row][col].id = `${row}-${col}`
+        newMatrix[row][col] = {
+          ...newMatrix[row][col],
+          row,
+          id: newMatrix[row][col].id ? `${row}-${col}` : null,
+        }
       }
     }
-    
     setSeatMatrix(newMatrix)
     toast({
       title: "Thêm hàng thành công",
@@ -214,24 +265,25 @@ export function SeatSetup({ room, onBack, onSave }: SeatSetupProps) {
   }
 
   const insertColumn = (afterCol: number) => {
-    const newMatrix = [...seatMatrix]
+    const newMatrix = seatMatrix.map((row) => [...row])
     for (let row = 0; row < newMatrix.length; row++) {
-      const newSeat: Seat = {
-        id: `${row}-${afterCol + 1}`,
+      const newSeat: SeatCell = {
+        id: null,
         row,
         column: afterCol + 1,
         type: "standard",
-        status: "available"
+        status: "available",
+        seatTypeId: visualTypeToSeatTypeId.standard ?? fallbackSeatTypeId,
       }
       newMatrix[row].splice(afterCol + 1, 0, newSeat)
-      
-      // Update column indices
       for (let col = afterCol + 1; col < newMatrix[row].length; col++) {
-        newMatrix[row][col].column = col
-        newMatrix[row][col].id = `${row}-${col}`
+        newMatrix[row][col] = {
+          ...newMatrix[row][col],
+          column: col,
+          id: newMatrix[row][col].id ? `${newMatrix[row][col].row}-${col}` : null,
+        }
       }
     }
-    
     setSeatMatrix(newMatrix)
     toast({
       title: "Thêm cột thành công",
@@ -249,15 +301,17 @@ export function SeatSetup({ room, onBack, onSave }: SeatSetupProps) {
     }
 
     const newMatrix = seatMatrix.filter((_, index) => index !== rowIndex)
-    
-    // Update row indices
+
     for (let row = 0; row < newMatrix.length; row++) {
       for (let col = 0; col < newMatrix[row].length; col++) {
-        newMatrix[row][col].row = row
-        newMatrix[row][col].id = `${row}-${col}`
+        newMatrix[row][col] = {
+          ...newMatrix[row][col],
+          row,
+          id: newMatrix[row][col].id ? `${row}-${col}` : null,
+        }
       }
     }
-    
+
     setSeatMatrix(newMatrix)
     toast({
       title: "Xóa hàng thành công",
@@ -274,16 +328,18 @@ export function SeatSetup({ room, onBack, onSave }: SeatSetupProps) {
       return
     }
 
-    const newMatrix = seatMatrix.map(row => {
+    const newMatrix = seatMatrix.map((row) => {
       const newRow = row.filter((_, index) => index !== colIndex)
-      // Update column indices
       for (let col = 0; col < newRow.length; col++) {
-        newRow[col].column = col
-        newRow[col].id = `${newRow[col].row}-${col}`
+        newRow[col] = {
+          ...newRow[col],
+          column: col,
+          id: newRow[col].id ? `${newRow[col].row}-${col}` : null,
+        }
       }
       return newRow
     })
-    
+
     setSeatMatrix(newMatrix)
     toast({
       title: "Xóa cột thành công",
@@ -292,45 +348,45 @@ export function SeatSetup({ room, onBack, onSave }: SeatSetupProps) {
   }
 
   const handleSave = () => {
-    const updatedRoom = {
-      ...room,
-      seatMatrix,
-      rows: seatMatrix.length,
-      columns: seatMatrix[0]?.length || 0,
-      capacity: seatMatrix.length * (seatMatrix[0]?.length || 0)
-    }
-    onSave(updatedRoom)
+    onSave(seatMatrix)
     toast({
       title: "Lưu thành công",
       description: "Cấu hình ghế đã được lưu"
     })
   }
 
-  const getSeatColor = (seat: Seat) => {
+  const getSeatColor = (seat: SeatCell) => {
     if (isPreviewMode) {
-      switch (seat.status) {
-        case "occupied": return "operator-seat-occupied"
-        case "reserved": return "operator-seat-reserved"
-        default: return "operator-seat-available"
-      }
+      if (seat.status === "occupied") return "operator-seat-occupied"
+      if (seat.status === "reserved") return "operator-seat-reserved"
+      if (seat.status === "blocked") return "operator-seat-disabled"
+      return "operator-seat-available"
     }
-    
+
     switch (seat.type) {
-      case "vip": return "operator-seat-vip"
-      case "disabled": return "operator-seat-disabled"
-      default: return "operator-seat-standard"
+      case "vip":
+        return "operator-seat-vip"
+      case "disabled":
+        return "operator-seat-disabled"
+      default:
+        return "operator-seat-standard"
     }
   }
 
-  const getSeatTextColor = (seat: Seat) => {
+  const getSeatTextColor = (seat: SeatCell) => {
     if (isPreviewMode) {
+      if (seat.status === "occupied" || seat.status === "reserved") return "text-white"
+      if (seat.status === "blocked") return "text-gray-600"
       return "text-white"
     }
-    
+
     switch (seat.type) {
-      case "vip": return "text-yellow-900"
-      case "disabled": return "text-gray-600"
-      default: return "text-white"
+      case "vip":
+        return "text-yellow-900"
+      case "disabled":
+        return "text-gray-600"
+      default:
+        return "text-white"
     }
   }
 
@@ -377,7 +433,7 @@ export function SeatSetup({ room, onBack, onSave }: SeatSetupProps) {
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
                 <label className="text-sm font-medium text-foreground">Loại ghế:</label>
-                <Select value={selectedSeatType} onValueChange={(value: "standard" | "vip" | "disabled") => setSelectedSeatType(value)}>
+                <Select value={selectedSeatType} onValueChange={(value: SeatVisualType) => setSelectedSeatType(value)}>
                   <SelectTrigger className="w-32">
                     <SelectValue />
                   </SelectTrigger>

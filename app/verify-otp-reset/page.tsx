@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -18,7 +18,7 @@ export default function VerifyOtpPage() {
     const router = useRouter()
     const searchParams = useSearchParams()
 
-    // Lấy email: ưu tiên sessionStorage, fallback query (?email=)
+    // Resolve email source: sessionStorage first, fallback to query (?email=)
     useEffect(() => {
         let em = ""
         if (typeof window !== "undefined") {
@@ -57,36 +57,58 @@ export default function VerifyOtpPage() {
                 body: JSON.stringify({ email, otpCode: otp }),
             })
 
-            // ResponseData<T>: { status, message, data }
+            // Try parse JSON (success: ResponseData; error: {timestamp,status,path,error})
             let data: any = null
-            try {
-                data = await res.json()
-            } catch {
-                data = null
-            }
+            try { data = await res.json() } catch { data = null }
 
-            if (!res.ok) {
-                const msg = data?.message || "Mã OTP không hợp lệ hoặc đã hết hạn"
-                toast.error(msg)
+            if (res.ok) {
+                // Expect resetToken in body (various keys for compatibility)
+                const resetToken =
+                    data?.data?.resetToken || data?.resetToken || data?.token
+
+                if (!resetToken) {
+                    toast.error("Thiếu reset token từ máy chủ. Vui lòng thử lại.")
+                    return
+                }
+
+                // Do not append token to URL; keep it in session storage
+                if (typeof window !== "undefined") {
+                    sessionStorage.setItem("reset_token", String(resetToken))
+                }
+                toast.success("Xác thực thành công, vui lòng đặt lại mật khẩu")
+                router.push("/reset-password")
                 return
             }
 
-            const resetToken =
-                data?.data?.resetToken || data?.resetToken || data?.token
-
-            if (!resetToken) {
-                toast.error("Thiếu reset token từ máy chủ. Vui lòng thử lại.")
-                return
+            // Map server errors to friendly messages
+            const errMsg = (data?.error || data?.message || "").toString() || undefined
+            switch (res.status) {
+                case 400:
+                    // Invalid OTP / expired OTP / invalid request payload
+                    toast.error(errMsg ?? "Mã OTP không hợp lệ hoặc đã hết hạn")
+                    break
+                case 401:
+                    // Unauthorized (unlikely here unless endpoint protected)
+                    toast.error(errMsg ?? "Bạn chưa được xác thực")
+                    break
+                case 403:
+                    // Forbidden
+                    toast.error(errMsg ?? "Access Denied")
+                    break
+                case 404:
+                    // Not found (rare for this route)
+                    toast.error(errMsg ?? "Không tìm thấy tài nguyên")
+                    break
+                case 500:
+                    // Internal server error
+                    toast.error(errMsg ?? "Đã có lỗi máy chủ, vui lòng thử lại")
+                    break
+                default:
+                    toast.error(errMsg ?? `Lỗi không xác định (HTTP ${res.status})`)
             }
-
-            // Lưu token và sang trang reset (không đính token lên URL)
-            if (typeof window !== "undefined") {
-                sessionStorage.setItem("reset_token", String(resetToken))
-            }
-            toast.success("Xác thực thành công, vui lòng đặt lại mật khẩu")
-            router.push("/reset-password")
-        } catch (err) {
-            toast.error("Có lỗi xảy ra, vui lòng thử lại")
+        } catch {
+            // Network/CORS error on client side
+            toast.error("Không thể kết nối máy chủ. Kiểm tra mạng hoặc cấu hình CORS.")
         } finally {
             setIsLoading(false)
         }
@@ -104,16 +126,33 @@ export default function VerifyOtpPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email }),
             })
-            let data: any = null
-            try {
-                data = await res.json()
-            } catch {
-                data = null
+
+            // Treat 200 **or** 404 as neutral success to avoid email enumeration leakage
+            if (res.status === 200 || res.status === 404) {
+                toast.success("Nếu email tồn tại, chúng tôi đã gửi mã mới")
+                return
             }
-            if (res.ok) {
-                toast.success("Mã xác nhận mới đã được gửi")
-            } else {
-                toast.error(data?.message || "Không gửi lại được mã")
+
+            // Other errors → attempt to read message
+            let data: any = null
+            try { data = await res.json() } catch { data = null }
+            const errMsg = (data?.error || data?.message || "").toString() || undefined
+
+            switch (res.status) {
+                case 400:
+                    toast.error(errMsg ?? "Tham số không hợp lệ")
+                    break
+                case 401:
+                    toast.error(errMsg ?? "Bạn chưa được xác thực")
+                    break
+                case 403:
+                    toast.error(errMsg ?? "Access Denied")
+                    break
+                case 500:
+                    toast.error(errMsg ?? "Đã có lỗi máy chủ, vui lòng thử lại")
+                    break
+                default:
+                    toast.error(errMsg ?? `Lỗi không xác định (HTTP ${res.status})`)
             }
         } catch {
             toast.error("Có lỗi khi gửi lại mã")
@@ -132,7 +171,7 @@ export default function VerifyOtpPage() {
                     <CardTitle className="text-3xl font-bold text-gray-900">Nhập Mã Xác Nhận</CardTitle>
                     <CardDescription className="text-gray-600">
                         Một mã 6 chữ số đã được gửi tới{" "}
-                        <span className="font-semibold">{email}</span>. Nhập mã để tiếp tục đặt lại mật khẩu.
+                        <span className="font-semibold break-all">{email}</span>. Nhập mã để tiếp tục đặt lại mật khẩu.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
