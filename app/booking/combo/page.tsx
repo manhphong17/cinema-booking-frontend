@@ -5,74 +5,19 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Separator } from "@/components/ui/separator"
 import { HomeLayout } from "@/components/layouts/home-layout"
+import apiClient from "../../../src/api/interceptor";
+
 import { 
   Clock, 
   Calendar, 
-  MapPin, 
-  Users, 
+  MapPin,
   ShoppingCart, 
   Plus, 
   Minus,
-  ArrowLeft,
   ArrowRight,
-  Popcorn,
-  Coffee,
-  IceCream
 } from "lucide-react"
 
-const combos = [
-  {
-    id: "combo1",
-    name: "Combo Standard",
-    description: "1 bỏng ngô lớn + 2 nước ngọt",
-    price: 85000,
-    image: "/combo-standard.jpg",
-    items: [
-      { name: "Bỏng ngô lớn", quantity: 1 },
-      { name: "Nước ngọt 500ml", quantity: 2 }
-    ]
-  },
-  {
-    id: "combo2",
-    name: "Combo Premium",
-    description: "1 bỏng ngô lớn + 2 nước ngọt + 1 hot dog",
-    price: 120000,
-    image: "/combo-premium.jpg",
-    items: [
-      { name: "Bỏng ngô lớn", quantity: 1 },
-      { name: "Nước ngọt 500ml", quantity: 2 },
-      { name: "Hot dog", quantity: 1 }
-    ]
-  },
-  {
-    id: "combo3",
-    name: "Combo Family",
-    description: "2 bỏng ngô lớn + 4 nước ngọt + 1 bánh mì kẹp",
-    price: 180000,
-    image: "/combo-family.jpg",
-    items: [
-      { name: "Bỏng ngô lớn", quantity: 2 },
-      { name: "Nước ngọt 500ml", quantity: 4 },
-      { name: "Bánh mì kẹp", quantity: 1 }
-    ]
-  },
-  {
-    id: "combo4",
-    name: "Combo Sweet",
-    description: "1 bỏng ngô ngọt + 2 nước ép + 1 kem",
-    price: 95000,
-    image: "/combo-sweet.jpg",
-    items: [
-      { name: "Bỏng ngô ngọt", quantity: 1 },
-      { name: "Nước ép 350ml", quantity: 2 },
-      { name: "Kem", quantity: 1 }
-    ]
-  }
-]
 
 const movies = [
   { id: 1, title: "Avengers: Endgame", poster: "/generic-superhero-team-poster.png" },
@@ -80,43 +25,57 @@ const movies = [
   { id: 3, title: "The Batman", poster: "/images/posters/the-batman-poster.png" }
 ]
 
-export default function ComboSelectionPage() {
+export default function ConcessionSelectionPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  
   const movieId = searchParams.get('movieId')
   const showtimeId = searchParams.get('showtimeId')
   const seats = searchParams.get('seats')
   const date = searchParams.get('date')
   const time = searchParams.get('time')
   const hall = searchParams.get('hall')
-  const combosParam = searchParams.get('combos')
-
-  const [selectedCombos, setSelectedCombos] = useState<{[key: string]: number}>({})
+const [concessions, setConcessions] = useState<any[]>([])
+const [loading, setLoading] = useState(true)
+  const [selectedConcessions, setSelectedConcessions] = useState<{[key: string]: number}>({})
   const [countdown, setCountdown] = useState(300) // 5 minutes in seconds
-
   const movie = movies.find(m => m.id === parseInt(movieId || '1'))
+const [mounted, setMounted] = useState(false);
+
+useEffect(() => {
+  setMounted(true);
+}, []);
+
+
+// Fetch concessions từ API (lọc ACTIVE + IN_STOCK)
+useEffect(() => {
+  const fetchConcessions = async () => {
+    try {
+      setLoading(true)
+      const res = await apiClient.get("/concession", {
+        params: {
+          page: 0,
+          size: 100, // vì trang này không phân trang
+          stockStatus: "IN_STOCK",
+          concessionStatus: "ACTIVE",
+        },
+      })
+      // Dữ liệu thực tế nằm trong res.data.data.content
+      const list = res.data?.data?.content || []
+      setConcessions(list)
+    } catch (error) {
+      console.error("Lỗi khi lấy concessions:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  fetchConcessions()
+}, [])
 
   // Reset countdown when component mounts
   useEffect(() => {
     setCountdown(300) // Reset to 5 minutes
   }, [])
-
-  // Initialize selectedCombos from URL parameters if they exist
-  useEffect(() => {
-    if (combosParam) {
-      try {
-        const parsedCombos = JSON.parse(combosParam)
-        const comboMap: {[key: string]: number} = {}
-        parsedCombos.forEach((combo: {comboId: string, quantity: number}) => {
-          comboMap[combo.comboId] = combo.quantity
-        })
-        setSelectedCombos(comboMap)
-      } catch (e) {
-        console.error('Error parsing combos from URL:', e)
-      }
-    }
-  }, [combosParam])
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -138,13 +97,13 @@ export default function ComboSelectionPage() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }
 
-  const updateComboQuantity = (comboId: string, quantity: number) => {
+  const updateConcessionQuantity = (comboId: string, quantity: number) => {
     if (quantity <= 0) {
-      const newSelected = { ...selectedCombos }
+      const newSelected = { ...selectedConcessions }
       delete newSelected[comboId]
-      setSelectedCombos(newSelected)
+      setSelectedConcessions(newSelected)
     } else {
-      setSelectedCombos(prev => ({ ...prev, [comboId]: quantity }))
+      setSelectedConcessions(prev => ({ ...prev, [comboId]: quantity }))
     }
   }
 
@@ -158,23 +117,20 @@ export default function ComboSelectionPage() {
     }, 0)
   }
 
-  const getComboTotal = () => {
-    return Object.entries(selectedCombos).reduce((total, [comboId, quantity]) => {
-      const combo = combos.find(c => c.id === comboId)
-      return total + (combo ? combo.price * quantity : 0)
-    }, 0)
-  }
+const getConcessionTotal = () => {
+  return Object.entries(selectedConcessions).reduce((total, [id, qty]) => {
+    const item = concessions.find(c => c.concessionId === parseInt(id))
+    return total + (item ? item.price * qty : 0)
+  }, 0)
+}
 
-  const getTotalPrice = () => {
-    return getSeatTotal() + getComboTotal()
-  }
+const getTotalPrice = () => {
+  return getSeatTotal() + getConcessionTotal()
+}
 
-  const getTotalItems = () => {
-    return Object.values(selectedCombos).reduce((total, quantity) => total + quantity, 0)
-  }
 
   const handleContinue = () => {
-    const comboData = Object.entries(selectedCombos)
+    const comboData = Object.entries(selectedConcessions)
       .map(([comboId, quantity]) => ({ comboId, quantity }))
       .filter(item => item.quantity > 0)
     
@@ -190,6 +146,7 @@ export default function ComboSelectionPage() {
     
     router.push(`/booking/payment?${params.toString()}`)
   }
+if (!mounted) return <div className="min-h-screen bg-white flex items-center justify-center">Đang tải...</div>;
 
   return (
     <HomeLayout>
@@ -204,7 +161,7 @@ export default function ComboSelectionPage() {
               <div className="text-right">
                 <div className="text-sm text-muted-foreground">Thời gian còn lại</div>
                 <div className={`text-2xl font-bold ${countdown < 60 ? 'text-red-600' : 'text-primary'}`}>
-                  {formatTime(countdown)}
+                  {mounted ? formatTime(countdown) : "05:00"}
                 </div>
               </div>
             </div>
@@ -214,66 +171,66 @@ export default function ComboSelectionPage() {
             {/* Combo Selection */}
             <div className="lg:col-span-3">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            {combos.map((combo) => (
-              <Card key={combo.id} className="overflow-hidden hover:shadow-lg transition-all duration-300 group">
-                <div className="relative aspect-[4/3] overflow-hidden">
-                  <img
-                    src={combo.image || "/placeholder.svg"}
-                    alt={combo.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            {loading ? (
+              <p className="text-center text-muted-foreground col-span-full">Đang tải danh sách sản phẩm...</p>
+            ) : concessions.length === 0 ? (
+              <p className="text-center text-muted-foreground col-span-full">Không có sản phẩm khả dụng</p>
+            ) : (
+              concessions.map((item) => (
+                <Card key={item.concessionId} className="overflow-hidden hover:shadow-lg transition-all duration-300 group">
+                  <div className="relative aspect-[4/3] overflow-hidden bg-gray-50 flex items-center justify-center">
+                    <img
+                      src={item.urlImage || "/placeholder.svg"}
+                      alt={item.name}
+                      className="max-w-full max-h-full object-contain rounded-md transition-transform duration-300 group-hover:scale-110"
                   />
-                  <div className="absolute top-2 right-2">
-                    <Badge className="bg-primary text-white">
-                      {combo.price.toLocaleString('vi-VN')} VNĐ
-                    </Badge>
-                  </div>
-                </div>
-                <CardContent className="p-4">
-                  <h3 className="font-semibold text-lg mb-2">{combo.name}</h3>
-                  <p className="text-sm text-muted-foreground mb-3">{combo.description}</p>
-                  
-                  <div className="space-y-2 mb-4">
-                    {combo.items.map((item, index) => (
-                      <div key={index} className="flex items-center gap-2 text-sm">
-                        <div className="w-2 h-2 bg-primary rounded-full"></div>
-                        <span>{item.quantity}x {item.name}</span>
-                      </div>
-                    ))}
+                    <div className="absolute top-2 right-2">
+                      <Badge className="bg-primary text-white">
+                        {item.price.toLocaleString('vi-VN')} VNĐ
+                      </Badge>
+                    </div>
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => updateComboQuantity(combo.id, (selectedCombos[combo.id] || 0) - 1)}
-                        disabled={!selectedCombos[combo.id]}
-                        className="w-8 h-8 p-0"
-                      >
-                        <Minus className="h-4 w-4" />
-                      </Button>
-                      <span className="w-8 text-center font-semibold">
-                        {selectedCombos[combo.id] || 0}
-                      </span>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => updateComboQuantity(combo.id, (selectedCombos[combo.id] || 0) + 1)}
-                        className="w-8 h-8 p-0"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm text-muted-foreground">Tổng</div>
-                      <div className="font-semibold">
-                        {((selectedCombos[combo.id] || 0) * combo.price).toLocaleString('vi-VN')} VNĐ
+                  <CardContent className="p-4">
+                    <h3 className="font-semibold text-lg mb-2">{item.name}</h3>
+                    <p className="text-sm text-muted-foreground mb-3">{item.description || "Không có mô tả"}</p>
+
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => updateConcessionQuantity(item.concessionId, (selectedConcessions[item.concessionId] || 0) - 1)}
+                          disabled={!selectedConcessions[item.concessionId]}
+                          className="w-8 h-8 p-0"
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <span className="w-8 text-center font-semibold">
+                          {selectedConcessions[item.concessionId] || 0}
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => updateConcessionQuantity(item.concessionId, (selectedConcessions[item.concessionId] || 0) + 1)}
+                          className="w-8 h-8 p-0"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <div className="text-right">
+                        <div className="text-sm text-muted-foreground">Tổng</div>
+                        <div className="font-semibold">
+                          {((selectedConcessions[item.concessionId] || 0) * item.price).toLocaleString('vi-VN')} VNĐ
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              ))
+            )}
+
               </div>
             </div>
 
@@ -347,25 +304,30 @@ export default function ComboSelectionPage() {
                     </div>
                   </div>
 
-                  {/* Selected Combos */}
-                  {Object.entries(selectedCombos).some(([_, qty]) => qty > 0) && (
-                    <div>
-                      <h4 className="font-semibold text-sm mb-2">Combo đã chọn</h4>
-                      <div className="space-y-1">
-                        {Object.entries(selectedCombos).map(([comboId, quantity]) => {
-                          if (quantity === 0) return null
-                          const combo = combos.find(c => c.id === comboId)
-                          if (!combo) return null
-                          return (
-                            <div key={comboId} className="flex justify-between items-center text-sm">
-                              <span>{combo.name} x{quantity}</span>
-                              <span className="font-medium">{(combo.price * quantity).toLocaleString('vi-VN')} VNĐ</span>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )}
+                  {/* Selected concessions */}
+   {Object.entries(selectedConcessions).some(([_, qty]) => qty > 0) && (
+     <div>
+       <h4 className="font-semibold text-sm mb-2">Sản phẩm đã chọn</h4>
+       <div className="space-y-1">
+         {Object.entries(selectedConcessions).map(([comboId, quantity]) => {
+           if (quantity === 0) return null
+           // tìm từ concessions, không phải combos
+           const item = concessions.find(c => String(c.concessionId) === String(comboId))
+           if (!item) return null
+
+           return (
+             <div key={comboId} className="flex justify-between items-center text-sm">
+               <span>{item.name} x{quantity}</span>
+               <span className="font-medium">
+                 {(item.price * quantity).toLocaleString('vi-VN')} VNĐ
+               </span>
+             </div>
+           )
+         })}
+       </div>
+     </div>
+   )}
+
 
                   {/* Seat Total */}
                   <div className="border-t pt-4">
@@ -373,10 +335,10 @@ export default function ComboSelectionPage() {
                       <span>Ghế ngồi:</span>
                       <span>{getSeatTotal().toLocaleString('vi-VN')} VNĐ</span>
                     </div>
-                    {getComboTotal() > 0 && (
+                    {getConcessionTotal() > 0 && (
                       <div className="flex justify-between items-center text-sm mb-2">
-                        <span>Combo:</span>
-                        <span>{getComboTotal().toLocaleString('vi-VN')} VNĐ</span>
+                        <span>Đồ ăn kèm:</span>
+                        <span>{getConcessionTotal().toLocaleString('vi-VN')} VNĐ</span>
                       </div>
                     )}
                     <div className="flex justify-between items-center font-semibold text-lg border-t pt-2">
@@ -394,19 +356,6 @@ export default function ComboSelectionPage() {
                       <ArrowRight className="h-4 w-4 ml-2" />
                   </Button>
               </Card>
-
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <div className="text-sm text-muted-foreground">Tổng combo</div>
-                <div className="text-xl font-bold text-primary">
-                  {getTotalPrice().toLocaleString('vi-VN')} VNĐ
-                </div>
-              </div>
 
             </div>
           </div>
