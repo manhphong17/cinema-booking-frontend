@@ -27,6 +27,7 @@ type ShowtimeResponse = {
 }
 
 type RoomInfo = {
+  showTimeId: number
   startTime: string
   endTime: string
   roomId: number
@@ -199,11 +200,17 @@ export default function BookingPage() {
 
   const handleContinue = () => {
     if (!selectedSelection) return
+    
+    // Find the selected room to get showTimeId
+    const selectedRoom = rooms.find(room => room.roomName === selectedSelection.hall)
+    if (!selectedRoom) return
+    
     const q = new URLSearchParams({
       movieId,
       date: selectedDate,
       time: selectedSelection.time,
-      hall: selectedSelection.hall
+      hall: selectedSelection.hall,
+      showtimeId: selectedRoom.showTimeId.toString()
     })
     router.push(`/booking/seats?${q.toString()}`)
   }

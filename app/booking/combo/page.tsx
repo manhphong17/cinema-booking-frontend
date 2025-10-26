@@ -80,6 +80,16 @@ const movies = [
   { id: 3, title: "The Batman", poster: "/images/posters/the-batman-poster.png" }
 ]
 
+/**
+ * Combo Selection Page - Countdown Timer System
+ * 
+ * Timer is synced with timestamp for accuracy:
+ * - Uses sessionStorage to persist start time across page reloads
+ * - Calculates remaining time based on actual elapsed time
+ * - Key format: booking_timer_{movieId}_{showtimeId}_combo
+ * - Duration: 5 minutes (300 seconds)
+ * - Automatically redirects when time expires
+ */
 export default function ComboSelectionPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -94,13 +104,37 @@ export default function ComboSelectionPage() {
 
   const [selectedCombos, setSelectedCombos] = useState<{[key: string]: number}>({})
   const [countdown, setCountdown] = useState(300) // 5 minutes in seconds
+  const [startTime, setStartTime] = useState<number | null>(null)
 
   const movie = movies.find(m => m.id === parseInt(movieId || '1'))
 
-  // Reset countdown when component mounts
+  // Initialize start time from sessionStorage or create new one
   useEffect(() => {
-    setCountdown(300) // Reset to 5 minutes
-  }, [])
+    const storageKey = `booking_timer_${movieId}_${showtimeId}_combo`
+    
+    // Try to get existing start time from sessionStorage
+    const savedStartTime = sessionStorage.getItem(storageKey)
+    
+    if (savedStartTime) {
+      const savedTime = parseInt(savedStartTime)
+      const elapsed = Math.floor((Date.now() - savedTime) / 1000)
+      const remaining = Math.max(0, 300 - elapsed) // 5 minutes = 300 seconds
+      
+      if (remaining > 0) {
+        setStartTime(savedTime)
+        setCountdown(remaining)
+      } else {
+        // Time expired, redirect
+        sessionStorage.removeItem(storageKey)
+        router.push('/booking')
+      }
+    } else {
+      // First time visiting this page, create new timer
+      const newStartTime = Date.now()
+      setStartTime(newStartTime)
+      sessionStorage.setItem(storageKey, newStartTime.toString())
+    }
+  }, [movieId, showtimeId, router])
 
   // Initialize selectedCombos from URL parameters if they exist
   useEffect(() => {
@@ -118,19 +152,26 @@ export default function ComboSelectionPage() {
     }
   }, [combosParam])
 
+  // Countdown timer effect - synced with timestamp
   useEffect(() => {
+    if (!startTime) return
+    
     const timer = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) {
-          router.push('/booking')
-          return 0
-        }
-        return prev - 1
-      })
+      const elapsed = Math.floor((Date.now() - startTime) / 1000)
+      const remaining = Math.max(0, 300 - elapsed)
+      
+      setCountdown(remaining)
+      
+      if (remaining <= 0) {
+        // Time's up - redirect back to booking page
+        const storageKey = `booking_timer_${movieId}_${showtimeId}_combo`
+        sessionStorage.removeItem(storageKey)
+        router.push('/booking')
+      }
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [router])
+  }, [startTime, movieId, showtimeId, router])
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)

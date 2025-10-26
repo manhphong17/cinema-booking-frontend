@@ -9,7 +9,28 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useState, useEffect } from "react"
 import { Movie } from "@/type/movie"
 import { apiClient } from "@/src/api/interceptor"
-import { fetchSeatMatrix, type SeatMatrixResponse, type SeatCellDto } from "@/src/api/seats"
+
+// New types for the API response
+type TicketResponse = {
+  seatId: number
+  rowIdx: number
+  columnInx: number
+  seatType: string
+  seatStatus: string
+  ticketPrice: number
+}
+
+type ShowtimeSeatData = {
+  showTimeId: number
+  roomId: number
+  ticketResponses: TicketResponse[]
+}
+
+type ShowtimeSeatResponse = {
+  status: number
+  message: string
+  data: ShowtimeSeatData[]
+}
 
 type RoomInfo = {
   startTime: string
@@ -27,6 +48,16 @@ type RoomResponse = {
   data: RoomInfo[]
 }
 
+/**
+ * Seat Selection Page - Countdown Timer System
+ * 
+ * Timer is synced with timestamp for accuracy:
+ * - Uses sessionStorage to persist start time across page reloads
+ * - Calculates remaining time based on actual elapsed time
+ * - Key format: booking_timer_{movieId}_{showtimeId}
+ * - Duration: 15 minutes (900 seconds)
+ * - Automatically redirects when time expires
+ */
 export default function SeatSelectionPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -38,10 +69,12 @@ export default function SeatSelectionPage() {
   const [selectedSeats, setSelectedSeats] = useState<string[]>([])
   const [countdown, setCountdown] = useState(900) // 15 minutes in seconds
   const [movie, setMovie] = useState<Movie | null>(null)
+  const [startTime, setStartTime] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [roomId, setRoomId] = useState<number | null>(null)
-  const [seatMatrix, setSeatMatrix] = useState<SeatMatrixResponse | null>(null)
-  const [bookedSeats, setBookedSeats] = useState<string[]>([])
+  const [showtimeId, setShowtimeId] = useState<number | null>(null)
+  const [seatData, setSeatData] = useState<TicketResponse[]>([])
+  const [bookedSeats, setBookedSeats] = useState<Set<number>>(new Set())
   const [loadingSeats, setLoadingSeats] = useState(false)
   const [date, setDate] = useState<string>('')
   const [time, setTime] = useState<string>('')
@@ -73,80 +106,102 @@ export default function SeatSelectionPage() {
     fetchMovieData()
   }, [movieId])
 
-  // Fetch room information and seat data
+  // Fetch seat data from the new API
   useEffect(() => {
-    const fetchRoomAndSeats = async () => {
-      if (!movieId || !dateParam || !timeParam) {
+    const fetchSeatData = async () => {
+      const showtimeIdParam = searchParams.get('showtimeId')
+      
+      if (!showtimeIdParam) {
         return
       }
 
       try {
         setLoadingSeats(true)
         
-        // Use date and time from URL params
-        setDate(dateParam)
-        setTime(timeParam)
+        setDate(dateParam || '')
+        setTime(timeParam || '')
+        setHall(hallParam || '')
         
-        // First, get the room information
-        const startTime = `${dateParam}T${timeParam}:00`
-        const roomResponse = await apiClient.get<RoomResponse>(
-          `/bookings/movies/${movieId}/show-times/start-time/${encodeURIComponent(startTime)}`
+        const showtimeIdNum = parseInt(showtimeIdParam)
+        setShowtimeId(showtimeIdNum)
+        
+        const response = await apiClient.get<ShowtimeSeatResponse>(
+          `/bookings/show-times/${showtimeIdNum}/seats`
         )
         
-        if (roomResponse.data?.status === 200 && Array.isArray(roomResponse.data.data)) {
-          const room = roomResponse.data.data.find(r => r.roomName === hallParam || r.roomName)
+        if (response.data?.status === 200 && response.data?.data?.length > 0) {
+          const data = response.data.data[0]
+          setRoomId(data.roomId)
+          setShowtimeId(data.showTimeId)
+          setSeatData(data.ticketResponses)
           
-          if (room) {
-            setRoomId(room.roomId)
-            setHall(room.roomName)
-            setRoomType(room.roomType)
-            
-            // Fetch seat matrix
-            const seatResponse = await fetchSeatMatrix(room.roomId)
-            
-            if (seatResponse?.status === 200 && seatResponse?.data) {
-              setSeatMatrix(seatResponse.data)
-              
-              // Extract booked seats from matrix
-              const booked: string[] = []
-              seatResponse.data.matrix.forEach((row, rowIndex) => {
-                row.forEach((cell, colIndex) => {
-                  if (cell && cell.status === 'BOOKED') {
-                    const seatLabel = cell.rowLabel || String.fromCharCode(65 + rowIndex)
-                    const seatNumber = cell.number || colIndex + 1
-                    booked.push(`${seatLabel}${seatNumber}`)
-                  }
-                })
-              })
-              setBookedSeats(booked)
+          // Extract booked seats
+          const booked = new Set<number>()
+          data.ticketResponses.forEach(ticket => {
+            if (ticket.seatStatus === 'BOOKED' || ticket.seatStatus === 'UNAVAILABLE') {
+              booked.add(ticket.seatId)
             }
-          }
+          })
+          setBookedSeats(booked)
         }
       } catch (error) {
-        console.error("Error fetching room and seat data:", error)
+        console.error("Error fetching seat data:", error)
       } finally {
         setLoadingSeats(false)
       }
     }
 
-    fetchRoomAndSeats()
-  }, [movieId, dateParam, timeParam, hallParam])
+    fetchSeatData()
+  }, [searchParams, dateParam, timeParam, hallParam, movieId])
 
-  // Countdown timer effect
+  // Initialize start time from sessionStorage or create new one
   useEffect(() => {
+    const storageKey = `booking_timer_${movieId}_${showtimeId}`
+    
+    // Try to get existing start time from sessionStorage
+    const savedStartTime = sessionStorage.getItem(storageKey)
+    
+    if (savedStartTime) {
+      const savedTime = parseInt(savedStartTime)
+      const elapsed = Math.floor((Date.now() - savedTime) / 1000)
+      const remaining = Math.max(0, 900 - elapsed) // 15 minutes = 900 seconds
+      
+      if (remaining > 0) {
+        setStartTime(savedTime)
+        setCountdown(remaining)
+      } else {
+        // Time expired, redirect
+        sessionStorage.removeItem(storageKey)
+        router.push('/booking')
+      }
+    } else {
+      // First time visiting this page, create new timer
+      const newStartTime = Date.now()
+      setStartTime(newStartTime)
+      sessionStorage.setItem(storageKey, newStartTime.toString())
+    }
+  }, [movieId, showtimeId, router])
+
+  // Countdown timer effect - synced with timestamp
+  useEffect(() => {
+    if (!startTime) return
+    
     const timer = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) {
-          // Time's up - redirect back to booking page
-          router.push('/booking')
-          return 0
-        }
-        return prev - 1
-      })
+      const elapsed = Math.floor((Date.now() - startTime) / 1000)
+      const remaining = Math.max(0, 900 - elapsed)
+      
+      setCountdown(remaining)
+      
+      if (remaining <= 0) {
+        // Time's up - redirect back to booking page
+        const storageKey = `booking_timer_${movieId}_${showtimeId}`
+        sessionStorage.removeItem(storageKey)
+        router.push('/booking')
+      }
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [router])
+  }, [startTime, movieId, showtimeId, router])
 
   // Format countdown time
   const formatTime = (seconds: number) => {
@@ -190,107 +245,80 @@ export default function SeatSelectionPage() {
 
   // Helper functions to process seat data
   const getSeatLayout = () => {
-    if (!seatMatrix) return []
+    if (seatData.length === 0) return []
     
-    const layout: Array<{ row: string; seats: Array<{ id: string; type: string; price: number }> }> = []
+    const layout: Record<number, { row: string; seats: Array<{ id: string; type: string; price: number; seatId: number }> }> = {}
     
-    seatMatrix.matrix.forEach((row, rowIndex) => {
-      const rowLabel = row[0]?.rowLabel || String.fromCharCode(65 + rowIndex)
-      const seats: Array<{ id: string; type: string; price: number }> = []
+    seatData.forEach((ticket) => {
+      const rowIndex = ticket.rowIdx
+      const rowLabel = String.fromCharCode(65 + rowIndex) // 0 -> A, 1 -> B, etc.
       
-      row.forEach((cell, colIndex) => {
-        if (cell) {
-          const seatNumber = cell.number || colIndex + 1
-          const seatId = `${rowLabel}${seatNumber}`
-          const seatType = cell.seatType?.name?.toLowerCase() || 'standard'
-          const price = seatType.includes('vip') ? 150000 : 100000
-          
-          seats.push({ id: seatId, type: seatType, price })
-        }
-      })
-      
-      if (seats.length > 0) {
-        layout.push({ row: rowLabel, seats })
+      if (!layout[rowIndex]) {
+        layout[rowIndex] = { row: rowLabel, seats: [] }
       }
+      
+      const seatNumber = ticket.columnInx + 1 // columnInx is 0-based, seat number is 1-based
+      const seatId = `${rowLabel}${seatNumber}`
+      const seatType = ticket.seatType.toLowerCase()
+      const price = ticket.ticketPrice
+      
+      layout[rowIndex].seats.push({
+        id: seatId,
+        type: seatType,
+        price,
+        seatId: ticket.seatId
+      })
     })
     
-    return layout
+    // Convert to array and sort by row and seat number
+    return Object.values(layout)
+      .map(row => ({
+        ...row,
+        seats: row.seats.sort((a, b) => parseInt(a.id.slice(1)) - parseInt(b.id.slice(1)))
+      }))
+      .sort((a, b) => a.row.localeCompare(b.row))
   }
 
   const getSeatType = (seatId: string) => {
-    if (!seatMatrix) {
-      const row = seatId[0]
-      if (['E', 'F', 'G', 'H'].includes(row)) return 'vip'
-      return 'standard'
-    }
+    if (seatData.length === 0) return 'standard'
     
-    // Find the seat in the matrix
-    for (let rowIndex = 0; rowIndex < seatMatrix.matrix.length; rowIndex++) {
-      const row = seatMatrix.matrix[rowIndex]
-      for (let colIndex = 0; colIndex < row.length; colIndex++) {
-        const cell = row[colIndex]
-        if (cell) {
-          const seatLabel = cell.rowLabel || String.fromCharCode(65 + rowIndex)
-          const seatNumber = cell.number || colIndex + 1
-          const seatId_check = `${seatLabel}${seatNumber}`
-          
-          if (seatId_check === seatId) {
-            return cell.seatType?.name?.toLowerCase() || 'standard'
-          }
-        }
-      }
-    }
+    // Find the seat in the data
+    const seat = seatData.find(ticket => {
+      const rowLabel = String.fromCharCode(65 + ticket.rowIdx)
+      const seatNumber = ticket.columnInx + 1
+      const expectedSeatId = `${rowLabel}${seatNumber}`
+      return expectedSeatId === seatId
+    })
     
-    return 'standard'
+    return seat ? seat.seatType.toLowerCase() : 'standard'
   }
 
   const getSeatPrice = (seatId: string) => {
-    if (!seatMatrix) {
-      const type = getSeatType(seatId)
-      return type === 'vip' ? 150000 : 100000
-    }
+    if (seatData.length === 0) return 100000
     
-    // Find the seat in the matrix
-    for (let rowIndex = 0; rowIndex < seatMatrix.matrix.length; rowIndex++) {
-      const row = seatMatrix.matrix[rowIndex]
-      for (let colIndex = 0; colIndex < row.length; colIndex++) {
-        const cell = row[colIndex]
-        if (cell) {
-          const seatLabel = cell.rowLabel || String.fromCharCode(65 + rowIndex)
-          const seatNumber = cell.number || colIndex + 1
-          const seatId_check = `${seatLabel}${seatNumber}`
-          
-          if (seatId_check === seatId) {
-            const seatType = cell.seatType?.name?.toLowerCase() || 'standard'
-            return seatType.includes('vip') ? 150000 : 100000
-          }
-        }
-      }
-    }
+    // Find the seat in the data
+    const seat = seatData.find(ticket => {
+      const rowLabel = String.fromCharCode(65 + ticket.rowIdx)
+      const seatNumber = ticket.columnInx + 1
+      const expectedSeatId = `${rowLabel}${seatNumber}`
+      return expectedSeatId === seatId
+    })
     
-    return 100000
+    return seat ? seat.ticketPrice : 100000
   }
 
   const isSeatBlocked = (seatId: string) => {
-    if (!seatMatrix) return false
+    if (seatData.length === 0) return false
     
-    for (let rowIndex = 0; rowIndex < seatMatrix.matrix.length; rowIndex++) {
-      const row = seatMatrix.matrix[rowIndex]
-      for (let colIndex = 0; colIndex < row.length; colIndex++) {
-        const cell = row[colIndex]
-        if (cell) {
-          const seatLabel = cell.rowLabel || String.fromCharCode(65 + rowIndex)
-          const seatNumber = cell.number || colIndex + 1
-          const seatId_check = `${seatLabel}${seatNumber}`
-          
-          if (seatId_check === seatId) {
-            return cell.isBlocked || false
-          }
-        }
-      }
-    }
+    // Find the seat in the data
+    const seat = seatData.find(ticket => {
+      const rowLabel = String.fromCharCode(65 + ticket.rowIdx)
+      const seatNumber = ticket.columnInx + 1
+      const expectedSeatId = `${rowLabel}${seatNumber}`
+      return expectedSeatId === seatId
+    })
     
-    return false
+    return seat ? seat.seatStatus === 'UNAVAILABLE' : false
   }
 
   const calculateTotal = () => {
@@ -320,6 +348,7 @@ export default function SeatSelectionPage() {
       const seatIds = selectedSeats.join(',')
       const q = new URLSearchParams({
         movieId: movieId ?? '',
+        showtimeId: showtimeId?.toString() ?? '',
         date,
         time,
         hall,
@@ -335,22 +364,6 @@ export default function SeatSelectionPage() {
         <div className="container mx-auto px-4 py-8">
           {/* Header */}
           <div className="mb-8">
-            <div className="flex items-center justify-end mb-6">
-              {/* Countdown Timer */}
-              <div className="flex items-center gap-2 bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-lg px-4 py-2">
-                <Clock className="h-4 w-4 text-red-600" />
-                <div className="text-sm">
-                  <span className="text-muted-foreground">Thời gian còn lại:</span>
-                  <span className={`ml-2 font-bold text-lg ${
-                    countdown <= 300 ? 'text-red-600 animate-pulse' : 
-                    countdown <= 600 ? 'text-orange-600' : 'text-green-600'
-                  }`}>
-                    {formatTime(countdown)}
-                  </span>
-                </div>
-              </div>
-            </div>
-            
             <div className="w-20 h-1 bg-gradient-to-r from-primary to-primary/50 rounded-full"></div>
           </div>
 
@@ -490,7 +503,7 @@ export default function SeatSelectionPage() {
                         </div>
                         <div className="flex gap-2 justify-center">
                           {row.seats.map((seat) => {
-                            const isOccupied = bookedSeats.includes(seat.id)
+                            const isOccupied = bookedSeats.has(seat.seatId)
                             const isMaintenance = isSeatBlocked(seat.id)
                             const isSelected = selectedSeats.includes(seat.id)
                             const seatType = getSeatType(seat.id)
