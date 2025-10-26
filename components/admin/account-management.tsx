@@ -519,24 +519,47 @@ export function AccountManagement() {
                   <p className="text-xs text-gray-600">Không thể thay đổi email</p>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="edit-role" className="text-gray-900 font-medium">Vai trò</Label>
-                  <Select
-                    value={editingUser.role}
-                    onValueChange={(value) => setEditingUser({...editingUser, role: value})}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Chọn vai trò" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Admin">Quản trị viên</SelectItem>
-                      <SelectItem value="Business Manager">Quản lý kinh doanh</SelectItem>
-                      <SelectItem value="Operator Manager">Quản lý vận hành</SelectItem>
-                      <SelectItem value="Ticket Staff">Nhân viên bán vé</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 {/* Vai trò */}
+                 <div className="space-y-2">
+                   <Label htmlFor="edit-role" className="text-gray-900 font-medium">
+                     Vai trò
+                   </Label>
+                   <Select
+                     value={editingUser.role}
+                     onValueChange={(value) => setEditingUser({ ...editingUser, role: value })}
+                   >
+                     <SelectTrigger>
+                       <SelectValue placeholder="Chọn vai trò" />
+                     </SelectTrigger>
+                     <SelectContent>
+                       <SelectItem value="Admin">Quản trị viên</SelectItem>
+                       <SelectItem value="Business Manager">Quản lý kinh doanh</SelectItem>
+                       <SelectItem value="Operator Manager">Quản lý vận hành</SelectItem>
+                       <SelectItem value="Ticket Staff">Nhân viên bán vé</SelectItem>
+                     </SelectContent>
+                   </Select>
+                 </div>
 
+                 {/* Trạng thái tài khoản */}
+                 <div className="space-y-2">
+                   <Label htmlFor="edit-status" className="text-gray-900 font-medium">
+                     Trạng thái tài khoản
+                   </Label>
+                   <Select
+                     value={editingUser.status}
+                     onValueChange={(value) => setEditingUser({ ...editingUser, status: value })}
+                   >
+                     <SelectTrigger>
+                       <SelectValue placeholder="Chọn trạng thái" />
+                     </SelectTrigger>
+                     <SelectContent>
+                       <SelectItem value="active">Đang hoạt động</SelectItem>
+                       <SelectItem value="inactive">Vô hiệu hóa</SelectItem>
+                     </SelectContent>
+                   </Select>
+                 </div>
+               </div>
               </div>
 
               {/* Password Change Section */}
