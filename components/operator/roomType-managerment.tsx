@@ -10,15 +10,19 @@ import { Badge } from "@/components/ui/badge"
 import { Filter, Pencil, Plus, Search, Trash2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { seatTypesApi, type SeatTypeDto } from "@/src/api/interceptor"
+import { roomTypesApi, type RoomTypeDto } from "@/src/api/interceptor"
 
 type Status = "active" | "inactive"
 
-export default function SeatTypesManager() {
+// CHANGED: helpers to convert between FE Status and BE boolean
+const toBool = (s: Status): boolean => s === "active" // CHANGED
+const toStatus = (b: boolean): Status => (b ? "active" : "inactive") // CHANGED
+
+export default function RoomTypesManager() {
     const { toast } = useToast()
     const [loading, setLoading] = useState(false)
 
-    const [items, setItems] = useState<SeatTypeDto[]>([])
+    const [items, setItems] = useState<RoomTypeDto[]>([])
     const [search, setSearch] = useState("")
     const [statusFilter, setStatusFilter] = useState<"all" | Status>("all")
 
@@ -32,41 +36,44 @@ export default function SeatTypesManager() {
     const fetchList = async () => {
         setLoading(true)
         try {
-            const data = await seatTypesApi.list(undefined)
+            // CHANGED: list() expects boolean | undefined
+            const onlyActive =
+                statusFilter === "all" ? undefined : statusFilter === "active" // CHANGED
+            const data = await roomTypesApi.list(onlyActive) // CHANGED
             setItems(data)
         } catch (e: any) {
-            toast({ title: "Lỗi tải dữ liệu", description: e.message })
+            toast({ title: "Lỗi tải dữ liệu / Load error", description: e.message })
         } finally {
             setLoading(false)
         }
     }
     useEffect(() => {
         fetchList()
-    }, [])
+    }, [statusFilter]) // CHANGED
 
     const resetForm = () => setForm({ id: undefined, name: "", description: "", status: "active" })
 
     const onSubmit = async () => {
         if (!form.name.trim()) {
-            toast({ title: "Thiếu tên", description: "Vui lòng nhập tên loại ghế" })
+            toast({ title: "Thiếu tên", description: "Vui lòng nhập tên loại phòng" })
             return
         }
         try {
             if (form.id != null) {
-                await seatTypesApi.update(form.id, {
+                await roomTypesApi.update(form.id, {
                     name: form.name.trim(),
                     description: form.description.trim(),
-                    status: form.status,
-                })
-                toast({ title: "Đã cập nhật", description: "Loại ghế đã được cập nhật" })
+                    active: toBool(form.status), // CHANGED: boolean for BE
+                } as any) // keep cast if DTO differs
+                toast({ title: "Đã cập nhật", description: "Loại phòng đã được cập nhật" })
             } else {
-                await seatTypesApi.create({
+                await roomTypesApi.create({
                     name: form.name.trim(),
                     description: form.description.trim() || undefined,
-                })
-                toast({ title: "Đã thêm", description: "Loại ghế mới đã được thêm" })
+                    active: toBool(form.status), // CHANGED
+                } as any)
+                toast({ title: "Đã thêm", description: "Loại phòng mới đã được thêm" })
             }
-            // reload bảng, popup vẫn mở
             await fetchList()
             resetForm()
         } catch (e: any) {
@@ -74,28 +81,28 @@ export default function SeatTypesManager() {
         }
     }
 
-    const onEdit = (it: SeatTypeDto) =>
+    const onEdit = (it: RoomTypeDto) =>
         setForm({
             id: it.id,
             name: it.name,
             description: it.description || "",
-            status: it.status,
+            status: toStatus((it as any).active ?? (it as any).status === "active"), // CHANGED: tolerate both shapes
         })
 
     const onDelete = async (id: number) => {
         try {
-            await seatTypesApi.delete(id)
-            toast({ title: "Đã xóa", description: "Đã xóa loại ghế" })
+            await roomTypesApi.delete(id)
+            toast({ title: "Đã xóa", description: "Đã xóa loại phòng" })
             fetchList()
         } catch (e: any) {
             toast({ title: "Lỗi xóa", description: e.message })
         }
     }
 
-    const onToggle = async (id: number, current: Status) => {
+    const onToggle = async (id: number, currentActive: boolean) => { // CHANGED
         try {
-            if (current === "active") await seatTypesApi.deactivate(id)
-            else await seatTypesApi.activate(id)
+            if (currentActive) await roomTypesApi.deactivate(id)
+            else await roomTypesApi.activate(id)
             fetchList()
         } catch (e: any) {
             toast({ title: "Lỗi cập nhật trạng thái", description: e.message })
@@ -106,7 +113,8 @@ export default function SeatTypesManager() {
         return items.filter(it => {
             const q = search.toLowerCase()
             const matchText = it.name.toLowerCase().includes(q) || (it.description || "").toLowerCase().includes(q)
-            const matchStatus = statusFilter === "all" || it.status === statusFilter
+            const active = (it as any).active ?? ((it as any).status === "active") // CHANGED
+            const matchStatus = statusFilter === "all" || toStatus(active) === statusFilter // CHANGED
             return matchText && matchStatus
         })
     }, [items, search, statusFilter])
@@ -199,39 +207,48 @@ export default function SeatTypesManager() {
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            filtered.map(it => (
-                                <TableRow key={it.id} className="border-border">
-                                    <TableCell className="text-foreground break-words">{it.name}</TableCell>
-                                    <TableCell className="text-foreground break-words">{it.description || "-"}</TableCell>
-                                    <TableCell>
-                                        <Badge
-                                            variant={it.status === "active" ? "default" : "secondary"}
-                                            className={it.status === "active" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}
-                                        >
-                                            {it.status === "active" ? "Hoạt động" : "Không hoạt động"}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex flex-wrap gap-2">
-                                            <Button type="button" size="sm" variant="ghost" onClick={() => onEdit(it)} className="hover:bg-muted">
-                                                <Pencil className="w-4 h-4" />
-                                            </Button>
-                                            <Button type="button" size="sm" variant="ghost" onClick={() => onToggle(it.id, it.status)} className="hover:bg-muted">
-                                                {it.status === "active" ? "Tắt" : "Bật"}
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="ghost"
-                                                onClick={() => onDelete(it.id)}
-                                                className="text-destructive hover:bg-destructive/10"
+                            filtered.map(it => {
+                                const active = (it as any).active ?? ((it as any).status === "active") // CHANGED
+                                return (
+                                    <TableRow key={it.id} className="border-border">
+                                        <TableCell className="text-foreground break-words">{it.name}</TableCell>
+                                        <TableCell className="text-foreground break-words">{it.description || "-"}</TableCell>
+                                        <TableCell>
+                                            <Badge
+                                                variant={active ? "default" : "secondary"} // CHANGED
+                                                className={active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"} // CHANGED
                                             >
-                                                <Trash2 className="w-4 h-4" />
-                                            </Button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))
+                                                {active ? "Hoạt động" : "Không hoạt động"} {/* CHANGED */}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex flex-wrap gap-2">
+                                                <Button type="button" size="sm" variant="ghost" onClick={() => onEdit(it)} className="hover:bg-muted">
+                                                    <Pencil className="w-4 h-4" />
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={() => onToggle(it.id, active)} // CHANGED
+                                                    className="hover:bg-muted"
+                                                >
+                                                    {active ? "Tắt" : "Bật"} {/* CHANGED */}
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={() => onDelete(it.id)}
+                                                    className="text-destructive hover:bg-destructive/10"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </Button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                )
+                            })
                         )}
                     </TableBody>
                 </Table>
