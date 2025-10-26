@@ -30,7 +30,8 @@ import {
   CheckCircle,
   Crown,
   Award,
-  TrendingUp
+  TrendingUp,
+  Film
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 

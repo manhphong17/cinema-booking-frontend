@@ -4,46 +4,133 @@ import { HomeLayout } from "@/components/layouts/home-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Users, Sofa, CreditCard, Calendar, Clock, MapPin, Star, Play, Monitor, Crown, Zap, Volume2 } from "lucide-react"
+import { ArrowLeft, Users, Sofa, CreditCard, Calendar, Clock, MapPin, Star, Play, Monitor, Crown, Zap, Volume2, Loader2 } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useState, useEffect } from "react"
+import { Movie } from "@/type/movie"
+import { apiClient } from "@/src/api/interceptor"
+import { fetchSeatMatrix, type SeatMatrixResponse, type SeatCellDto } from "@/src/api/seats"
 
-// Mock data
-const movieData = {
-  id: 1,
-  title: "Avengers: Endgame",
-  poster: "/generic-superhero-team-poster.png",
-  time: "20:00",
-  date: "2024-12-20",
-  hall: "Hall 1",
-  price: "100,000đ"
+type RoomInfo = {
+  startTime: string
+  endTime: string
+  roomId: number
+  roomName: string
+  roomType: string
+  totalSeat: number
+  totalSeatAvailable: number
 }
 
-// Seat layout - 8 rows, 12 seats per row (only Standard and VIP)
-const seatLayout = [
-  { row: "A", seats: Array.from({ length: 12 }, (_, i) => ({ id: `A${i + 1}`, type: "standard", price: 100000 })) },
-  { row: "B", seats: Array.from({ length: 12 }, (_, i) => ({ id: `B${i + 1}`, type: "standard", price: 100000 })) },
-  { row: "C", seats: Array.from({ length: 12 }, (_, i) => ({ id: `C${i + 1}`, type: "standard", price: 100000 })) },
-  { row: "D", seats: Array.from({ length: 12 }, (_, i) => ({ id: `D${i + 1}`, type: "standard", price: 100000 })) },
-  { row: "E", seats: Array.from({ length: 12 }, (_, i) => ({ id: `E${i + 1}`, type: "vip", price: 150000 })) },
-  { row: "F", seats: Array.from({ length: 12 }, (_, i) => ({ id: `F${i + 1}`, type: "vip", price: 150000 })) },
-  { row: "G", seats: Array.from({ length: 12 }, (_, i) => ({ id: `G${i + 1}`, type: "vip", price: 150000 })) },
-  { row: "H", seats: Array.from({ length: 12 }, (_, i) => ({ id: `H${i + 1}`, type: "vip", price: 150000 })) }
-]
-
-// Mock occupied seats
-const occupiedSeats = ["A5", "A6", "B3", "B4", "C8", "C9", "D1", "D2", "E7", "E8", "F5", "F6", "G3", "G4", "H9", "H10"]
+type RoomResponse = {
+  status: number
+  message: string
+  data: RoomInfo[]
+}
 
 export default function SeatSelectionPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const movieId = searchParams.get('movieId')
-  const date = searchParams.get('date') || movieData.date
-  const time = searchParams.get('time') || movieData.time
-  const hall = searchParams.get('hall') || movieData.hall
+  const dateParam = searchParams.get('date')
+  const timeParam = searchParams.get('time')
+  const hallParam = searchParams.get('hall')
   
   const [selectedSeats, setSelectedSeats] = useState<string[]>([])
   const [countdown, setCountdown] = useState(900) // 15 minutes in seconds
+  const [movie, setMovie] = useState<Movie | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [roomId, setRoomId] = useState<number | null>(null)
+  const [seatMatrix, setSeatMatrix] = useState<SeatMatrixResponse | null>(null)
+  const [bookedSeats, setBookedSeats] = useState<string[]>([])
+  const [loadingSeats, setLoadingSeats] = useState(false)
+  const [date, setDate] = useState<string>('')
+  const [time, setTime] = useState<string>('')
+  const [hall, setHall] = useState<string>('')
+  const [roomType, setRoomType] = useState<string>('')
+
+  // Fetch movie data
+  useEffect(() => {
+    const fetchMovieData = async () => {
+      if (!movieId) {
+        setLoading(false)
+        return
+      }
+      
+      try {
+        setLoading(true)
+        const response = await apiClient.get(`/movies/${movieId}`)
+        
+        if (response.data?.status === 200 && response.data?.data) {
+          setMovie(response.data.data)
+        }
+      } catch (error) {
+        console.error("Error fetching movie details:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchMovieData()
+  }, [movieId])
+
+  // Fetch room information and seat data
+  useEffect(() => {
+    const fetchRoomAndSeats = async () => {
+      if (!movieId || !dateParam || !timeParam) {
+        return
+      }
+
+      try {
+        setLoadingSeats(true)
+        
+        // Use date and time from URL params
+        setDate(dateParam)
+        setTime(timeParam)
+        
+        // First, get the room information
+        const startTime = `${dateParam}T${timeParam}:00`
+        const roomResponse = await apiClient.get<RoomResponse>(
+          `/bookings/movies/${movieId}/show-times/start-time/${encodeURIComponent(startTime)}`
+        )
+        
+        if (roomResponse.data?.status === 200 && Array.isArray(roomResponse.data.data)) {
+          const room = roomResponse.data.data.find(r => r.roomName === hallParam || r.roomName)
+          
+          if (room) {
+            setRoomId(room.roomId)
+            setHall(room.roomName)
+            setRoomType(room.roomType)
+            
+            // Fetch seat matrix
+            const seatResponse = await fetchSeatMatrix(room.roomId)
+            
+            if (seatResponse?.status === 200 && seatResponse?.data) {
+              setSeatMatrix(seatResponse.data)
+              
+              // Extract booked seats from matrix
+              const booked: string[] = []
+              seatResponse.data.matrix.forEach((row, rowIndex) => {
+                row.forEach((cell, colIndex) => {
+                  if (cell && cell.status === 'BOOKED') {
+                    const seatLabel = cell.rowLabel || String.fromCharCode(65 + rowIndex)
+                    const seatNumber = cell.number || colIndex + 1
+                    booked.push(`${seatLabel}${seatNumber}`)
+                  }
+                })
+              })
+              setBookedSeats(booked)
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching room and seat data:", error)
+      } finally {
+        setLoadingSeats(false)
+      }
+    }
+
+    fetchRoomAndSeats()
+  }, [movieId, dateParam, timeParam, hallParam])
 
   // Countdown timer effect
   useEffect(() => {
@@ -101,18 +188,109 @@ export default function SeatSelectionPage() {
     })
   }
 
+  // Helper functions to process seat data
+  const getSeatLayout = () => {
+    if (!seatMatrix) return []
+    
+    const layout: Array<{ row: string; seats: Array<{ id: string; type: string; price: number }> }> = []
+    
+    seatMatrix.matrix.forEach((row, rowIndex) => {
+      const rowLabel = row[0]?.rowLabel || String.fromCharCode(65 + rowIndex)
+      const seats: Array<{ id: string; type: string; price: number }> = []
+      
+      row.forEach((cell, colIndex) => {
+        if (cell) {
+          const seatNumber = cell.number || colIndex + 1
+          const seatId = `${rowLabel}${seatNumber}`
+          const seatType = cell.seatType?.name?.toLowerCase() || 'standard'
+          const price = seatType.includes('vip') ? 150000 : 100000
+          
+          seats.push({ id: seatId, type: seatType, price })
+        }
+      })
+      
+      if (seats.length > 0) {
+        layout.push({ row: rowLabel, seats })
+      }
+    })
+    
+    return layout
+  }
+
   const getSeatType = (seatId: string) => {
-    const row = seatId[0]
-    if (['E', 'F', 'G', 'H'].includes(row)) return 'vip'
+    if (!seatMatrix) {
+      const row = seatId[0]
+      if (['E', 'F', 'G', 'H'].includes(row)) return 'vip'
+      return 'standard'
+    }
+    
+    // Find the seat in the matrix
+    for (let rowIndex = 0; rowIndex < seatMatrix.matrix.length; rowIndex++) {
+      const row = seatMatrix.matrix[rowIndex]
+      for (let colIndex = 0; colIndex < row.length; colIndex++) {
+        const cell = row[colIndex]
+        if (cell) {
+          const seatLabel = cell.rowLabel || String.fromCharCode(65 + rowIndex)
+          const seatNumber = cell.number || colIndex + 1
+          const seatId_check = `${seatLabel}${seatNumber}`
+          
+          if (seatId_check === seatId) {
+            return cell.seatType?.name?.toLowerCase() || 'standard'
+          }
+        }
+      }
+    }
+    
     return 'standard'
   }
 
   const getSeatPrice = (seatId: string) => {
-    const type = getSeatType(seatId)
-    switch (type) {
-      case 'vip': return 150000
-      default: return 100000
+    if (!seatMatrix) {
+      const type = getSeatType(seatId)
+      return type === 'vip' ? 150000 : 100000
     }
+    
+    // Find the seat in the matrix
+    for (let rowIndex = 0; rowIndex < seatMatrix.matrix.length; rowIndex++) {
+      const row = seatMatrix.matrix[rowIndex]
+      for (let colIndex = 0; colIndex < row.length; colIndex++) {
+        const cell = row[colIndex]
+        if (cell) {
+          const seatLabel = cell.rowLabel || String.fromCharCode(65 + rowIndex)
+          const seatNumber = cell.number || colIndex + 1
+          const seatId_check = `${seatLabel}${seatNumber}`
+          
+          if (seatId_check === seatId) {
+            const seatType = cell.seatType?.name?.toLowerCase() || 'standard'
+            return seatType.includes('vip') ? 150000 : 100000
+          }
+        }
+      }
+    }
+    
+    return 100000
+  }
+
+  const isSeatBlocked = (seatId: string) => {
+    if (!seatMatrix) return false
+    
+    for (let rowIndex = 0; rowIndex < seatMatrix.matrix.length; rowIndex++) {
+      const row = seatMatrix.matrix[rowIndex]
+      for (let colIndex = 0; colIndex < row.length; colIndex++) {
+        const cell = row[colIndex]
+        if (cell) {
+          const seatLabel = cell.rowLabel || String.fromCharCode(65 + rowIndex)
+          const seatNumber = cell.number || colIndex + 1
+          const seatId_check = `${seatLabel}${seatNumber}`
+          
+          if (seatId_check === seatId) {
+            return cell.isBlocked || false
+          }
+        }
+      }
+    }
+    
+    return false
   }
 
   const calculateTotal = () => {
@@ -187,38 +365,56 @@ export default function SeatSelectionPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="p-6 pt-0">
-                  <div className="text-center mb-4">
-                  <img
-                    src={movieData.poster}
-                    alt={movieData.title}
-                      className="w-full max-w-48 mx-auto rounded-lg shadow-lg mb-3"
-                    />
-                    <h2 className="text-lg font-bold mb-2 text-foreground">{movieData.title}</h2>
-                    <div className="space-y-2 text-sm">
-                      <div className="bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg p-2">
-                        <div className="flex items-center justify-center gap-2 text-muted-foreground mb-1">
-                          <Calendar className="h-3 w-3" />
-                          <span className="text-xs">Ngày chiếu</span>
+                  {loading || !movie ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    </div>
+                  ) : (
+                    <div className="text-center mb-4">
+                      <img
+                        src={movie?.posterUrl || "/generic-superhero-team-poster.png"}
+                        alt={movie?.name || "Movie"}
+                        className="w-full max-w-48 mx-auto rounded-lg shadow-lg mb-3"
+                        onError={(e) => {
+                          e.currentTarget.src = "/generic-superhero-team-poster.png"
+                        }}
+                      />
+                      <h2 className="text-lg font-bold mb-2 text-foreground">{movie?.name || "Phim"}</h2>
+                      <div className="space-y-2 text-sm">
+                        <div className="bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg p-2">
+                          <div className="flex items-center justify-center gap-2 text-muted-foreground mb-1">
+                            <Calendar className="h-3 w-3" />
+                            <span className="text-xs">Ngày chiếu</span>
+                          </div>
+                          <span className="font-semibold text-foreground text-sm">{date || '...'}</span>
                         </div>
-                        <span className="font-semibold text-foreground text-sm">{date}</span>
+                        <div className="bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg p-2">
+                          <div className="flex items-center justify-center gap-2 text-muted-foreground mb-1">
+                            <Clock className="h-3 w-3" />
+                            <span className="text-xs">Giờ chiếu</span>
+                          </div>
+                          <span className="font-semibold text-foreground text-sm">{time || '...'}</span>
+                        </div>
+                        <div className="bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg p-2">
+                          <div className="flex items-center justify-center gap-2 text-muted-foreground mb-1">
+                            <MapPin className="h-3 w-3" />
+                            <span className="text-xs">Phòng chiếu</span>
+                          </div>
+                          <span className="font-semibold text-foreground text-sm">{hall || '...'}</span>
+                        </div>
+                        {roomType && (
+                          <div className="bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg p-2">
+                            <div className="flex items-center justify-center gap-2 text-muted-foreground mb-1">
+                              <Monitor className="h-3 w-3" />
+                              <span className="text-xs">Loại phòng</span>
+                            </div>
+                            <span className="font-semibold text-foreground text-sm">{roomType}</span>
+                          </div>
+                        )}
                       </div>
-                      <div className="bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg p-2">
-                        <div className="flex items-center justify-center gap-2 text-muted-foreground mb-1">
-                          <Clock className="h-3 w-3" />
-                          <span className="text-xs">Giờ chiếu</span>
-                        </div>
-                        <span className="font-semibold text-foreground text-sm">{time}</span>
                     </div>
-                      <div className="bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg p-2">
-                        <div className="flex items-center justify-center gap-2 text-muted-foreground mb-1">
-                          <MapPin className="h-3 w-3" />
-                          <span className="text-xs">Phòng chiếu</span>
-                    </div>
-                        <span className="font-semibold text-foreground text-sm">{hall}</span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
+                  )}
+                </CardContent>
             </Card>
             </div>
 
@@ -280,17 +476,24 @@ export default function SeatSelectionPage() {
                 </div>
 
                   {/* Seat Layout - Enhanced */}
-                <div className="space-y-4 flex flex-col items-center">
-                  {seatLayout.map((row) => (
-                    <div key={row.row} className="flex items-center gap-4">
+                {loadingSeats ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin mr-3 text-primary" />
+                    <span className="text-lg text-muted-foreground">Đang tải sơ đồ ghế...</span>
+                  </div>
+                ) : (
+                  <div className="space-y-4 flex flex-col items-center">
+                    {getSeatLayout().map((row) => (
+                      <div key={row.row} className="flex items-center gap-4">
                         <div className="w-8 text-center font-bold text-sm text-foreground bg-gradient-to-r from-primary/10 to-primary/20 rounded-lg py-1">
-                        {row.row}
-                      </div>
-                      <div className="flex gap-2 justify-center">
-                        {row.seats.map((seat) => {
-                          const isOccupied = occupiedSeats.includes(seat.id)
-                          const isSelected = selectedSeats.includes(seat.id)
-                          const seatType = getSeatType(seat.id)
+                          {row.row}
+                        </div>
+                        <div className="flex gap-2 justify-center">
+                          {row.seats.map((seat) => {
+                            const isOccupied = bookedSeats.includes(seat.id)
+                            const isMaintenance = isSeatBlocked(seat.id)
+                            const isSelected = selectedSeats.includes(seat.id)
+                            const seatType = getSeatType(seat.id)
                             
                             const getSeatIcon = (type: string) => {
                               switch (type) {
@@ -299,24 +502,26 @@ export default function SeatSelectionPage() {
                               }
                             }
                           
-                            const isLimitReached = !isOccupied && !isSelected && isSeatTypeLimitReached(seatType)
-                            const isDifferentType = !isOccupied && !isSelected && isDifferentSeatType(seatType)
+                            const isLimitReached = !isOccupied && !isMaintenance && !isSelected && isSeatTypeLimitReached(seatType)
+                            const isDifferentType = !isOccupied && !isMaintenance && !isSelected && isDifferentSeatType(seatType)
                           
                           return (
                             <button
                               key={seat.id}
-                              onClick={() => handleSeatClick(seat.id, isOccupied)}
-                                disabled={isOccupied || isLimitReached || isDifferentType}
+                              onClick={() => handleSeatClick(seat.id, isOccupied || isMaintenance)}
+                                disabled={isOccupied || isMaintenance || isLimitReached || isDifferentType}
                               className={`
                                   w-10 h-10 rounded-lg text-xs font-bold transition-all duration-300 flex flex-col items-center justify-center relative
                                 ${isOccupied 
-                                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed shadow-inner' 
-                                    : isLimitReached
-                                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
-                                      : isDifferentType
-                                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-30'
+                                    ? 'bg-gradient-to-br from-orange-400 to-orange-600 text-white cursor-not-allowed shadow-inner' 
+                                    : isMaintenance
+                                      ? 'bg-gradient-to-br from-gray-500 to-gray-700 text-white cursor-not-allowed shadow-inner'
+                                      : isLimitReached
+                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
+                                        : isDifferentType
+                                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-30'
                                   : isSelected
-                                          ? 'bg-primary text-primary-foreground scale-110 shadow-xl ring-4 ring-primary/30'
+                                          ? 'bg-gradient-to-br from-green-200 to-green-400 text-green-800 scale-110 shadow-xl ring-4 ring-green-300/30'
                                       : seatType === 'vip'
                                             ? 'bg-gradient-to-br from-purple-400 to-purple-600 text-purple-900 hover:from-purple-300 hover:to-purple-500 shadow-lg hover:shadow-purple-400/50'
                                             : 'bg-gradient-to-br from-blue-400 to-blue-600 text-blue-900 hover:from-blue-300 hover:to-blue-500 shadow-lg hover:shadow-blue-400/50'
@@ -326,22 +531,40 @@ export default function SeatSelectionPage() {
                               >
                                 {getSeatIcon(seatType)}
                                 <span className="text-xs font-bold">{seat.id.slice(1)}</span>
-                                {isSelected && (
-                                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                                    <span className="text-white text-xs">✓</span>
-                                  </div>
-                                )}
                             </button>
                           )
                         })}
                       </div>
                     </div>
                   ))}
-                </div>
+                  </div>
+                )}
 
                   {/* Enhanced Legend */}
                   <div className="mt-8 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4">
-                    <h4 className="font-semibold text-center mb-3 text-foreground text-sm">Chú thích loại ghế</h4>
+                    <h4 className="font-semibold text-center mb-3 text-foreground text-sm">Chú thích ghế</h4>
+                    
+                    {/* Seat Status Legend */}
+                    <div className="grid grid-cols-2 gap-2 text-xs mb-4 max-w-sm mx-auto">
+                      <div className="flex items-center gap-1 bg-white rounded-lg p-2 shadow-sm">
+                        <div className="w-4 h-4 bg-gradient-to-br from-blue-400 to-blue-600 rounded"></div>
+                        <span className="text-muted-foreground">Có thể chọn</span>
+                      </div>
+                      <div className="flex items-center gap-1 bg-white rounded-lg p-2 shadow-sm">
+                        <div className="w-4 h-4 bg-gradient-to-br from-green-400 to-green-600 rounded"></div>
+                        <span className="text-muted-foreground">Đã chọn</span>
+                      </div>
+                      <div className="flex items-center gap-1 bg-white rounded-lg p-2 shadow-sm">
+                        <div className="w-4 h-4 bg-gradient-to-br from-orange-400 to-orange-600 rounded"></div>
+                        <span className="text-muted-foreground">Đã đặt</span>
+                      </div>
+                      <div className="flex items-center gap-1 bg-white rounded-lg p-2 shadow-sm">
+                        <div className="w-4 h-4 bg-gradient-to-br from-gray-500 to-gray-700 rounded"></div>
+                        <span className="text-muted-foreground">Bảo trì</span>
+                      </div>
+                    </div>
+                    
+                    <h5 className="font-semibold text-center mb-3 text-foreground text-sm">Loại ghế</h5>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm max-w-sm mx-auto">
                       <div className={`flex items-center gap-2 bg-white rounded-lg p-3 shadow-sm border-2 ${
                         isSeatTypeLimitReached('standard') ? 'border-red-300 bg-red-50' : 'border-transparent'

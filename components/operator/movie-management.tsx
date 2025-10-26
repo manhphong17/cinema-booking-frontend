@@ -99,7 +99,7 @@ export function MovieManagement() {
 
 
     const [sortField, setSortField] = useState<"id" | "name" | "releaseDate">("id")
-    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
+    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
 
     const [currentPage, setCurrentPage] = useState(1)
     const [pageSize, setPageSize] = useState(10)
@@ -201,7 +201,6 @@ export function MovieManagement() {
                             return k.toUpperCase()
                     }
                 })
-                .join(",")
 
             // Build query parameters only for non-empty values
             const queryParams: Record<string, string> = {
@@ -237,9 +236,8 @@ export function MovieManagement() {
             })
 
             // Add statuses as multiple parameters
-            if (statuses) {
-                const statusArray = statuses.split(',')
-                statusArray.forEach(status => {
+            if (statuses && statuses.length > 0) {
+                statuses.forEach(status => {
                     query.append('statuses', status)
                 })
             }
@@ -326,8 +324,12 @@ export function MovieManagement() {
     }
 
     const validateForm = () => {
-        if (!formData.name.trim()) {
+        if (!formData.name || !formData.name.trim()) {
             toast.error("Vui lòng nhập tên phim")
+            return false
+        }
+        if (formData.name.length < 2 || formData.name.length > 200) {
+            toast.error("Độ dài tên phim phải từ 2 đến 200 kí tự")
             return false
         }
         if (!formData.genreIds || formData.genreIds.length === 0) {
@@ -373,8 +375,12 @@ export function MovieManagement() {
 
             resetForm()
             await fetchMovies()
-        } catch (error) {
-            toast.error("Không thể lưu phim. Vui lòng thử lại.")
+        } catch (error: any) {
+            if(error.response?.data?.status === 409) {
+                toast.error("Phim đã tồn tại trong hệ thống.")
+            } else {
+                toast.error("Không thể lưu phim. Vui lòng thử lại.")
+            }
         }
     }
 
@@ -382,7 +388,7 @@ export function MovieManagement() {
         if (!confirmDeleteMovie) return
         try {
             setIsDeleting(true)
-            await apiClient.put(`/movies/delete/${confirmDeleteMovie.id}`)
+            await apiClient.patch(`/movies/delete/${confirmDeleteMovie.id}`)
             toast.success("Xóa phim thành công")
             setConfirmDeleteMovie(null)
             await fetchMovies()
@@ -431,7 +437,7 @@ export function MovieManagement() {
             setSortDirection(sortDirection === "asc" ? "desc" : "asc")
         } else {
             setSortField(field)
-            setSortDirection("asc")
+            setSortDirection("desc") // Mặc định giảm dần cho tất cả field
         }
     }
 

@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, ChevronLeft, ChevronRight, RotateCw, AlertTriangle, Loader2, ExternalLink, Trash2  } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { apiClient }from "@/src/api/interceptor"
 
 
@@ -296,7 +296,7 @@ function CreateShowtimeDialog({
                                   subtitles,
                                   onCreated,
                               }: CreateShowtimeDialogProps) {
-    const { toast } = useToast()
+
     const [movieId, setMovieId] = useState("")
     const [roomId, setRoomId] = useState("")
     const [subtitleId, setSubtitleId] = useState("")
@@ -371,11 +371,7 @@ function CreateShowtimeDialog({
 
     const handleSubmit = async () => {
         if (!canSubmit) {
-            toast({
-                title: "Thiếu/không hợp lệ",
-                description: invalidTime ? "Giờ kết thúc phải lớn hơn giờ bắt đầu." : "Vui lòng nhập đủ các trường bắt buộc.",
-                variant: "destructive",
-            })
+            toast.error("Vui lòng nhập đủ các trường bắt buộc.")
             return
         }
 
@@ -397,23 +393,17 @@ function CreateShowtimeDialog({
                 const fe = extractFieldErrors(error)
                 setFieldErrs(fe)
                 setServerErr(error)
-                const details = [
-                    error?.message,
-                    error?.title,
-                    typeof error?.code === "number" ? `Code ${error.code}` : undefined,
-                    typeof error?.status === "number" ? `HTTP ${error.status}` : httpStatus ? `HTTP ${httpStatus}` : undefined,
-                    statusText,
-                ].filter(Boolean).join(" • ")
-                toast({ title: "Tạo suất chiếu thất bại", description: details || undefined, variant: "destructive" })
+                const msg = (error?.message && String(error.message)) || "Đã xảy ra lỗi không xác định."
+                toast.error(msg)
                 return
             }
 
-            toast({ title: "Thành công", description: "Đã tạo suất chiếu mới." })
+            toast.success("Đã tạo suất chiếu mới.")
             resetForm()
             onOpenChange(false)
             onCreated?.()
         } catch (e: any) {
-            toast({ title: "Lỗi mạng", description: String(e?.message || e), variant: "destructive" })
+            toast.error(String(e?.message || e))
         } finally {
             setSubmitting(false)
         }
@@ -436,24 +426,6 @@ function CreateShowtimeDialog({
                     <DialogTitle>Tạo suất chiếu mới</DialogTitle>
                 </DialogHeader>
 
-                {serverErr && (
-                    <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
-                        <div className="flex items-center gap-2 font-medium text-destructive">
-                            <AlertTriangle className="w-4 h-4" /> {serverErr.title || 'Lỗi tạo suất chiếu'}
-                        </div>
-                        {serverErr.message && <div className="mt-1 text-foreground/80">{serverErr.message}</div>}
-                        <div className="mt-1 text-xs text-muted-foreground">
-                            {serverErr.code ? `Code ${serverErr.code} • ` : ''}{serverErr.status ? `HTTP ${serverErr.status}` : ''}{serverErr.timestamp ? ` • ${serverErr.timestamp}` : ''}
-                        </div>
-                        {!!Object.keys(fieldErrs).length && (
-                            <ul className="mt-2 list-disc pl-5 text-foreground/80">
-                                {Object.entries(fieldErrs).map(([k, arr]) =>
-                                    (arr as string[]).map((msg, i) => <li key={`${k}-${i}`}><b>{k}:</b> {msg}</li>)
-                                )}
-                            </ul>
-                        )}
-                    </div>
-                )}
 
                 <div className="grid gap-6 py-2">
                     <div className="grid gap-2">
@@ -638,7 +610,7 @@ function ShowtimeDetailDialog({
     const [loading, setLoading] = useState(false)
     const [err, setErr] = useState<string | null>(null)
     const [detail, setDetail] = useState<ShowtimeDetail | null>(null)
-    const { toast } = useToast()
+
     const [deleting, setDeleting] = useState(false)
 
     useEffect(() => {
@@ -806,14 +778,10 @@ function ShowtimeDetailDialog({
                                                         setDeleting(true)
                                                         const r = await deleteShowtime(detail.showtimeId)
                                                         if (!r.ok) {
-                                                            toast({
-                                                                title: "Xoá thất bại",
-                                                                description: `${r.message}${r.httpStatus ? ` • HTTP ${r.httpStatus}` : ""}`,
-                                                                variant: "destructive",
-                                                            })
+                                                            toast.error("Xoá thất bại")
                                                             return
                                                         }
-                                                        toast({ title: "Đã xoá", description: r.message || "Delete successfully" })
+                                                        toast.success("Đã xoá")
                                                         onOpenChange(false)
                                                         onDeleted?.()          // thông báo cha refresh list
                                                     } finally {
@@ -854,7 +822,6 @@ function UpdateShowtimeDialog({
     subtitles: IdName[]
     onUpdated?: () => void
 }) {
-    const { toast } = useToast()
     const [movieId, setMovieId] = useState("")
     const [roomId, setRoomId] = useState("")
     const [subtitleId, setSubtitleId] = useState("")
@@ -926,13 +893,7 @@ function UpdateShowtimeDialog({
 
     const handleSubmit = async () => {
         if (!canSubmit) {
-            toast({
-                title: "Thiếu/không hợp lệ",
-                description: invalidTime
-                    ? "Giờ kết thúc phải lớn hơn giờ bắt đầu."
-                    : "Bạn chưa thay đổi gì hoặc thiếu dữ liệu.",
-                variant: "destructive",
-            })
+            toast.error("Bạn chưa thay đổi gì hoặc thiếu dữ liệu.")
             return
         }
         if (!initial) return
@@ -951,18 +912,14 @@ function UpdateShowtimeDialog({
             if (!result.ok) {
                 const fe = extractFieldErrors(result.error)
                 setFieldErrs(fe); setServerErr(result.error)
-                toast({
-                    title: "Cập nhật thất bại",
-                    description: [result.error?.message, result.statusText, result.httpStatus && `HTTP ${result.httpStatus}`].filter(Boolean).join(" • "),
-                    variant: "destructive",
-                })
+                toast.error("Cập nhật thất bại")
                 return
             }
-            toast({ title: "Thành công", description: "Đã cập nhật suất chiếu." })
+            toast.success("Đã cập nhật suất chiếu.")
             onOpenChange(false)
             onUpdated?.()
         } catch (e:any) {
-            toast({ title: "Lỗi mạng", description: String(e?.message || e), variant: "destructive" })
+            toast.error("Lỗi mạng")
         } finally {
             setSubmitting(false)
         }
@@ -1064,7 +1021,6 @@ function UpdateShowtimeDialog({
 // ===================== Component =====================
 
 export function ShowtimeManagement() {
-    const { toast } = useToast()
     const [updateOpen, setUpdateOpen] = useState(false)
     const [updateInitial, setUpdateInitial] = useState<ShowtimeDetail | null>(null)
     const [currentDate, setCurrentDate] = useState<Date>(() => new Date())
@@ -1104,7 +1060,7 @@ export function ShowtimeManagement() {
     const clearHidden = () => setHiddenKeys([])
     const openDetail = (id?: number) => {
         if (!id) {
-            toast({ title: 'Thiếu showtimeId', description: 'Bản ghi không có showtimeId để xem chi tiết.', variant: 'destructive' })
+            toast.error('Bản ghi không có showtimeId để xem chi tiết.')
             return
         }
         setSelectedShowtimeId(id)
@@ -1169,7 +1125,7 @@ export function ShowtimeManagement() {
     // ✅ fetchMovies trả về Promise<IdName[]>
     const fetchMovies = async (): Promise<IdName[]> => {
         try {
-            const res = await apiClient.get("/api/showtimes/lookup/active-id-name-movies")
+            const res = await apiClient.get("/api/showtimes/lookup/id-name-movies")
             const data = res?.data
             const rows: IdName[] = Array.isArray(data) ? data
                 : Array.isArray(data?.data) ? data.data
