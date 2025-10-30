@@ -84,7 +84,8 @@ export default function BookingPage() {
   const movieId = searchParams.get("movieId") ?? ""
   const days = useMemo(() => generateNext7Days(), [])
   const [selectedDate, setSelectedDate] = useState<string>(days[0].date)
-  const [selectedSelection, setSelectedSelection] = useState<{ time: string; hall: string } | null>(null)
+  const [selectedTime, setSelectedTime] = useState<string | null>(null)
+  const [selectedHall, setSelectedHall] = useState<string | null>(null)
 
   // Movie
   const [movie, setMovie] = useState<Movie | null>(null)
@@ -100,6 +101,9 @@ export default function BookingPage() {
   const [rooms, setRooms] = useState<RoomInfo[]>([])
   const [loadingRooms, setLoadingRooms] = useState(false)
   const [roomError, setRoomError] = useState<string | null>(null)
+  
+  // Navigation
+  const [isNavigating, setIsNavigating] = useState(false)
 
   // Fetch movie
   useEffect(() => {
@@ -183,36 +187,51 @@ export default function BookingPage() {
   // Load showtimes when date/movie changes
   useEffect(() => {
     if (movieId && selectedDate) {
-      setSelectedSelection(null) // đổi ngày thì bỏ chọn suất cũ
+      setSelectedTime(null) // đổi ngày thì bỏ chọn suất cũ
+      setSelectedHall(null)
       setRooms([])               // và xóa phòng
       setRoomError(null)
       fetchShowtimes(movieId, selectedDate)
     }
   }, [movieId, selectedDate])
 
-  // Reset rooms when time changes - but only if we have a selection
-  useEffect(() => {
-    if (selectedSelection?.time) {
-      setRooms([])
-      setRoomError(null)
-    }
-  }, [selectedSelection?.time])
-
   const handleContinue = () => {
-    if (!selectedSelection) return
+    console.log('=== HANDLE CONTINUE DEBUG ===')
+    console.log('selectedTime:', selectedTime)
+    console.log('selectedHall:', selectedHall)
+    console.log('rooms:', rooms)
+    
+    if (!selectedTime || !selectedHall) {
+      console.error('❌ Missing selectedTime or selectedHall')
+      return
+    }
     
     // Find the selected room to get showTimeId
-    const selectedRoom = rooms.find(room => room.roomName === selectedSelection.hall)
-    if (!selectedRoom) return
+    const selectedRoom = rooms.find(room => room.roomName === selectedHall)
+    console.log('selectedRoom found:', selectedRoom)
+    
+    if (!selectedRoom) {
+      console.error('❌ Could not find selected room!')
+      alert('Không tìm thấy thông tin phòng chiếu. Vui lòng thử lại.')
+      return
+    }
+    
+    setIsNavigating(true)
     
     const q = new URLSearchParams({
       movieId,
       date: selectedDate,
-      time: selectedSelection.time,
-      hall: selectedSelection.hall,
+      time: selectedTime,
+      hall: selectedHall,
       showtimeId: selectedRoom.showTimeId.toString()
     })
-    router.push(`/booking/seats?${q.toString()}`)
+    
+    console.log('✅ Navigating with params:', q.toString())
+    
+    // Small delay to ensure state is updated before navigation
+    setTimeout(() => {
+      router.push(`/booking/seats?${q.toString()}`)
+    }, 100)
   }
 
   if (loading) {
@@ -314,7 +333,8 @@ export default function BookingPage() {
                           key={d.date}
                           onClick={() => {
                             setSelectedDate(d.date)
-                            setSelectedSelection(null)
+                            setSelectedTime(null)
+                            setSelectedHall(null)
                             setRooms([])
                             setRoomError(null)
                           }}
@@ -354,7 +374,7 @@ export default function BookingPage() {
                     ) : (
                       <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
                         {showtimes.map((slot) => {
-                          const isSelected = selectedSelection && selectedSelection.time === slot.time
+                          const isSelected = selectedTime === slot.time
                           return (
                             <Button
                               key={slot.startTime}
@@ -363,12 +383,13 @@ export default function BookingPage() {
                                onClick={() => {
                                  if (!slot.available) return
                                  
-                                 // Reset hoàn toàn trước khi chọn suất mới
+                                 // Reset phòng khi chọn suất mới
                                  setRooms([])
                                  setRoomError(null)
-                                 setSelectedSelection({ time: slot.time, hall: "Phòng 1" })
+                                 setSelectedTime(slot.time)
+                                 setSelectedHall(null) // Reset phòng đã chọn
                                  
-                                 // Gọi API sau khi reset
+                                 // Gọi API để load phòng
                                  if (movieId) {
                                    setTimeout(() => {
                                      fetchRooms(movieId, slot.startTime)
@@ -395,7 +416,7 @@ export default function BookingPage() {
               </Card>
 
               {/* Rooms */}
-              {selectedSelection && (
+              {selectedTime && (
                 <Card className="shadow-lg border-0">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -416,7 +437,7 @@ export default function BookingPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => {
-                            const selectedSlot = showtimes.find((slot) => slot.time === selectedSelection.time)
+                            const selectedSlot = showtimes.find((slot) => slot.time === selectedTime)
                             if (movieId && selectedSlot) fetchRooms(movieId, selectedSlot.startTime)
                           }}
                         >
@@ -430,7 +451,7 @@ export default function BookingPage() {
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {rooms.map((room) => {
-                          const isSelected = selectedSelection.hall === room.roomName
+                          const isSelected = selectedHall === room.roomName
 
                           const getRoomIcon = (roomType: string) => {
                             switch (roomType) {
@@ -468,7 +489,7 @@ export default function BookingPage() {
                               className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${
                                 isSelected ? "ring-2 ring-primary shadow-lg" : "hover:shadow-md"
                               } ${getRoomColor(room.roomType)}`}
-                              onClick={() => setSelectedSelection({ time: selectedSelection.time, hall: room.roomName })}
+                              onClick={() => setSelectedHall(room.roomName)}
                             >
                               <CardContent className="p-3">
                                 <div className="flex items-center justify-between mb-2">
@@ -496,7 +517,7 @@ export default function BookingPage() {
                                   <div className="flex items-center justify-between">
                                     <span className="text-xs text-muted-foreground">Thời gian:</span>
                                     <span className="font-semibold text-sm">
-                                      {selectedSelection.time} - {new Date(room.endTime).toLocaleTimeString("vi-VN", {
+                                      {selectedTime} - {new Date(room.endTime).toLocaleTimeString("vi-VN", {
                                         hour: "2-digit",
                                         minute: "2-digit",
                                         hour12: false
@@ -542,7 +563,7 @@ export default function BookingPage() {
               )}
 
               {/* Summary */}
-              {selectedSelection && (
+              {selectedTime && selectedHall && (
                 <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-2 mb-3">
@@ -558,13 +579,13 @@ export default function BookingPage() {
                       </div>
                       <div>
                         <span className="text-muted-foreground">Phòng:</span>
-                        <span className="ml-2 font-medium">{selectedSelection.hall}</span>
+                        <span className="ml-2 font-medium">{selectedHall}</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Thời gian:</span>
                         <span className="ml-2 font-medium">
-                          {selectedSelection.time} - {(() => {
-                            const selectedRoom = rooms.find((room) => room.roomName === selectedSelection.hall)
+                          {selectedTime} - {(() => {
+                            const selectedRoom = rooms.find((room) => room.roomName === selectedHall)
                             return selectedRoom
                               ? new Date(selectedRoom.endTime).toLocaleTimeString("vi-VN", {
                                   hour: "2-digit",
@@ -577,7 +598,7 @@ export default function BookingPage() {
                       </div>
                     </div>
                     {(() => {
-                      const selectedRoom = rooms.find((room) => room.roomName === selectedSelection.hall)
+                      const selectedRoom = rooms.find((room) => room.roomName === selectedHall)
                       if (!selectedRoom) return null
                       return (
                         <div className="mt-3 pt-3 border-t border-primary/20">
@@ -601,17 +622,28 @@ export default function BookingPage() {
               )}
 
               {/* Continue */}
-              <Card className="shadow-lg border-0">
-                <CardContent className="p-4">
-                  <Button
-                    onClick={handleContinue}
-                    disabled={!selectedSelection}
-                    className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary text-white font-semibold py-3 transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-primary/30 rounded-xl text-base"
-                  >
-                    {selectedSelection ? "Tiếp tục chọn ghế" : "Vui lòng chọn suất chiếu"}
-                  </Button>
-                </CardContent>
-              </Card>
+              {selectedTime && (
+                <Card className="shadow-lg border-0">
+                  <CardContent className="p-4">
+                    <Button
+                      onClick={handleContinue}
+                      disabled={!selectedHall || isNavigating}
+                      className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary text-white font-semibold py-3 transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-primary/30 rounded-xl text-base"
+                    >
+                      {isNavigating ? (
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                          <span>Đang chuyển trang...</span>
+                        </div>
+                      ) : selectedHall ? (
+                        "Tiếp tục chọn ghế"
+                      ) : (
+                        "Vui lòng chọn phòng chiếu"
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
         </div>
