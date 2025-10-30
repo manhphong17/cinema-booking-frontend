@@ -298,20 +298,40 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         }
     }
 
-    const handleDelete = async (id: number) => {
+    const updateRoomStatus = async (room: RoomItem, status: "ACTIVE" | "INACTIVE") => {
+        // build đủ RoomPayload theo type của updateRoomApi
+        const payload = {
+            name: room.name,
+            roomTypeId: room.roomTypeId ?? 0, // hoặc bắt buộc chọn loại phòng nếu API không cho 0
+            rows: room.rows,
+            columns: room.columns,
+            status,
+        }
+        await updateRoomApi(room.id, payload)
+    }
+
+    const deactivateRoom = async (room: RoomItem) => {
         try {
             setLoading(true)
-            await deleteRoomApi(id)
-            toast({ title: "Xóa thành công", description: "Phòng chiếu đã được xóa" })
+            await updateRoomStatus(room, "INACTIVE")
+            toast({ title: "Đã vô hiệu hóa", description: "Phòng chuyển sang không hoạt động" })
             await loadRooms()
-        } catch (error: any) {
-            console.error("Failed to delete room", error)
-            const message = error?.response?.data?.message ?? "Không thể xóa phòng"
-            toast({ title: "Lỗi", description: message })
         } finally {
             setLoading(false)
         }
     }
+
+    const activateRoom = async (room: RoomItem) => {
+        try {
+            setLoading(true)
+            await updateRoomStatus(room, "ACTIVE")
+            toast({ title: "Đã bật lại", description: "Phòng đã hoạt động" })
+            await loadRooms()
+        } finally {
+            setLoading(false)
+        }
+    }
+
 
     const openEditDialog = (room: RoomItem) => {
         setEditingRoom(room)
@@ -546,15 +566,33 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                                             >
                                                 <Pencil className="w-4 h-4" />
                                             </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                onClick={() => handleDelete(room.id)}
-                                                className="text-destructive hover:bg-destructive/10"
-                                                type="button"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </Button>
+
+
+                                            {room.status === "active" ? (
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={() => deactivateRoom(room)}   // đổi: truyền cả room
+                                                    className="text-destructive hover:bg-destructive/10"
+                                                    type="button"
+                                                    title="Vô hiệu hóa"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </Button>
+                                            ) : (
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={() => activateRoom(room)}     // đổi: truyền cả room
+                                                    className="text-primary hover:bg-primary/10"
+                                                    type="button"
+                                                    title="Bật lại"
+                                                >
+                                                    <Plus className="w-4 h-4" />
+                                                </Button>
+                                            )}
+
+
                                             <Button
                                                 size="sm"
                                                 variant="ghost"

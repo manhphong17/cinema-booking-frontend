@@ -81,7 +81,7 @@ export default function ConfirmationPage() {
               <CheckCircle className="h-10 w-10 text-green-600" />
             </div>
             <p className="text-lg text-muted-foreground mb-6">
-              Cảm ơn bạn đã đặt vé. Vé điện tử đã được gửi đến email của bạn.
+             Bạn đã đặt vé thành công.
             </p>
             <div className="w-20 h-1 bg-gradient-to-r from-green-600 to-green-500 rounded-full mx-auto"></div>
           </div>

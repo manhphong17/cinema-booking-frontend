@@ -8,7 +8,7 @@ import {Label} from "@/components/ui/label"
 import {Badge} from "@/components/ui/badge"
 import {Separator} from "@/components/ui/separator"
 import {RadioGroup, RadioGroupItem} from "@/components/ui/radio-group"
-import {Edit, Loader2, Save, Star, X, User, Mail, Phone, MapPin, Calendar, Shield, Crown, Award} from "lucide-react"
+import {Edit, Loader2, Save, Star, X, User, Mail, MapPin, Calendar, Shield, } from "lucide-react"
 import {getMe, updateMe} from "../../src/api/user"
 import axios from "axios"
 import { useRouter } from "next/navigation"
@@ -249,43 +249,16 @@ export function CustomerProfile() {
         }
     }
 
-    const getMembershipTier = (points: number) => {
-        if (points >= 1000) return { name: "Platinum", color: "bg-purple-500", icon: Crown }
-        if (points >= 500) return { name: "Gold", color: "bg-yellow-500", icon: Award }
-        if (points >= 100) return { name: "Silver", color: "bg-gray-400", icon: Star }
-        return { name: "Bronze", color: "bg-orange-500", icon: Star }
-    }
 
-    const membership = getMembershipTier(formData.loyaltyPoints)
-    const MembershipIcon = membership.icon
+
 
     return (
         <div id="view-profile" className="p-6">
-            {/* Header Section */}
-            <div className="mb-8">
-                <div className="flex items-center justify-between mb-4">
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900 mb-2">Hồ sơ cá nhân</h1>
-                        <p className="text-gray-600">Quản lý thông tin tài khoản của bạn</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <div className="text-right">
-                            <div className="flex items-center gap-2 mb-1">
-                                <MembershipIcon className="h-5 w-5 text-yellow-500" />
-                                <span className="text-sm font-semibold text-gray-700">{membership.name} Member</span>
-                            </div>
-                            <Badge className={`${membership.color} text-white text-xs`}>
-                                {formData.loyaltyPoints.toLocaleString()} điểm
-                            </Badge>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             {/* Action Buttons */}
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
-                    <h2 className="text-lg font-semibold text-gray-900">Thông tin cá nhân</h2>
+                    <h2 className="text-lg font-bold text-gray-900" >Thông tin cá nhân</h2>
                     {!isEditing && (
                         <Badge variant="outline" className="text-green-600 border-green-600">
                             <Shield className="h-3 w-3 mr-1" />
@@ -327,14 +300,8 @@ export function CustomerProfile() {
             </div>
 
             {/* Profile Information */}
-            <Card className="shadow-lg">
-                <CardHeader className="bg-gradient-to-r from-gray-50 to-blue-50">
-                    <CardTitle className="flex items-center gap-2">
-                        <User className="h-5 w-5 text-blue-600" />
-                        Thông tin cá nhân
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6">
+            <Card className="mb-8 shadow-lg">
+                <CardContent className="">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Full Name */}
                         <div className="space-y-2">
@@ -420,26 +387,6 @@ export function CustomerProfile() {
                             )}
                         </div>
 
-                        {/* Phone Number */}
-                        <div className="space-y-2">
-                            <Label htmlFor="phone" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                                <Phone className="h-4 w-4" />
-                                Số điện thoại
-                            </Label>
-                            {isEditing ? (
-                                <Input
-                                    id="phoneNumber"
-                                    value={formData.phoneNumber}
-                                    onChange={(e) => setFormData({...formData, phoneNumber: e.target.value})}
-                                    placeholder="Nhập số điện thoại"
-                                    className="mt-1"
-                                />
-                            ) : (
-                                <p id="phone" className="text-gray-600 text-lg">
-                                    {formData.phoneNumber || "Chưa cập nhật"}
-                                </p>
-                            )}
-                        </div>
 
                         {/* Address */}
                         <div className="space-y-2 md:col-span-2">
@@ -474,16 +421,12 @@ export function CustomerProfile() {
                                 </div>
                                 <div>
                                     <h3 className="font-semibold text-gray-900">Điểm tích lũy</h3>
-                                    <p className="text-sm text-gray-600">Tích lũy điểm để nâng cấp thành viên</p>
                                 </div>
                             </div>
                             <div className="text-right">
                                 <Badge id="loyaltyPoints" className="text-lg px-4 py-2 bg-yellow-500 text-white">
                                     {formData.loyaltyPoints.toLocaleString()} điểm
                                 </Badge>
-                                <p className="text-xs text-gray-500 mt-1">
-                                    {membership.name} Member
-                                </p>
                             </div>
                         </div>
                     </div>
