@@ -1,394 +1,394 @@
 "use client"
 
-import {useState} from "react"
-import {Button} from "@/components/ui/button"
-import {Card} from "@/components/ui/card"
-import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table"
-import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger} from "@/components/ui/dialog"
-import {Input} from "@/components/ui/input"
-import {Label} from "@/components/ui/label"
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
-import {Badge} from "@/components/ui/badge"
-import {ChevronLeft, ChevronRight, Filter, Pencil, Plus, Search, Settings, Trash2} from "lucide-react"
-import {useToast} from "@/hooks/use-toast"
-import {SeatSetup} from "./seat-setup"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import dynamic from "next/dynamic"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
+import { ChevronLeft, ChevronRight, Filter, Pencil, Plus, Search, Settings, Trash2 } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { SeatSetup } from "./seat-setup"
+import {
+    fetchRooms, fetchRoomMeta, createRoom as createRoomApi,
+    updateRoom as updateRoomApi, deleteRoom as deleteRoomApi,
+    type RoomDto, type RoomTypeDto, type SeatTypeDto,
+} from "../../src/api/rooms"
+import { fetchSeatMatrix, saveSeatMatrix, type SeatCellDto } from "../../src/api/seats"
 
-interface Seat {
-    id: string
+const RoomTypeManager = dynamic(
+    () => import("@/components/operator/roomType-managerment").then((m) => m.default),
+    { ssr: false, loading: () => <div className="p-6 text-muted-foreground">Đang tải Loại phòng…</div> },
+)
+const SeatTypeManager = dynamic(
+    () => import("@/components/operator/seatType-managerment").then((m) => m.default),
+    { ssr: false, loading: () => <div className="p-6 text-muted-foreground">Đang tải Loại ghế…</div> },
+)
+
+type SeatVisualType = "standard" | "vip" | "disabled"
+type SeatVisualStatus = "available" | "reserved" | "occupied" | "blocked"
+
+interface SeatCell {
+    id: string | null
     row: number
     column: number
-    type: "standard" | "vip" | "disabled"
-    status: "available" | "occupied" | "reserved"
+    type: SeatVisualType
+    status: SeatVisualStatus
+    seatTypeId?: number
+    seatTypeName?: string
 }
 
-interface Room {
-    id: string
+interface RoomItem {
+    id: number
     name: string
-    type: string
-    capacity: number
-    status: "active" | "inactive"
-    seatMatrix: Seat[][]
+    roomTypeId: number | null
+    roomTypeName: string
     rows: number
     columns: number
+    capacity: number
+    status: "active" | "inactive"
+    description?: string | null
+    screenType?: string | null
 }
 
 interface RoomManagementProps {
-    onSelectRoom: (roomId: string) => void
+    onSelectRoom: (roomId: number) => void
 }
 
-export function RoomManagement({onSelectRoom}: RoomManagementProps) {
-    const {toast} = useToast()
-    const [rooms, setRooms] = useState<Room[]>([
-        // Phòng Standard (10 phòng)
-        {
-            id: "1",
-            name: "Phòng 1",
-            type: "Standard",
-            capacity: 100,
-            status: "active",
-            rows: 10,
-            columns: 10,
-            seatMatrix: []
-        },
-        {
-            id: "2",
-            name: "Phòng 2",
-            type: "Standard",
-            capacity: 80,
-            status: "active",
-            rows: 8,
-            columns: 10,
-            seatMatrix: []
-        },
-        {
-            id: "3",
-            name: "Phòng 3",
-            type: "Standard",
-            capacity: 120,
-            status: "active",
-            rows: 12,
-            columns: 10,
-            seatMatrix: []
-        },
-        {
-            id: "4",
-            name: "Phòng 4",
-            type: "Standard",
-            capacity: 90,
-            status: "inactive",
-            rows: 9,
-            columns: 10,
-            seatMatrix: []
-        },
-        {
-            id: "5",
-            name: "Phòng 5",
-            type: "Standard",
-            capacity: 110,
-            status: "active",
-            rows: 11,
-            columns: 10,
-            seatMatrix: []
-        },
-        {
-            id: "6",
-            name: "Phòng 6",
-            type: "Standard",
-            capacity: 70,
-            status: "active",
-            rows: 7,
-            columns: 10,
-            seatMatrix: []
-        },
-        {
-            id: "7",
-            name: "Phòng 7",
-            type: "Standard",
-            capacity: 130,
-            status: "active",
-            rows: 13,
-            columns: 10,
-            seatMatrix: []
-        },
-        {
-            id: "8",
-            name: "Phòng 8",
-            type: "Standard",
-            capacity: 85,
-            status: "inactive",
-            rows: 8,
-            columns: 10,
-            seatMatrix: []
-        },
-        {
-            id: "9",
-            name: "Phòng 9",
-            type: "Standard",
-            capacity: 95,
-            status: "active",
-            rows: 9,
-            columns: 10,
-            seatMatrix: []
-        },
-        {
-            id: "10",
-            name: "Phòng 10",
-            type: "Standard",
-            capacity: 105,
-            status: "active",
-            rows: 10,
-            columns: 10,
-            seatMatrix: []
-        },
+interface SelectedRoomData {
+    room: RoomItem
+    matrix: SeatCell[][]
+}
 
-        // Phòng VIP (8 phòng)
-        {id: "11", name: "VIP 1", type: "VIP", capacity: 40, status: "active", rows: 4, columns: 10, seatMatrix: []},
-        {id: "12", name: "VIP 2", type: "VIP", capacity: 50, status: "active", rows: 5, columns: 10, seatMatrix: []},
-        {id: "13", name: "VIP 3", type: "VIP", capacity: 45, status: "inactive", rows: 4, columns: 10, seatMatrix: []},
-        {id: "14", name: "VIP 4", type: "VIP", capacity: 35, status: "active", rows: 3, columns: 10, seatMatrix: []},
-        {id: "15", name: "VIP 5", type: "VIP", capacity: 55, status: "active", rows: 5, columns: 10, seatMatrix: []},
-        {id: "16", name: "VIP 6", type: "VIP", capacity: 60, status: "active", rows: 6, columns: 10, seatMatrix: []},
-        {id: "17", name: "VIP 7", type: "VIP", capacity: 42, status: "inactive", rows: 4, columns: 10, seatMatrix: []},
-        {id: "18", name: "VIP 8", type: "VIP", capacity: 48, status: "active", rows: 4, columns: 10, seatMatrix: []},
+interface FormState {
+    name: string
+    roomTypeId: string
+    rows: string
+    columns: string
+    status: "ACTIVE" | "INACTIVE"
+}
 
-        // Phòng IMAX (8 phòng)
-        {
-            id: "19",
-            name: "IMAX 1",
-            type: "IMAX",
-            capacity: 200,
-            status: "active",
-            rows: 20,
-            columns: 10,
-            seatMatrix: []
-        },
-        {
-            id: "20",
-            name: "IMAX 2",
-            type: "IMAX",
-            capacity: 180,
-            status: "active",
-            rows: 18,
-            columns: 10,
-            seatMatrix: []
-        },
-        {
-            id: "21",
-            name: "IMAX 3",
-            type: "IMAX",
-            capacity: 220,
-            status: "inactive",
-            rows: 22,
-            columns: 10,
-            seatMatrix: []
-        },
-        {
-            id: "22",
-            name: "IMAX 4",
-            type: "IMAX",
-            capacity: 190,
-            status: "active",
-            rows: 19,
-            columns: 10,
-            seatMatrix: []
-        },
-        {
-            id: "23",
-            name: "IMAX 5",
-            type: "IMAX",
-            capacity: 210,
-            status: "active",
-            rows: 21,
-            columns: 10,
-            seatMatrix: []
-        },
-        {
-            id: "24",
-            name: "IMAX 6",
-            type: "IMAX",
-            capacity: 170,
-            status: "active",
-            rows: 17,
-            columns: 10,
-            seatMatrix: []
-        },
-        {
-            id: "25",
-            name: "IMAX 7",
-            type: "IMAX",
-            capacity: 230,
-            status: "inactive",
-            rows: 23,
-            columns: 10,
-            seatMatrix: []
-        },
-        {
-            id: "26",
-            name: "IMAX 8",
-            type: "IMAX",
-            capacity: 195,
-            status: "active",
-            rows: 19,
-            columns: 10,
-            seatMatrix: []
-        },
+export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
+    const { toast } = useToast()
 
-        // Phòng 4DX (7 phòng)
-        {id: "27", name: "4DX 1", type: "4DX", capacity: 60, status: "active", rows: 6, columns: 10, seatMatrix: []},
-        {id: "28", name: "4DX 2", type: "4DX", capacity: 70, status: "active", rows: 7, columns: 10, seatMatrix: []},
-        {id: "29", name: "4DX 3", type: "4DX", capacity: 65, status: "inactive", rows: 6, columns: 10, seatMatrix: []},
-        {id: "30", name: "4DX 4", type: "4DX", capacity: 75, status: "active", rows: 7, columns: 10, seatMatrix: []},
-        {id: "31", name: "4DX 5", type: "4DX", capacity: 55, status: "active", rows: 5, columns: 10, seatMatrix: []},
-        {id: "32", name: "4DX 6", type: "4DX", capacity: 80, status: "active", rows: 8, columns: 10, seatMatrix: []},
-        {id: "33", name: "4DX 7", type: "4DX", capacity: 68, status: "inactive", rows: 6, columns: 10, seatMatrix: []},
-    ])
+    const [rooms, setRooms] = useState<RoomItem[]>([])
+    const [roomTypes, setRoomTypes] = useState<RoomTypeDto[]>([])
+    const [seatTypes, setSeatTypes] = useState<SeatTypeDto[]>([])
+    const [loading, setLoading] = useState(false)
 
-    const [isDialogOpen, setIsDialogOpen] = useState(false)
-    const [editingRoom, setEditingRoom] = useState<Room | null>(null)
-    const [selectedRoom, setSelectedRoom] = useState<Room | null>(null)
+    const [isCreateOpen, setCreateOpen] = useState(false)
+    const [isRoomTypeOpen, setRoomTypeOpen] = useState(false)
+    const [isSeatTypeOpen, setSeatTypeOpen] = useState(false)
 
-    // Search and filter states
+    const [editingRoom, setEditingRoom] = useState<RoomItem | null>(null)
+    const [selectedRoom, setSelectedRoom] = useState<SelectedRoomData | null>(null)
+
     const [searchTerm, setSearchTerm] = useState("")
     const [typeFilter, setTypeFilter] = useState<string>("all")
     const [statusFilter, setStatusFilter] = useState<string>("all")
     const [capacityFilter, setCapacityFilter] = useState<string>("all")
 
-    // Pagination states
     const [currentPage, setCurrentPage] = useState(1)
-    const [itemsPerPage] = useState(5)
-    const [formData, setFormData] = useState({
+    const [itemsPerPage] = useState(10)
+
+    const [formData, setFormData] = useState<FormState>({
         name: "",
-        type: "",
-        capacity: "",
+        roomTypeId: "",
         rows: "",
         columns: "",
-        status: "active" as "active" | "inactive",
+        status: "ACTIVE",
     })
 
-    const generateSeatMatrix = (rows: number, columns: number): Seat[][] => {
-        const matrix: Seat[][] = []
-        for (let row = 0; row < rows; row++) {
-            matrix[row] = []
-            for (let col = 0; col < columns; col++) {
-                matrix[row][col] = {
-                    id: `${row}-${col}`,
-                    row,
-                    column: col,
-                    type: "standard",
-                    status: "available"
-                }
-            }
-        }
-        return matrix
-    }
+    const detectVisualType = useCallback((seatTypeName?: string | null): SeatVisualType => {
+        const normalized = (seatTypeName ?? "").toLowerCase()
+        if (normalized.includes("vip")) return "vip"
+        if (normalized.includes("disable") || normalized.includes("khuyết") || normalized.includes("block")) return "disabled"
+        return "standard"
+    }, [])
 
-    const handleSubmit = () => {
-        const rows = Number(formData.rows)
-        const columns = Number(formData.columns)
-        const capacity = rows * columns
+    const transformSeatMatrix = useCallback(
+        (matrixData: (SeatCellDto | null)[][]): SeatCell[][] => {
+            return (matrixData ?? []).map((row, rIndex) =>
+                (row ?? []).map((cell, cIndex) => {
+                    if (!cell) {
+                        return {
+                            id: null,
+                            row: rIndex,
+                            column: cIndex,
+                            type: "standard",
+                            status: "available",
+                        } satisfies SeatCell
+                    }
+                    const visualType = detectVisualType(cell.seatType?.name)
+                    const status: SeatVisualStatus =
+                        cell.isBlocked === true
+                            ? "blocked"
+                            : cell.status === "RESERVED"
+                            ? "reserved"
+                            : cell.status === "OCCUPIED"
+                            ? "occupied"
+                            : "available"
 
-        if (editingRoom) {
-            setRooms(
-                rooms.map((r) =>
-                    r.id === editingRoom.id ? {
-                        ...editingRoom,
-                        ...formData,
-                        capacity,
-                        rows,
-                        columns,
-                        seatMatrix: generateSeatMatrix(rows, columns)
-                    } : r,
-                ),
+                    return {
+                        id: cell.id !== null && cell.id !== undefined ? String(cell.id) : null,
+                        row: (cell.rowIndex ?? rIndex + 1) - 1,
+                        column: (cell.columnIndex ?? cIndex + 1) - 1,
+                        type: visualType,
+                        status,
+                        seatTypeId: cell.seatType?.id ?? undefined,
+                        seatTypeName: cell.seatType?.name ?? undefined,
+                    } satisfies SeatCell
+                }),
             )
-            toast({title: "Cập nhật thành công", description: "Phòng chiếu đã được cập nhật"})
-        } else {
-            const newRoom: Room = {
-                id: Date.now().toString(),
-                ...formData,
-                capacity,
-                rows,
-                columns,
-                seatMatrix: generateSeatMatrix(rows, columns)
-            }
-            setRooms([...rooms, newRoom])
-            toast({title: "Thêm thành công", description: "Phòng chiếu mới đã được thêm"})
-        }
-        setIsDialogOpen(false)
-        resetForm()
-    }
+        },
+        [detectVisualType],
+    )
 
-    const handleDelete = (id: string) => {
-        setRooms(rooms.filter((r) => r.id !== id))
-        toast({title: "Xóa thành công", description: "Phòng chiếu đã được xóa"})
-    }
+    const buildMatrixPayload = useCallback(
+        (matrix: SeatCell[][]) => {
+            const typeToId: Record<SeatVisualType, number | undefined> = {
+                standard: undefined,
+                vip: undefined,
+                disabled: undefined,
+            }
+            seatTypes.forEach((seatType) => {
+                const visual = detectVisualType(seatType.name)
+                if (!typeToId[visual]) {
+                    typeToId[visual] = seatType.id
+                }
+            })
+            const fallbackSeatTypeId =
+                typeToId.standard ?? typeToId.vip ?? typeToId.disabled ?? seatTypes[0]?.id ?? 0
+
+            return {
+                matrix: matrix.map((row) =>
+                    row.map((cell) => {
+                        if (!cell) return null
+                        const seatTypeId = cell.seatTypeId ?? typeToId[cell.type] ?? fallbackSeatTypeId
+                        return {
+                            id: cell.id ? Number(cell.id) : null,
+                            rowIndex: cell.row + 1,
+                            columnIndex: cell.column + 1,
+                            seatTypeId,
+                            status: cell.status === "blocked" ? "BLOCKED" : cell.status.toUpperCase(),
+                            isBlocked: cell.status === "blocked" ? true : undefined,
+                        }
+                    }),
+                ),
+            }
+        },
+        [detectVisualType, seatTypes],
+    )
+
+    const loadMeta = useCallback(async () => {
+        try {
+            const res = await fetchRoomMeta()
+            if (res.status === 200 && res.data) {
+                setRoomTypes(res.data.roomTypes ?? [])
+                setSeatTypes(res.data.seatTypes ?? [])
+            } else {
+                toast({ title: "Không thể tải metadata", description: res.message || "Vui lòng thử lại" })
+            }
+        } catch (error) {
+            console.error("Failed to fetch room meta", error)
+            toast({ title: "Lỗi tải metadata", description: "Không thể tải loại phòng/ghế" })
+        }
+    }, [toast])
+
+    const loadRooms = useCallback(async () => {
+        setLoading(true)
+        try {
+            const res = await fetchRooms({ page: 0, size: 500 })
+            if (res.status === 200 && res.data) {
+                const mapped: RoomItem[] = (res.data.items ?? []).map((room: RoomDto) => ({
+                    id: room.id,
+                    name: room.name,
+                    roomTypeId: room.roomType?.id ?? null,
+                    roomTypeName: room.roomType?.name ?? "Không xác định",
+                    rows: room.rows,
+                    columns: room.columns,
+                    capacity: room.capacity ?? room.rows * room.columns,
+                    status: room.status === "ACTIVE" ? "active" : "inactive",
+                    description: room.description ?? undefined,
+                    screenType: room.screenType ?? undefined,
+                }))
+                setRooms(mapped)
+            } else {
+                toast({ title: "Không thể tải danh sách phòng", description: res.message || "Vui lòng thử lại" })
+            }
+        } catch (error) {
+            console.error("Failed to fetch rooms", error)
+            toast({ title: "Lỗi tải phòng", description: "Không thể tải danh sách phòng" })
+        } finally {
+            setLoading(false)
+        }
+    }, [toast])
+
+    useEffect(() => {
+        loadMeta()
+        loadRooms()
+    }, [loadMeta, loadRooms])
+
+    const filteredRooms = useMemo(() => {
+        return rooms.filter((room) => {
+            const matchesSearch = room.name.toLowerCase().includes(searchTerm.toLowerCase())
+            const matchesType = typeFilter === "all" || room.roomTypeId?.toString() === typeFilter
+            const matchesStatus = statusFilter === "all" || room.status === statusFilter.toLowerCase()
+            const matchesCapacity =
+                capacityFilter === "all" ||
+                (capacityFilter === "small" && room.capacity < 50) ||
+                (capacityFilter === "medium" && room.capacity >= 50 && room.capacity < 100) ||
+                (capacityFilter === "large" && room.capacity >= 100)
+
+            return matchesSearch && matchesType && matchesStatus && matchesCapacity
+        })
+    }, [rooms, searchTerm, typeFilter, statusFilter, capacityFilter])
+
+    const totalPages = Math.max(1, Math.ceil(filteredRooms.length / itemsPerPage))
+    const startIndex = (currentPage - 1) * itemsPerPage
+    const endIndex = startIndex + itemsPerPage
+    const paginatedRooms = filteredRooms.slice(startIndex, endIndex)
 
     const resetForm = () => {
-        setFormData({name: "", type: "", capacity: "", rows: "", columns: "", status: "active"})
+        setFormData({ name: "", roomTypeId: "", rows: "", columns: "", status: "ACTIVE" })
         setEditingRoom(null)
     }
 
-    const openEditDialog = (room: Room) => {
+
+    const handleSubmit = async () => {
+        const rows = Number(formData.rows)
+        const columns = Number(formData.columns)
+        const roomTypeId = Number(formData.roomTypeId)
+
+        if (!formData.name.trim() || !roomTypeId || !rows || !columns) {
+            toast({ title: "Thiếu thông tin", description: "Vui lòng nhập tên, loại phòng, số hàng và số cột" })
+            return
+        }
+
+        const payload = {
+            name: formData.name.trim(),
+            roomTypeId,
+            rows,
+            columns,
+            status: formData.status,
+        }
+
+        try {
+            setLoading(true)
+            if (editingRoom) {
+                await updateRoomApi(editingRoom.id, payload)
+                toast({ title: "Cập nhật thành công", description: "Phòng chiếu đã được cập nhật" })
+            } else {
+                await createRoomApi(payload)
+                toast({ title: "Thêm thành công", description: "Phòng chiếu mới đã được thêm" })
+            }
+            setCreateOpen(false)
+            resetForm()
+            await loadRooms()
+        } catch (error: any) {
+            console.error("Failed to submit room", error)
+            const message = error?.response?.data?.message ?? "Không thể lưu phòng chiếu"
+            toast({ title: "Lỗi", description: message })
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const updateRoomStatus = async (room: RoomItem, status: "ACTIVE" | "INACTIVE") => {
+        // build đủ RoomPayload theo type của updateRoomApi
+        const payload = {
+            name: room.name,
+            roomTypeId: room.roomTypeId ?? 0, // hoặc bắt buộc chọn loại phòng nếu API không cho 0
+            rows: room.rows,
+            columns: room.columns,
+            status,
+        }
+        await updateRoomApi(room.id, payload)
+    }
+
+    const deactivateRoom = async (room: RoomItem) => {
+        try {
+            setLoading(true)
+            await updateRoomStatus(room, "INACTIVE")
+            toast({ title: "Đã vô hiệu hóa", description: "Phòng chuyển sang không hoạt động" })
+            await loadRooms()
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const activateRoom = async (room: RoomItem) => {
+        try {
+            setLoading(true)
+            await updateRoomStatus(room, "ACTIVE")
+            toast({ title: "Đã bật lại", description: "Phòng đã hoạt động" })
+            await loadRooms()
+        } finally {
+            setLoading(false)
+        }
+    }
+
+
+    const openEditDialog = (room: RoomItem) => {
         setEditingRoom(room)
         setFormData({
             name: room.name,
-            type: room.type,
-            capacity: room.capacity.toString(),
+            roomTypeId: room.roomTypeId ? room.roomTypeId.toString() : "",
             rows: room.rows.toString(),
             columns: room.columns.toString(),
-            status: room.status,
+            status: room.status === "active" ? "ACTIVE" : "INACTIVE",
         })
-        setIsDialogOpen(true)
+        setCreateOpen(true)
     }
 
-    const handleSelectRoom = (room: Room) => {
-        setSelectedRoom(room)
-    }
-
-    const handleSaveSeatConfig = (updatedRoom: Room) => {
-        setRooms(rooms.map(r => r.id === updatedRoom.id ? updatedRoom : r))
-        setSelectedRoom(null)
+    const handleSelectRoom = async (room: RoomItem) => {
+        onSelectRoom(room.id)
+        try {
+            const res = await fetchSeatMatrix(room.id)
+            if (res.status === 200 && res.data) {
+                const matrix = transformSeatMatrix(res.data.matrix ?? [])
+                setSelectedRoom({ room, matrix })
+            } else {
+                toast({ title: "Không thể tải sơ đồ ghế", description: res.message || "Vui lòng thử lại" })
+            }
+        } catch (error) {
+            console.error("Failed to fetch seat matrix", error)
+            toast({ title: "Lỗi tải ghế", description: "Không thể tải ma trận ghế" })
+        }
     }
 
     const handleBackFromSeatSetup = () => {
         setSelectedRoom(null)
     }
 
-    // Filter and search logic
-    const filteredRooms = rooms.filter(room => {
-        const matchesSearch = room.name.toLowerCase().includes(searchTerm.toLowerCase())
-        const matchesType = typeFilter === "all" || room.type === typeFilter
-        const matchesStatus = statusFilter === "all" || room.status === statusFilter
-        const matchesCapacity = capacityFilter === "all" ||
-            (capacityFilter === "small" && room.capacity < 50) ||
-            (capacityFilter === "medium" && room.capacity >= 50 && room.capacity < 100) ||
-            (capacityFilter === "large" && room.capacity >= 100)
-
-        return matchesSearch && matchesType && matchesStatus && matchesCapacity
-    })
-
-    // Pagination logic
-    const totalPages = Math.ceil(filteredRooms.length / itemsPerPage)
-    const startIndex = (currentPage - 1) * itemsPerPage
-    const endIndex = startIndex + itemsPerPage
-    const paginatedRooms = filteredRooms.slice(startIndex, endIndex)
-
-    // Reset pagination when filters change
-    const handleFilterChange = (filterType: string, value: string) => {
-        setCurrentPage(1)
-        switch (filterType) {
-            case 'search':
-                setSearchTerm(value)
-                break
-            case 'type':
-                setTypeFilter(value)
-                break
-            case 'status':
-                setStatusFilter(value)
-                break
-            case 'capacity':
-                setCapacityFilter(value)
-                break
+    const handleSaveSeatConfig = async (matrix: SeatCell[][]) => {
+        if (!selectedRoom) return
+        try {
+            setLoading(true)
+            const payload = buildMatrixPayload(matrix)
+            await saveSeatMatrix(selectedRoom.room.id, payload)
+            toast({ title: "Đã lưu cấu hình ghế", description: "Sơ đồ ghế đã được cập nhật" })
+            setSelectedRoom(null)
+            await loadRooms()
+        } catch (error: any) {
+            console.error("Failed to save seat matrix", error)
+            const message = error?.response?.data?.message ?? "Không thể lưu ma trận ghế"
+            toast({ title: "Lỗi", description: message })
+        } finally {
+            setLoading(false)
         }
+    }
+
+    const handleFilterChange = (type: string, value: string) => {
+        setCurrentPage(1)
+        if (type === "search") setSearchTerm(value)
+        else if (type === "type") setTypeFilter(value)
+        else if (type === "status") setStatusFilter(value)
+        else if (type === "capacity") setCapacityFilter(value)
     }
 
     const clearFilters = () => {
@@ -402,7 +402,9 @@ export function RoomManagement({onSelectRoom}: RoomManagementProps) {
     if (selectedRoom) {
         return (
             <SeatSetup
-                room={selectedRoom}
+                room={selectedRoom.room}
+                initialMatrix={selectedRoom.matrix}
+                seatTypes={seatTypes}
                 onBack={handleBackFromSeatSetup}
                 onSave={handleSaveSeatConfig}
             />
@@ -411,377 +413,359 @@ export function RoomManagement({onSelectRoom}: RoomManagementProps) {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold text-foreground">Quản lý Phòng chiếu</h1>
-                    <p className="text-muted-foreground mt-1">Quản lý phòng chiếu và cấu hình ghế ngồi</p>
+            <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1.5">
+                    <h1 className="text-3xl font-bold text-foreground">Quản lý phòng chiếu</h1>
+                    <p className="text-muted-foreground">Quản lý phòng chiếu và cấu hình sơ đồ ghế</p>
                 </div>
-                <Dialog
-                    open={isDialogOpen}
-                    onOpenChange={(open) => {
-                        setIsDialogOpen(open)
-                        if (!open) resetForm()
-                    }}
-                >
-                    <DialogTrigger asChild>
-                        <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-                            <Plus className="w-4 h-4 mr-2"/>
-                            Thêm phòng mới
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="bg-card text-card-foreground border-border">
-                        <DialogHeader>
-                            <DialogTitle className="text-foreground">
-                                {editingRoom ? "Sửa phòng chiếu" : "Thêm phòng mới"}
-                            </DialogTitle>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="name" className="text-foreground">
-                                    Tên phòng
-                                </Label>
-                                <Input
-                                    id="name"
-                                    value={formData.name}
-                                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                                    className="bg-input border-border text-foreground"
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="type" className="text-foreground">
-                                    Loại phòng
-                                </Label>
-                                <Select value={formData.type}
-                                        onValueChange={(value) => setFormData({...formData, type: value})}>
-                                    <SelectTrigger className="bg-input border-border text-foreground">
-                                        <SelectValue placeholder="Chọn loại phòng"/>
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-popover border-border">
-                                        <SelectItem value="Standard">Standard</SelectItem>
-                                        <SelectItem value="VIP">VIP</SelectItem>
-                                        <SelectItem value="IMAX">IMAX</SelectItem>
-                                        <SelectItem value="4DX">4DX</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="rows" className="text-foreground">
-                                        Số hàng
-                                    </Label>
-                                    <Input
-                                        id="rows"
-                                        type="number"
-                                        min="1"
-                                        max="20"
-                                        value={formData.rows}
-                                        onChange={(e) => setFormData({...formData, rows: e.target.value})}
-                                        className="bg-input border-border text-foreground"
-                                    />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="columns" className="text-foreground">
-                                        Số cột
-                                    </Label>
-                                    <Input
-                                        id="columns"
-                                        type="number"
-                                        min="1"
-                                        max="20"
-                                        value={formData.columns}
-                                        onChange={(e) => setFormData({...formData, columns: e.target.value})}
-                                        className="bg-input border-border text-foreground"
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="capacity" className="text-foreground">
-                                    Sức chứa (tự động tính)
-                                </Label>
-                                <Input
-                                    id="capacity"
-                                    type="number"
-                                    value={formData.rows && formData.columns ? (Number(formData.rows) * Number(formData.columns)).toString() : ""}
-                                    disabled
-                                    className="bg-muted border-border text-muted-foreground"
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="status" className="text-foreground">
-                                    Trạng thái
-                                </Label>
-                                <Select
-                                    value={formData.status}
-                                    onValueChange={(value: "active" | "inactive") => setFormData({
-                                        ...formData,
-                                        status: value
-                                    })}
-                                >
-                                    <SelectTrigger className="bg-input border-border text-foreground">
-                                        <SelectValue/>
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-popover border-border">
-                                        <SelectItem value="active">Hoạt động</SelectItem>
-                                        <SelectItem value="inactive">Không hoạt động</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <div className="flex justify-end gap-2">
-                            <Button
-                                variant="outline"
-                                onClick={() => {
-                                    setIsDialogOpen(false)
-                                    resetForm()
-                                }}
-                                className="border-border text-foreground hover:bg-muted"
-                            >
-                                Hủy
-                            </Button>
-                            <Button onClick={handleSubmit}
-                                    className="bg-primary text-primary-foreground hover:bg-primary/90">
-                                Lưu
-                            </Button>
-                        </div>
-                    </DialogContent>
-                </Dialog>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => setRoomTypeOpen(true)}>
+                        Quản lý loại phòng
+                    </Button>
+                    <Button variant="outline" onClick={() => setSeatTypeOpen(true)}>
+                        Quản lý loại ghế
+                    </Button>
+                    <Button onClick={() => setCreateOpen(true)} disabled={loading} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Thêm phòng
+                    </Button>
+                </div>
             </div>
 
-            {/* Search and Filter Section */}
-            <Card className="bg-card border-border p-6">
-                <div className="space-y-4">
-                    <div className="flex items-center gap-2 mb-4">
-                        <Filter className="w-5 h-5 text-primary"/>
-                        <h2 className="text-lg font-semibold text-foreground">Tìm kiếm và Lọc</h2>
+            <Card className="bg-card border-border">
+                <CardHeader>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                        <Filter className="w-4 h-4" />
+                        Bộ lọc & tìm kiếm
                     </div>
-
+                </CardHeader>
+                <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                        {/* Search by name */}
                         <div className="space-y-2">
                             <Label htmlFor="search" className="text-sm font-medium text-foreground">
                                 Tìm kiếm theo tên
                             </Label>
                             <div className="relative">
-                                <Search
-                                    className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground"/>
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                 <Input
                                     id="search"
                                     placeholder="Nhập tên phòng..."
                                     value={searchTerm}
-                                    onChange={(e) => handleFilterChange('search', e.target.value)}
+                                    onChange={(e) => handleFilterChange("search", e.target.value)}
                                     className="pl-10 bg-input border-border text-foreground"
                                 />
                             </div>
                         </div>
 
-                        {/* Filter by type */}
                         <div className="space-y-2">
-                            <Label htmlFor="type-filter" className="text-sm font-medium text-foreground">
-                                Loại phòng
-                            </Label>
-                            <Select value={typeFilter} onValueChange={(value) => handleFilterChange('type', value)}>
+                            <Label className="text-sm font-medium text-foreground">Loại phòng</Label>
+                            <Select value={typeFilter} onValueChange={(v) => handleFilterChange("type", v)}>
                                 <SelectTrigger className="bg-input border-border text-foreground">
-                                    <SelectValue placeholder="Tất cả loại"/>
+                                    <SelectValue placeholder="Tất cả loại" />
                                 </SelectTrigger>
                                 <SelectContent className="bg-popover border-border">
                                     <SelectItem value="all">Tất cả loại</SelectItem>
-                                    <SelectItem value="Standard">Standard</SelectItem>
-                                    <SelectItem value="VIP">VIP</SelectItem>
-                                    <SelectItem value="IMAX">IMAX</SelectItem>
-                                    <SelectItem value="4DX">4DX</SelectItem>
+                                    {roomTypes.map((type) => (
+                                        <SelectItem key={type.id} value={type.id.toString()}>
+                                            {type.name}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
 
-                        {/* Filter by status */}
                         <div className="space-y-2">
-                            <Label htmlFor="status-filter" className="text-sm font-medium text-foreground">
-                                Trạng thái
-                            </Label>
-                            <Select value={statusFilter} onValueChange={(value) => handleFilterChange('status', value)}>
+                            <Label className="text-sm font-medium text-foreground">Trạng thái</Label>
+                            <Select value={statusFilter} onValueChange={(v) => handleFilterChange("status", v)}>
                                 <SelectTrigger className="bg-input border-border text-foreground">
-                                    <SelectValue placeholder="Tất cả trạng thái"/>
+                                    <SelectValue placeholder="Trạng thái" />
                                 </SelectTrigger>
                                 <SelectContent className="bg-popover border-border">
-                                    <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                                    <SelectItem value="all">Tất cả</SelectItem>
                                     <SelectItem value="active">Hoạt động</SelectItem>
                                     <SelectItem value="inactive">Không hoạt động</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
 
-                        {/* Filter by capacity */}
                         <div className="space-y-2">
-                            <Label htmlFor="capacity-filter" className="text-sm font-medium text-foreground">
-                                Sức chứa
-                            </Label>
-                            <Select value={capacityFilter}
-                                    onValueChange={(value) => handleFilterChange('capacity', value)}>
+                            <Label className="text-sm font-medium text-foreground">Sức chứa</Label>
+                            <Select value={capacityFilter} onValueChange={(v) => handleFilterChange("capacity", v)}>
                                 <SelectTrigger className="bg-input border-border text-foreground">
-                                    <SelectValue placeholder="Tất cả sức chứa"/>
+                                    <SelectValue placeholder="Sức chứa" />
                                 </SelectTrigger>
                                 <SelectContent className="bg-popover border-border">
-                                    <SelectItem value="all">Tất cả sức chứa</SelectItem>
-                                    <SelectItem value="small">Nhỏ (&lt; 50 ghế)</SelectItem>
+                                    <SelectItem value="all">Tất cả</SelectItem>
+                                    <SelectItem value="small">Nhỏ (&lt;50 ghế)</SelectItem>
                                     <SelectItem value="medium">Vừa (50-99 ghế)</SelectItem>
-                                    <SelectItem value="large">Lớn (≥ 100 ghế)</SelectItem>
+                                    <SelectItem value="large">Lớn (≥100 ghế)</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
 
-                        {/* Clear filters button */}
                         <div className="space-y-2">
-                            <Label className="text-sm font-medium text-foreground opacity-0">Clear</Label>
-                            <Button
-                                variant="outline"
-                                onClick={clearFilters}
-                                className="w-full text-foreground hover:bg-muted"
-                            >
+                            <Label className="text-sm font-medium text-transparent select-none">Clear</Label>
+                            <Button variant="outline" onClick={clearFilters} className="w-full text-foreground hover:bg-muted">
                                 Xóa bộ lọc
                             </Button>
                         </div>
                     </div>
-
-                    {/* Results summary */}
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <span>
-              Hiển thị {startIndex + 1}-{Math.min(endIndex, filteredRooms.length)} trong {filteredRooms.length} phòng
-            </span>
-                        {filteredRooms.length !== rooms.length && (
-                            <span className="text-primary">
-                {rooms.length - filteredRooms.length} phòng đã được lọc
-              </span>
-                        )}
-                    </div>
-                </div>
+                </CardContent>
             </Card>
 
-            <Card className="bg-card border-border p-6">
-                <Table>
-                    <TableHeader>
-                        <TableRow className="border-border hover:bg-muted/50">
-                            <TableHead className="text-muted-foreground">Tên phòng</TableHead>
-                            <TableHead className="text-muted-foreground">Loại phòng</TableHead>
-                            <TableHead className="text-muted-foreground">Kích thước</TableHead>
-                            <TableHead className="text-muted-foreground">Sức chứa</TableHead>
-                            <TableHead className="text-muted-foreground">Trạng thái</TableHead>
-                            <TableHead className="text-muted-foreground">Thao tác</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {paginatedRooms.map((room) => (
-                            <TableRow key={room.id} className="border-border hover:bg-muted/30">
-                                <TableCell className="font-medium text-foreground">{room.name}</TableCell>
-                                <TableCell className="text-foreground">{room.type}</TableCell>
-                                <TableCell className="text-foreground">{room.rows} x {room.columns}</TableCell>
-                                <TableCell className="text-foreground">{room.capacity} ghế</TableCell>
-                                <TableCell>
-                                    <Badge
-                                        variant={room.status === "active" ? "default" : "secondary"}
-                                        className={
-                                            room.status === "active" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                                        }
-                                    >
-                                        {room.status === "active" ? "Hoạt động" : "Không hoạt động"}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell>
-                                    <div className="flex gap-2">
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => openEditDialog(room)}
-                                            className="text-foreground hover:bg-muted"
-                                        >
-                                            <Pencil className="w-4 h-4"/>
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => handleDelete(room.id)}
-                                            className="text-destructive hover:bg-destructive/10"
-                                        >
-                                            <Trash2 className="w-4 h-4"/>
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => handleSelectRoom(room)}
-                                            className="text-primary hover:bg-primary/10"
-                                        >
-                                            <Settings className="w-4 h-4"/>
-                                        </Button>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                    <div className="flex items-center justify-between mt-6">
-                        <div className="text-sm text-muted-foreground">
-                            Trang {currentPage} / {totalPages}
+            <Card className="bg-card border-border">
+                <CardHeader>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h2 className="text-lg font-semibold text-foreground">Danh sách phòng</h2>
+                            <p className="text-sm text-muted-foreground">
+                                {filteredRooms.length > 0
+                                    ? `Hiển thị ${startIndex + 1}-${Math.min(endIndex, filteredRooms.length)} trong ${filteredRooms.length} phòng`
+                                    : "Không có phòng phù hợp."}
+                            </p>
                         </div>
+                    </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <Table>
+                        <TableHeader>
+                            <TableRow className="border-border hover:bg-muted/50">
+                                <TableHead className="text-muted-foreground">Tên phòng</TableHead>
+                                <TableHead className="text-muted-foreground">Loại phòng</TableHead>
+                                <TableHead className="text-muted-foreground">Kích thước</TableHead>
+                                <TableHead className="text-muted-foreground">Sức chứa</TableHead>
+                                <TableHead className="text-muted-foreground">Trạng thái</TableHead>
+                                <TableHead className="text-muted-foreground text-right">Thao tác</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {paginatedRooms.map((room) => (
+                                <TableRow key={room.id} className="border-border hover:bg-muted/30">
+                                    <TableCell className="font-medium text-foreground">{room.name}</TableCell>
+                                    <TableCell className="text-foreground">{room.roomTypeName}</TableCell>
+                                    <TableCell className="text-foreground">
+                                        {room.rows} x {room.columns}
+                                    </TableCell>
+                                    <TableCell className="text-foreground">{room.capacity} ghế</TableCell>
+                                    <TableCell>
+                                        <Badge
+                                            variant={room.status === "active" ? "default" : "secondary"}
+                                            className={room.status === "active" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}
+                                        >
+                                            {room.status === "active" ? "Hoạt động" : "Không hoạt động"}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <div className="flex justify-end gap-2">
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => openEditDialog(room)}
+                                                className="text-foreground hover:bg-muted"
+                                                type="button"
+                                            >
+                                                <Pencil className="w-4 h-4" />
+                                            </Button>
 
+
+                                            {room.status === "active" ? (
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={() => deactivateRoom(room)}   // đổi: truyền cả room
+                                                    className="text-destructive hover:bg-destructive/10"
+                                                    type="button"
+                                                    title="Vô hiệu hóa"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </Button>
+                                            ) : (
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={() => activateRoom(room)}     // đổi: truyền cả room
+                                                    className="text-primary hover:bg-primary/10"
+                                                    type="button"
+                                                    title="Bật lại"
+                                                >
+                                                    <Plus className="w-4 h-4" />
+                                                </Button>
+                                            )}
+
+
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => handleSelectRoom(room)}
+                                                className="text-primary hover:bg-primary/10"
+                                                type="button"
+                                            >
+                                                <Settings className="w-4 h-4" />
+                                            </Button>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+
+                    <div className="flex items-center justify-between">
+                        <p className="text-sm text-muted-foreground">
+                            Trang {currentPage} / {totalPages} — Tổng {filteredRooms.length} phòng
+                        </p>
                         <div className="flex items-center gap-2">
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                                 disabled={currentPage === 1}
                                 className="text-foreground hover:bg-muted"
                             >
-                                <ChevronLeft className="w-4 h-4 mr-1"/>
+                                <ChevronLeft className="w-4 h-4 mr-1" />
                                 Trước
                             </Button>
-
-                            <div className="flex items-center gap-1">
-                                {Array.from({length: Math.min(5, totalPages)}, (_, i) => {
-                                    let pageNumber
-                                    if (totalPages <= 5) {
-                                        pageNumber = i + 1
-                                    } else if (currentPage <= 3) {
-                                        pageNumber = i + 1
-                                    } else if (currentPage >= totalPages - 2) {
-                                        pageNumber = totalPages - 4 + i
-                                    } else {
-                                        pageNumber = currentPage - 2 + i
-                                    }
-
-                                    return (
-                                        <Button
-                                            key={pageNumber}
-                                            variant={currentPage === pageNumber ? "default" : "outline"}
-                                            size="sm"
-                                            onClick={() => setCurrentPage(pageNumber)}
-                                            className={
-                                                currentPage === pageNumber
-                                                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                                                    : "text-foreground hover:bg-muted"
-                                            }
-                                        >
-                                            {pageNumber}
-                                        </Button>
-                                    )
-                                })}
-                            </div>
-
+                            <span className="text-sm text-muted-foreground">Trang {currentPage}</span>
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                                 disabled={currentPage === totalPages}
                                 className="text-foreground hover:bg-muted"
                             >
                                 Sau
-                                <ChevronRight className="w-4 h-4 ml-1"/>
+                                <ChevronRight className="w-4 h-4 ml-1" />
                             </Button>
                         </div>
                     </div>
-                )}
+                </CardContent>
             </Card>
+
+            <Dialog open={isCreateOpen} onOpenChange={setCreateOpen}>
+                <DialogContent className="bg-card text-card-foreground border border-border/60 sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle className="text-foreground">{editingRoom ? "Sửa phòng chiếu" : "Thêm phòng mới"}</DialogTitle>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="name" className="text-foreground">
+                                Tên phòng
+                            </Label>
+                            <Input
+                                id="name"
+                                value={formData.name}
+                                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                                className="bg-input border-border text-foreground"
+                            />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label className="text-foreground">Loại phòng</Label>
+                            <Select
+                                value={formData.roomTypeId}
+                                onValueChange={(value) => setFormData((prev) => ({ ...prev, roomTypeId: value }))}
+                            >
+                                <SelectTrigger className="bg-input border-border text-foreground">
+                                    <SelectValue placeholder="Chọn loại phòng" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-popover border-border">
+                                    {roomTypes.map((type) => (
+                                        <SelectItem key={type.id} value={type.id.toString()}>
+                                            {type.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="rows" className="text-foreground">
+                                    Số hàng
+                                </Label>
+                                <Input
+                                    id="rows"
+                                    type="number"
+                                    min={1}
+                                    value={formData.rows}
+                                    onChange={(e) => setFormData((prev) => ({ ...prev, rows: e.target.value }))}
+                                    className="bg-input border-border text-foreground"
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="columns" className="text-foreground">
+                                    Số cột
+                                </Label>
+                                <Input
+                                    id="columns"
+                                    type="number"
+                                    min={1}
+                                    value={formData.columns}
+                                    onChange={(e) => setFormData((prev) => ({ ...prev, columns: e.target.value }))}
+                                    className="bg-input border-border text-foreground"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label className="text-foreground">Trạng thái</Label>
+                            <Select
+                                value={formData.status}
+                                onValueChange={(value: "ACTIVE" | "INACTIVE") =>
+                                    setFormData((prev) => ({ ...prev, status: value }))
+                                }
+                            >
+                                <SelectTrigger className="bg-input border-border text-foreground">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-popover border-border">
+                                    <SelectItem value="ACTIVE">Hoạt động</SelectItem>
+                                    <SelectItem value="INACTIVE">Không hoạt động</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-4">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                                setCreateOpen(false)
+                                resetForm()
+                            }}
+                            className="border-border text-foreground hover:bg-muted"
+                        >
+                            Hủy
+                        </Button>
+                        <Button type="button" onClick={handleSubmit} disabled={loading} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                            Lưu
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isRoomTypeOpen} onOpenChange={setRoomTypeOpen}>
+                <DialogContent className="bg-card text-card-foreground border border-border/60 w-[85vw] max-w-[85vw] h-[92vh] p-0 rounded-lg shadow-xl sm:max-w-none">
+                    <DialogHeader className="sticky top-0 z-10 bg-card px-5 py-3 border-b border-border/60 rounded-t-lg">
+                        <DialogTitle className="text-foreground">Quản lý loại phòng</DialogTitle>
+                    </DialogHeader>
+                    <div className="h-[calc(92vh-56px)] overflow-y-auto overflow-x-hidden p-5">
+                        <RoomTypeManager />
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isSeatTypeOpen} onOpenChange={setSeatTypeOpen}>
+                <DialogContent className="bg-card text-card-foreground border border-border/60 w-[85vw] max-w-[85vw] h-[92vh] p-0 rounded-lg shadow-xl sm:max-w-none">
+                    <DialogHeader className="sticky top-0 z-10 bg-card px-5 py-3 border-b border-border/60 rounded-t-lg">
+                        <DialogTitle className="text-foreground">Quản lý loại ghế</DialogTitle>
+                    </DialogHeader>
+                    <div className="h-[calc(92vh-56px)] overflow-y-auto overflow-x-hidden p-5">
+                        <SeatTypeManager />
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
