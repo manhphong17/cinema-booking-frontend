@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge"
 import { Filter, Pencil, Plus, Search, Trash2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { roomTypesApi, type RoomTypeDto } from "@/src/api/interceptor"
+import { roomTypesApi } from "@/app/api/room/room-types"
+import type { RoomTypeDto } from "@/app/api/room/rooms"
 
 type Status = "active" | "inactive"
 
