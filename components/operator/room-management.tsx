@@ -17,8 +17,9 @@ import {
     fetchRooms, fetchRoomMeta, createRoom as createRoomApi,
     updateRoom as updateRoomApi, deleteRoom as deleteRoomApi,
     type RoomDto, type RoomTypeDto, type SeatTypeDto,
-} from "../../src/api/rooms"
-import { fetchSeatMatrix, saveSeatMatrix, type SeatCellDto } from "../../src/api/seats"
+} from "@/app/api/room/rooms"
+import { fetchSeatMatrix, saveSeatMatrix, type SeatCellDto } from "@/app/api/room/seats"
+
 
 const RoomTypeManager = dynamic(
     () => import("@/components/operator/roomType-managerment").then((m) => m.default),
