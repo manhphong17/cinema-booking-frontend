@@ -5,10 +5,33 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Minus, ShoppingCart } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useMemo, useState, useEffect } from "react"
+import { useMemo, useState, useEffect, useCallback, useRef } from "react"
+import { useToast } from "@/hooks/use-toast"
 import { apiClient } from "@/src/api/interceptor"
 import BookingOrderSummary, { SeatInfo, ConcessionInfo, MovieInfo } from "./booking-order-summary"
 import { jwtDecode } from "jwt-decode"
+import { useSeatWebSocket } from "@/hooks/use-seat-websocket"
+
+type TicketResponse = {
+  ticketId: number
+  rowIdx: number
+  columnInx: number
+  seatType: string
+  seatStatus: string
+  ticketPrice: number
+}
+
+type ShowtimeSeatData = {
+  showTimeId: number
+  roomId: number
+  ticketResponses: TicketResponse[]
+}
+
+type ShowtimeSeatResponse = {
+  status: number
+  message: string
+  data: ShowtimeSeatData[]
+}
 
 type ConcessionSelectionPageProps = {
   movieId: string | null
@@ -34,7 +57,15 @@ export default function ConcessionSelectionPage({
   const [loadingConcessions, setLoadingConcessions] = useState(false)
   const [selectedConcessions, setSelectedConcessions] = useState<{[key: string]: number}>({})
   const [userId, setUserId] = useState<number | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // Seat data
+  const [seatData, setSeatData] = useState<TicketResponse[]>([])
+  const [loadingSeats, setLoadingSeats] = useState(false)
+
+  const { toast } = useToast()
+  const bookingExpiredHandlerRef = useRef<(() => void) | null>(null)
+  
   // Get userId from token
   useEffect(() => {
     try {
@@ -47,6 +78,41 @@ export default function ConcessionSelectionPage({
       console.error('[Concession Selection] Error decoding token:', error)
     }
   }, [])
+  
+  // Callback khi seat hold hết hạn từ Redis notification (qua WebSocket)
+  const handleSeatHoldExpired = useCallback(() => {
+    if (userId && showtimeId) {
+      console.log('[ConcessionSelection] Seat hold expired via Redis notification')
+      
+      // Hiển thị toast thông báo cho user
+      toast({
+        title: "⏰ Hết thời gian giữ ghế",
+        description: "Thời gian giữ ghế đã hết hạn. Vui lòng chọn lại ghế.",
+        variant: "destructive",
+      })
+      
+      // Redirect về home sau khi hiển thị toast
+      setTimeout(() => {
+        router.push('/home')
+      }, 3000)
+    }
+  }, [userId, showtimeId, router, toast])
+  
+  // Callback để truyền vào BookingOrderSummary
+  const handleBookingExpired = useCallback(() => {
+    if (bookingExpiredHandlerRef.current) {
+      bookingExpiredHandlerRef.current()
+    }
+    handleSeatHoldExpired()
+  }, [handleSeatHoldExpired])
+  
+  // WebSocket connection để nhận EXPIRED message từ Redis
+  const { isConnected } = useSeatWebSocket(
+    showtimeId ? parseInt(showtimeId) : null,
+    userId,
+    !!(showtimeId && userId), // Enable WebSocket nếu có showtimeId và userId
+    handleSeatHoldExpired
+  )
 
   // Fetch concessions
   useEffect(() => {
@@ -73,6 +139,31 @@ export default function ConcessionSelectionPage({
     fetchConcessions()
   }, [])
 
+  // Fetch seat data
+  useEffect(() => {
+    const fetchSeatData = async () => {
+      if (!showtimeId) return
+
+      try {
+        setLoadingSeats(true)
+        const response = await apiClient.get<ShowtimeSeatResponse>(
+          `/bookings/show-times/${showtimeId}/seats`
+        )
+
+        if (response.data?.status === 200 && response.data?.data?.length > 0) {
+          const data = response.data.data[0]
+          setSeatData(data.ticketResponses)
+        }
+      } catch (error) {
+        console.error("Error fetching seat data:", error)
+      } finally {
+        setLoadingSeats(false)
+      }
+    }
+
+    fetchSeatData()
+  }, [showtimeId])
+
   // Helper functions
   const updateConcessionQuantity = (comboId: string, quantity: number) => {
     if (quantity <= 0) {
@@ -85,11 +176,46 @@ export default function ConcessionSelectionPage({
   }
 
   const getSeatPrice = (seatId: string) => {
-    // Use hardcoded prices based on row
-    const row = seatId[0]
-    if (row === 'H') return 200000
-    if (['E', 'F', 'G'].includes(row)) return 150000
-    return 100000
+    if (seatData.length === 0) {
+      // Fallback to hardcoded prices if seat data not loaded yet
+      const row = seatId[0]
+      if (row === 'H') return 200000
+      if (['E', 'F', 'G'].includes(row)) return 150000
+      return 100000
+    }
+
+    const seat = seatData.find(ticket => {
+      const rowLabel = String.fromCharCode(65 + ticket.rowIdx)
+      const seatNumber = ticket.columnInx + 1
+      const expectedSeatId = `${rowLabel}${seatNumber}`
+      return expectedSeatId === seatId
+    })
+
+    return seat ? seat.ticketPrice : 100000
+  }
+
+  const getSeatType = (seatId: string): 'standard' | 'vip' | 'premium' => {
+    if (seatData.length === 0) {
+      // Fallback to hardcoded type if seat data not loaded yet
+      const row = seatId[0]
+      if (row === 'H') return 'premium'
+      if (['E', 'F', 'G'].includes(row)) return 'vip'
+      return 'standard'
+    }
+
+    const seat = seatData.find(ticket => {
+      const rowLabel = String.fromCharCode(65 + ticket.rowIdx)
+      const seatNumber = ticket.columnInx + 1
+      const expectedSeatId = `${rowLabel}${seatNumber}`
+      return expectedSeatId === seatId
+    })
+
+    if (!seat) return 'standard'
+    
+    const seatTypeLower = seat.seatType.toLowerCase()
+    if (seatTypeLower === 'vip') return 'vip'
+    if (seatTypeLower === 'premium') return 'premium'
+    return 'standard'
   }
 
   const getSeatTotal = () => {
@@ -115,19 +241,13 @@ export default function ConcessionSelectionPage({
     if (!seats) return []
     return seats.split(',').map(seatId => {
       const trimmedSeatId = seatId.trim()
-      const row = trimmedSeatId[0]
-      let price = 100000
-      let type: 'standard' | 'vip' | 'premium' = 'standard'
-      if (row === 'H') {
-        price = 200000
-        type = 'premium'
-      } else if (['E', 'F', 'G'].includes(row)) {
-        price = 150000
-        type = 'vip'
+      return { 
+        id: trimmedSeatId, 
+        type: getSeatType(trimmedSeatId), 
+        price: getSeatPrice(trimmedSeatId) 
       }
-      return { id: trimmedSeatId, type, price }
     })
-  }, [seats])
+  }, [seats, seatData])
 
   const concessionsInfo: ConcessionInfo[] = useMemo(() => {
     const result: ConcessionInfo[] = []
@@ -157,23 +277,70 @@ export default function ConcessionSelectionPage({
     }
   }, [date, time, hall])
 
-  const handleContinue = () => {
-    // Handle concession mode - go to payment
-    const comboData = Object.entries(selectedConcessions)
-      .map(([comboId, quantity]) => ({ comboId, quantity }))
-      .filter(item => item.quantity > 0)
-    
-    const params = new URLSearchParams({
-      movieId: movieId || '',
-      showtimeId: showtimeId || '',
-      seats: seats || '',
-      date: date || '',
-      time: time || '',
-      hall: hall || '',
-      combos: JSON.stringify(comboData)
-    })
-    
-    router.push(`/booking/payment?${params.toString()}`)
+  const handleContinue = async () => {
+    if (!showtimeId || !userId) {
+      toast({
+        title: "❌ Lỗi",
+        description: "Thông tin đặt vé không hợp lệ",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (isSubmitting) return // Prevent multiple submissions
+
+    try {
+      setIsSubmitting(true)
+      
+      // Prepare concession data
+      const concessions = Object.entries(selectedConcessions)
+        .map(([comboId, quantity]) => ({ 
+          comboId: parseInt(comboId), 
+          quantity 
+        }))
+        .filter(item => item.quantity > 0)
+
+      // Call API to add concessions to order session
+      const response = await apiClient.post("/bookings/order-session/concessions", {
+        showtimeId: parseInt(showtimeId),
+        userId: userId,
+        concessions: concessions
+      })
+
+      if (response.data?.status === 200) {
+        // Navigate to payment page
+        const comboData = Object.entries(selectedConcessions)
+          .map(([comboId, quantity]) => ({ comboId, quantity }))
+          .filter(item => item.quantity > 0)
+        
+        const params = new URLSearchParams({
+          movieId: movieId || '',
+          showtimeId: showtimeId || '',
+          seats: seats || '',
+          date: date || '',
+          time: time || '',
+          hall: hall || '',
+          combos: JSON.stringify(comboData)
+        })
+        
+        router.push(`/booking/payment?${params.toString()}`)
+      } else {
+        toast({
+          title: "❌ Lỗi",
+          description: "Không thể thêm sản phẩm vào đơn hàng. Vui lòng thử lại.",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error adding concessions to order session:", error)
+      toast({
+        title: "❌ Lỗi",
+        description: "Không thể thêm sản phẩm vào đơn hàng. Vui lòng thử lại.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -269,12 +436,16 @@ export default function ConcessionSelectionPage({
               showtimeId={showtimeId ? parseInt(showtimeId) : null}
               userId={userId}
               movieId={movieId}
+              onSeatHoldExpired={(handler) => {
+                bookingExpiredHandlerRef.current = handler
+              }}
               actionButton={
                 <Button
                   onClick={handleContinue}
-                  className="w-full bg-gradient-to-r from-black to-gray-900 hover:from-gray-900 hover:to-black text-white font-semibold px-8 py-3 shadow-2xl hover:shadow-gray-900/50 transition-all duration-300 hover:scale-105 border-2 border-gray-800 active:scale-95"
+                  disabled={isSubmitting}
+                  className="w-full bg-gradient-to-r from-black to-gray-900 hover:from-gray-900 hover:to-black text-white font-semibold px-8 py-3 shadow-2xl hover:shadow-gray-900/50 transition-all duration-300 hover:scale-105 border-2 border-gray-800 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Tiếp tục thanh toán
+                  {isSubmitting ? 'Đang xử lý...' : 'Tiếp tục thanh toán'}
                 </Button>
               }
             />

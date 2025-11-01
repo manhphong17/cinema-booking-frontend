@@ -13,7 +13,8 @@ import {
 export function useSeatWebSocket(
   showtimeId: number | null,
   userId: number | null,
-  enabled: boolean = true
+  enabled: boolean = true,
+  onExpired?: (userId: number, showtimeId: number) => void
 ) {
   const clientRef = useRef<Client | null>(null)
   const [isConnected, setIsConnected] = useState(false)
@@ -62,8 +63,14 @@ export function useSeatWebSocket(
       })
     } else if (message.status === 'FAILED') {
       console.warn('[useSeatWebSocket] Seat selection failed for user', message.userId)
+    } else if (message.status === 'EXPIRED') {
+      // Seat hold expired - notify callback
+      console.log('[useSeatWebSocket] Seat hold expired for user', message.userId, 'showtime', message.showtimeId)
+      if (onExpired) {
+        onExpired(message.userId, message.showtimeId)
+      }
     }
-  }, [])
+  }, [onExpired])
 
   // Connect to WebSocket
   useEffect(() => {

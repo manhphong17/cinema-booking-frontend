@@ -4,7 +4,7 @@ import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card"
 import {Badge} from "@/components/ui/badge"
 import {Button} from "@/components/ui/button"
 import {Calendar, Clock, CreditCard, Crown, MapPin, Sofa, Users} from "lucide-react"
-import {ReactNode, useEffect, useState} from "react"
+import {ReactNode, useEffect, useState, useRef, useCallback} from "react"
 import {useRouter} from "next/navigation"
 import {apiClient} from "@/src/api/interceptor"
 
@@ -54,6 +54,14 @@ type BookingOrderSummaryProps = {
   movieId?: string | null
   onCountdownExpire?: () => void
   
+  // Trigger để sync TTL ngay khi user chọn ghế (từ component cha)
+  triggerSync?: number | null
+  
+  // Callback để component cha register handler khi nhận EXPIRED message từ WebSocket
+  // Component cha sẽ truyền function này: (handler) => { ref.current = handler }
+  // Sau đó khi nhận EXPIRED message, component cha sẽ gọi handler()
+  onSeatHoldExpired?: (handler: () => void) => void
+  
   // Action button (optional)
   actionButton?: ReactNode
   
@@ -77,23 +85,87 @@ export default function BookingOrderSummary({
   onCountdownExpire,
   actionButton,
   title = "Tóm tắt đơn hàng",
-  showSeatTypeStats = false
+  showSeatTypeStats = false,
+  triggerSync,
+  onSeatHoldExpired
 }: BookingOrderSummaryProps) {
   const router = useRouter()
-  const [internalCountdown, setInternalCountdown] = useState(600)
-  const [startTime, setStartTime] = useState<number | null>(null)
+  // Khởi tạo countdown = 0, chỉ hiển thị khi có TTL từ backend (> 0)
+  const [internalCountdown, setInternalCountdown] = useState(0)
+  const [hasTTLFromBackend, setHasTTLFromBackend] = useState(false) // Flag để biết đã có TTL từ backend chưa
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null) // Ref để lưu timeout cho retry
+  
+  // Function để xử lý khi seat hold hết hạn (được gọi từ component cha khi nhận EXPIRED message)
+  // Component cha đã xử lý redirect, chỉ cần reset state ở đây
+  const handleSeatHoldExpired = useCallback(() => {
+    console.log('[BookingOrderSummary] Seat hold expired from Redis notification')
+    const storageKey = `booking_timer_${movieId}_${showtimeId}`
+    sessionStorage.removeItem(storageKey)
+    setInternalCountdown(0)
+    setHasTTLFromBackend(false)
+    
+    // Gọi callback nếu có, component cha sẽ xử lý redirect
+    if (onCountdownExpire) {
+      onCountdownExpire()
+    }
+    // KHÔNG redirect ở đây - component cha đã xử lý redirect trong handleSeatHoldExpired của nó
+  }, [movieId, showtimeId, onCountdownExpire])
+  
+  // Expose handleSeatHoldExpired qua onSeatHoldExpired callback
+  useEffect(() => {
+    if (onSeatHoldExpired) {
+      // Component cha sẽ register handler này vào ref của nó
+      // Sau đó khi nhận EXPIRED message, component cha sẽ gọi handler()
+      onSeatHoldExpired(handleSeatHoldExpired)
+    }
+  }, [onSeatHoldExpired, handleSeatHoldExpired])
 
   // Determine if we're in auto mode (manage countdown internally) or manual mode (use external countdown)
+  // Auto mode: tự động lấy TTL từ backend khi có đủ showtimeId, userId, movieId
   const isAutoMode = externalCountdown === undefined && showtimeId && userId && movieId
-  const countdown = isAutoMode ? internalCountdown : (externalCountdown ?? undefined)
+  
+  // Debug log
+  useEffect(() => {
+    if (isAutoMode) {
+      console.log('[BookingOrderSummary] Auto mode enabled:', { showtimeId, userId, movieId })
+    } else {
+      console.log('[BookingOrderSummary] Auto mode disabled:', { 
+        externalCountdown, 
+        showtimeId, 
+        userId, 
+        movieId 
+      })
+    }
+  }, [isAutoMode, showtimeId, userId, movieId, externalCountdown])
+  
+  // Countdown chỉ hiển thị khi:
+  // - Manual mode: có externalCountdown
+  // - Auto mode: đã có TTL từ backend (hasTTLFromBackend = true và internalCountdown > 0)
+  const countdown = isAutoMode 
+    ? (hasTTLFromBackend && internalCountdown > 0 ? internalCountdown : undefined)
+    : (externalCountdown ?? undefined)
 
   // Auto mode: Sync countdown with backend TTL
   useEffect(() => {
     if (!isAutoMode) return
 
     const storageKey = `booking_timer_${movieId}_${showtimeId}`
+    let isSyncInProgress = false // Flag để tránh duplicate calls
 
     async function syncTTLFromBackend() {
+      // Tránh sync nếu đang có request đang chạy (debounce)
+      if (isSyncInProgress) {
+        return
+      }
+      
+      // Nếu đã có TTL từ backend rồi (đã gọi lần đầu), không cần gọi lại
+      // Vì countdown sẽ tự giảm dần, và Redis expiration notification sẽ thông báo khi hết hạn
+      if (hasTTLFromBackend) {
+        console.log('[BookingOrderSummary] Already have TTL, skipping sync (will use Redis expiration notification)')
+        return
+      }
+      
+      isSyncInProgress = true
       try {
         const response = await apiClient.get(
           `/bookings/show-times/${showtimeId}/users/${userId}/seat-hold/ttl`
@@ -101,96 +173,183 @@ export default function BookingOrderSummary({
 
         if (response.data?.status === 200 && response.data?.data !== undefined) {
           const backendTTL = Math.max(0, response.data.data as number)
+          console.log('[BookingOrderSummary] Backend TTL:', backendTTL)
           
           if (backendTTL > 0) {
+            // Trực tiếp sử dụng TTL từ backend làm countdown
+            // TTL chỉ tồn tại khi user đã chọn ghế (seatHold được tạo trong Redis)
             setInternalCountdown(backendTTL)
+            setHasTTLFromBackend(true) // Đánh dấu đã có TTL từ backend
             
+            // Lưu expireTime (thời điểm hết hạn) vào sessionStorage để dùng làm fallback
+            // khi backend không trả về TTL (ví dụ: mạng lỗi, refresh trang)
             const currentTime = Date.now()
-            const estimatedDuration = 600
-            const estimatedStartTime = currentTime - (estimatedDuration - backendTTL) * 1000
-            setStartTime(estimatedStartTime)
-            sessionStorage.setItem(storageKey, estimatedStartTime.toString())
+            const expireTime = currentTime + backendTTL * 1000
+            sessionStorage.setItem(storageKey, expireTime.toString())
           } else {
-            const savedStartTime = sessionStorage.getItem(storageKey)
-
-            if (savedStartTime) {
-              const savedTime = parseInt(savedStartTime)
-              const elapsed = Math.floor((Date.now() - savedTime) / 1000)
-              const remaining = Math.max(0, 600 - elapsed)
-
-              if (remaining > 0) {
-                setStartTime(savedTime)
-                setInternalCountdown(remaining)
-              } else {
-                sessionStorage.removeItem(storageKey)
-                if (onCountdownExpire) {
-                  onCountdownExpire()
-                } else {
-                  router.push('/booking')
-                }
-              }
+            // Backend TTL = 0 hoặc không tồn tại
+            // Có 2 trường hợp:
+            // 1. User chưa chọn ghế lần nào -> chưa có seatHold -> TTL = 0 (bình thường, không redirect)
+            // 2. User đã chọn ghế nhưng key bị xóa/hết hạn -> TTL = 0 (cần redirect)
+            
+            const savedExpireTime = sessionStorage.getItem(storageKey)
+            
+            if (savedExpireTime) {
+              // Có data trong sessionStorage -> đã từng có seatHold
+              // Nghĩa là user đã chọn ghế nhưng backend đã xóa key hoặc hết hạn
+              // KHÔNG redirect ở đây - Redis expiration notification sẽ xử lý redirect qua WebSocket
+              console.log('[BookingOrderSummary] Backend TTL = 0 và có sessionStorage -> đã hết hạn. Redis notification sẽ xử lý redirect.')
+              
+              // Xóa sessionStorage vì đã không còn hợp lệ
+              sessionStorage.removeItem(storageKey)
+              
+              // Dừng countdown ngay (set về 0) và reset flag
+              setInternalCountdown(0)
+              setHasTTLFromBackend(false)
+              
+              // KHÔNG redirect - đợi Redis expiration notification qua WebSocket
             } else {
-              const newStartTime = Date.now()
-              setStartTime(newStartTime)
-              setInternalCountdown(600)
-              sessionStorage.setItem(storageKey, newStartTime.toString())
+              // Không có data trong sessionStorage -> user chưa chọn ghế lần nào
+              // Đây là trường hợp bình thường, không redirect, chỉ không hiển thị countdown
+              console.log('[BookingOrderSummary] Backend TTL = 0 và không có sessionStorage -> user chưa chọn ghế. Không redirect.')
+              setInternalCountdown(0)
+              setHasTTLFromBackend(false) // Chưa có TTL từ backend
+              // Không redirect, user có thể tiếp tục ở trang chọn ghế
             }
           }
         }
       } catch (error) {
         console.error('[BookingOrderSummary] Error fetching TTL from backend:', error)
-        const savedStartTime = sessionStorage.getItem(storageKey)
-        if (savedStartTime) {
-          const savedTime = parseInt(savedStartTime)
-          const elapsed = Math.floor((Date.now() - savedTime) / 1000)
-          const remaining = Math.max(0, 600 - elapsed)
+        
+        // Nếu lỗi API, chỉ dùng sessionStorage làm fallback tạm thời
+        // (có thể do mạng lỗi, không phải do backend xóa key)
+        const savedExpireTime = sessionStorage.getItem(storageKey)
+        if (savedExpireTime) {
+          const expireTime = parseInt(savedExpireTime)
+          const currentTime = Date.now()
+          const remaining = Math.max(0, Math.floor((expireTime - currentTime) / 1000))
 
           if (remaining > 0) {
-            setStartTime(savedTime)
+            // Tính lại countdown từ expireTime đã lưu (fallback khi mạng lỗi)
+            console.log('[BookingOrderSummary] Using sessionStorage fallback due to API error, remaining:', remaining)
             setInternalCountdown(remaining)
           } else {
+            // Đã hết hạn
+            // KHÔNG redirect ở đây - Redis expiration notification sẽ xử lý redirect qua WebSocket
+            console.log('[BookingOrderSummary] SessionStorage expired. Redis notification sẽ xử lý redirect.')
             sessionStorage.removeItem(storageKey)
-            if (onCountdownExpire) {
-              onCountdownExpire()
-            } else {
-              router.push('/booking')
-            }
+            setInternalCountdown(0)
+            setHasTTLFromBackend(false)
+            // KHÔNG redirect - đợi Redis expiration notification qua WebSocket
           }
         } else {
-          const newStartTime = Date.now()
-          setStartTime(newStartTime)
-          setInternalCountdown(600)
-          sessionStorage.setItem(storageKey, newStartTime.toString())
+          // Không có dữ liệu, có thể là lần đầu vào trang
+          // Không set countdown (sẽ không hiển thị cho đến khi có TTL từ backend)
+          console.log('[BookingOrderSummary] No sessionStorage data, waiting for backend TTL')
+          setInternalCountdown(0)
         }
+      } finally {
+        isSyncInProgress = false
       }
     }
 
+    // CHỈ gọi TTL 1 lần duy nhất khi component mount hoặc khi triggerSync thay đổi (user chọn ghế)
+    // Không cần polling interval vì đã có Redis expiration notification qua WebSocket real-time
+    // Countdown sẽ tự giảm dần, và khi nhận EXPIRED message thì dừng countdown
     syncTTLFromBackend()
-    const syncInterval = setInterval(syncTTLFromBackend, 10000) // Sync every 10 seconds
 
-    return () => clearInterval(syncInterval)
-  }, [isAutoMode, showtimeId, userId, movieId, onCountdownExpire, router])
-
-  // Auto mode: Decrease countdown every second
+    return () => {
+      isSyncInProgress = false
+    }
+  }, [isAutoMode, showtimeId, userId, movieId, triggerSync, hasTTLFromBackend])
+  
+  // Trigger sync ngay khi user chọn ghế (triggerSync thay đổi)
   useEffect(() => {
-    if (!isAutoMode || !startTime) return
+    if (!isAutoMode || !triggerSync) return
+    
+    // Clear timeout cũ nếu có
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current)
+      retryTimeoutRef.current = null
+    }
+    
+    const storageKey = `booking_timer_${movieId}_${showtimeId}`
+    let retryCount = 0
+    const maxRetries = 5 // Giảm xuống 5 lần retry (tối đa 1.5 giây)
+    
+    // Polling để lấy TTL ngay khi backend tạo seatHold
+    // Delay nhỏ để backend kịp xử lý WebSocket selectSeats
+    const syncTTL = async () => {
+      try {
+        console.log('[BookingOrderSummary] Trigger sync due to seat selection, attempt:', retryCount + 1)
+        const response = await apiClient.get(
+          `/bookings/show-times/${showtimeId}/users/${userId}/seat-hold/ttl`
+        )
+        
+        if (response.data?.status === 200 && response.data?.data !== undefined) {
+          const backendTTL = Math.max(0, response.data.data as number)
+          if (backendTTL > 0) {
+            console.log('[BookingOrderSummary] Got TTL from backend after seat selection:', backendTTL)
+            setInternalCountdown(backendTTL)
+            setHasTTLFromBackend(true) // Đánh dấu đã có TTL từ backend -> hiển thị countdown
+            const currentTime = Date.now()
+            const expireTime = currentTime + backendTTL * 1000
+            sessionStorage.setItem(storageKey, expireTime.toString())
+            // Clear timeout nếu có
+            if (retryTimeoutRef.current) {
+              clearTimeout(retryTimeoutRef.current)
+              retryTimeoutRef.current = null
+            }
+            return // Đã lấy được TTL, dừng retry
+          } else if (retryCount < maxRetries) {
+            // Backend chưa kịp tạo seatHold, retry sau 300ms (tăng delay để giảm tải)
+            retryCount++
+            retryTimeoutRef.current = setTimeout(() => syncTTL(), 300)
+          } else {
+            console.log('[BookingOrderSummary] Max retries reached, backend may not have created seatHold')
+          }
+        }
+      } catch (error) {
+        console.error('[BookingOrderSummary] Error in trigger sync:', error)
+        // Retry nếu lỗi và chưa đạt max retries
+        if (retryCount < maxRetries) {
+          retryCount++
+          retryTimeoutRef.current = setTimeout(() => syncTTL(), 300)
+        }
+      }
+    }
+    
+    // Delay nhỏ (300ms) để backend kịp xử lý WebSocket selectSeats trước khi fetch TTL
+    retryTimeoutRef.current = setTimeout(() => syncTTL(), 300)
+    
+    // Cleanup: clear timeout khi component unmount hoặc dependencies thay đổi
+    return () => {
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current)
+        retryTimeoutRef.current = null
+      }
+    }
+  }, [triggerSync, isAutoMode, showtimeId, userId, movieId])
+
+  // Auto mode: Decrease countdown every second (chỉ đếm ngược khi đã có TTL từ backend)
+  // KHÔNG redirect khi countdown về 0 - Redis expiration notification sẽ xử lý redirect
+  useEffect(() => {
+    if (!isAutoMode || internalCountdown <= 0) return
 
     const timer = setInterval(() => {
       setInternalCountdown(prev => {
-        if (prev <= 1) {
-          if (onCountdownExpire) {
-            onCountdownExpire()
-          } else {
-            router.push('/booking')
-          }
-          return 0
+        const newValue = Math.max(0, prev - 1)
+        // Chỉ dừng countdown khi về 0, KHÔNG redirect
+        // Redirect sẽ được xử lý bởi Redis expiration notification qua WebSocket
+        if (newValue <= 0) {
+          setHasTTLFromBackend(false) // Reset flag để ẩn countdown
         }
-        return prev - 1
+        return newValue
       })
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [isAutoMode, startTime, onCountdownExpire, router])
+  }, [isAutoMode, internalCountdown])
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60)

@@ -14,7 +14,7 @@ export type SeatTicketDTO = {
 
 export type SeatUpdateMessage = {
   seats: SeatTicketDTO[]
-  status: string
+  status: string // 'HELD' | 'RELEASED' | 'FAILED' | 'EXPIRED'
   userId: number
   showtimeId: number
 }
