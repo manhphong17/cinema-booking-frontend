@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Film, User, ShoppingBag, Gift, LogOut, Mail, Phone, MapPin, Facebook, Instagram, Youtube, Menu, X } from "lucide-react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import {jwtDecode} from "jwt-decode";
 
 interface HomeLayoutProps {
@@ -610,34 +611,34 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                             </h3>
                             <ul className="space-y-3">
                                 <li>
-                                    <a href="#now-showing" className="group flex items-center gap-3 text-gray-300 hover:text-white transition-colors duration-300">
+                                    <Link href="/movies/now-showing" className="group flex items-center gap-3 text-gray-300 hover:text-white transition-colors duration-300">
                                         <div className="w-1 h-1 bg-gray-500 group-hover:bg-red-500 rounded-full transition-colors duration-300"></div>
                                         <span className="text-sm">Phim đang chiếu</span>
-                                    </a>
+                                    </Link>
                                 </li>
                                 <li>
-                                    <a href="#coming-soon" className="group flex items-center gap-3 text-gray-300 hover:text-white transition-colors duration-300">
+                                    <Link href="/movies/coming-soon" className="group flex items-center gap-3 text-gray-300 hover:text-white transition-colors duration-300">
                                         <div className="w-1 h-1 bg-gray-500 group-hover:bg-red-500 rounded-full transition-colors duration-300"></div>
                                         <span className="text-sm">Phim sắp chiếu</span>
-                                    </a>
+                                    </Link>
                                 </li>
                                 <li>
-                                    <a href="#vouchers" className="group flex items-center gap-3 text-gray-300 hover:text-white transition-colors duration-300">
+                                    <Link href="/vouchers" className="group flex items-center gap-3 text-gray-300 hover:text-white transition-colors duration-300">
                                         <div className="w-1 h-1 bg-gray-500 group-hover:bg-red-500 rounded-full transition-colors duration-300"></div>
                                         <span className="text-sm">Voucher</span>
-                                    </a>
+                                    </Link>
                                 </li>
                                 <li>
-                                    <a href="#news" className="group flex items-center gap-3 text-gray-300 hover:text-white transition-colors duration-300">
+                                    <Link href="/news" className="group flex items-center gap-3 text-gray-300 hover:text-white transition-colors duration-300">
                                         <div className="w-1 h-1 bg-gray-500 group-hover:bg-red-500 rounded-full transition-colors duration-300"></div>
                                         <span className="text-sm">Tin tức</span>
-                                    </a>
+                                    </Link>
                                 </li>
                                 <li>
-                                    <a href="#about" className="group flex items-center gap-3 text-gray-300 hover:text-white transition-colors duration-300">
+                                    <Link href="/home#about" className="group flex items-center gap-3 text-gray-300 hover:text-white transition-colors duration-300">
                                         <div className="w-1 h-1 bg-gray-500 group-hover:bg-red-500 rounded-full transition-colors duration-300"></div>
                                         <span className="text-sm">Về chúng tôi</span>
-                                    </a>
+                                    </Link>
                                 </li>
                             </ul>
                         </div>
@@ -649,13 +650,13 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                                 Kết nối với chúng tôi
                             </h3>
                             <div className="flex gap-4 mb-8">
-                                <a href="#" className="group bg-gray-800 p-3 rounded-xl hover:bg-red-600 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-red-500/25">
+                                <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="group bg-gray-800 p-3 rounded-xl hover:bg-red-600 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-red-500/25">
                                     <Facebook className="h-5 w-5 text-gray-300 group-hover:text-white" />
                                 </a>
-                                <a href="#" className="group bg-gray-800 p-3 rounded-xl hover:bg-red-600 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-red-500/25">
+                                <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="group bg-gray-800 p-3 rounded-xl hover:bg-red-600 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-red-500/25">
                                     <Instagram className="h-5 w-5 text-gray-300 group-hover:text-white" />
                                 </a>
-                                <a href="#" className="group bg-gray-800 p-3 rounded-xl hover:bg-red-600 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-red-500/25">
+                                <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" className="group bg-gray-800 p-3 rounded-xl hover:bg-red-600 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-red-500/25">
                                     <Youtube className="h-5 w-5 text-gray-300 group-hover:text-white" />
                                 </a>
                             </div>
@@ -681,9 +682,9 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                                 </p>
                             </div>
                             <div className="flex items-center gap-6 text-xs text-gray-400">
-                                <a href="#" className="hover:text-white transition-colors duration-300">Điều khoản sử dụng</a>
-                                <a href="#" className="hover:text-white transition-colors duration-300">Chính sách bảo mật</a>
-                                <a href="#" className="hover:text-white transition-colors duration-300">Hỗ trợ</a>
+                                <Link href="/terms" className="hover:text-white transition-colors duration-300">Điều khoản sử dụng</Link>
+                                <Link href="/privacy" className="hover:text-white transition-colors duration-300">Chính sách bảo mật</Link>
+                                <Link href="/support" className="hover:text-white transition-colors duration-300">Hỗ trợ</Link>
                             </div>
                         </div>
                     </div>

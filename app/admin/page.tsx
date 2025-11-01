@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { AdminLayout } from "@/components/layouts/admin-layout"
 import { AccountManagement } from "@/components/admin/account-management"
 import { CinemaInformation } from "@/components/admin/cinema-information"
@@ -11,9 +11,30 @@ import { ProfileManagement } from "@/components/admin/profile"
 
 export default function AdminPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [mounted, setMounted] = useState(false)
   const [activeSection, setActiveSection] = useState("dashboard")
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+
+  // Handle OAuth callback - get access token from URL
+  useEffect(() => {
+    const token = searchParams.get('token')
+    if (token) {
+      // Store access token in localStorage
+      localStorage.setItem('accessToken', token)
+      // Decode token to get role information
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        if (payload.authorities && Array.isArray(payload.authorities)) {
+          localStorage.setItem('roleName', JSON.stringify(payload.authorities))
+        }
+      } catch (error) {
+        console.error('Error decoding token:', error)
+      }
+      // Remove token from URL for security
+      router.replace('/admin', { scroll: false })
+    }
+  }, [searchParams, router])
 
   useEffect(() => {
     setMounted(true)

@@ -2,9 +2,9 @@
 
 import { HomeLayout } from "@/components/layouts/home-layout"
 import { useSearchParams } from "next/navigation"
-import BookingSelectionPage from "@/components/booking/booking-selection-page"
+import ConcessionSelectionPage from "@/components/booking/concession-selection-page"
 
-export default function ConcessionSelectionPage() {
+export default function ComboSelectionPage() {
   const searchParams = useSearchParams()
   const movieId = searchParams.get('movieId')
   const showtimeId = searchParams.get('showtimeId')
@@ -15,9 +15,8 @@ export default function ConcessionSelectionPage() {
 
   return (
     <HomeLayout>
-      <BookingSelectionPage
+      <ConcessionSelectionPage
         movieId={movieId}
-        mode="concession"
         seats={seats}
         date={date}
         time={time}

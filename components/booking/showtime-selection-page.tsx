@@ -3,16 +3,13 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, Calendar, Play, MapPin, Monitor, Crown, Zap, Volume2, Loader2, Plus, Minus, ShoppingCart } from "lucide-react"
+import { Clock, Calendar, Play, MapPin, Monitor, Crown, Zap, Volume2, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useMemo, useState, useEffect } from "react"
 import { Movie } from "@/type/movie"
 import { apiClient } from "@/src/api/interceptor"
-import BookingOrderSummary, { SeatInfo, ConcessionInfo, MovieInfo } from "./booking-order-summary"
-import { jwtDecode } from "jwt-decode"
 
-type HallCategory = "standard" | "vip" | "premium" | "atmos"
-
+// Types
 type ShowtimeSlot = {
   startTime: string
   endTime: string
@@ -44,7 +41,7 @@ type RoomResponse = {
   data: RoomInfo[]
 }
 
-
+// Utilities
 const generateNext7Days = () => {
   const days: { date: string; label: string }[] = []
   const formatter = new Intl.DateTimeFormat("vi-VN", { weekday: "long" })
@@ -62,25 +59,11 @@ const generateNext7Days = () => {
   return days
 }
 
-type BookingSelectionPageProps = {
+type ShowtimeSelectionPageProps = {
   movieId: string | null
-  mode?: 'showtime' | 'concession' // Default: 'showtime'
-  seats?: string | null // Required for 'concession' mode
-  date?: string | null
-  time?: string | null
-  hall?: string | null
-  showtimeId?: string | null
 }
 
-export default function BookingSelectionPage({ 
-  movieId,
-  mode = 'showtime',
-  seats,
-  date,
-  time,
-  hall,
-  showtimeId
-}: BookingSelectionPageProps) {
+export default function ShowtimeSelectionPage({ movieId }: ShowtimeSelectionPageProps) {
   const router = useRouter()
   const days = useMemo(() => generateNext7Days(), [])
   const [selectedDate, setSelectedDate] = useState<string>(days[0].date)
@@ -104,16 +87,6 @@ export default function BookingSelectionPage({
   
   // Navigation
   const [isNavigating, setIsNavigating] = useState(false)
-
-  // Concessions (for concession mode)
-  const [concessions, setConcessions] = useState<any[]>([])
-  const [loadingConcessions, setLoadingConcessions] = useState(false)
-  const [selectedConcessions, setSelectedConcessions] = useState<{[key: string]: number}>({})
-  const [userId, setUserId] = useState<number | null>(null)
-  
-  // Seat data (for concession mode to get accurate prices)
-  const [seatData, setSeatData] = useState<any[]>([])
-  const [loadingSeatData, setLoadingSeatData] = useState(false)
 
   // Fetch movie
   useEffect(() => {
@@ -139,79 +112,6 @@ export default function BookingSelectionPage({
     }
     fetchMovieData()
   }, [movieId])
-
-  // Get userId from token
-  useEffect(() => {
-    try {
-      const token = localStorage.getItem('accessToken')
-      if (token) {
-        const decoded: any = jwtDecode(token)
-        setUserId(decoded.userId)
-      }
-    } catch (error) {
-      console.error('[Booking Selection] Error decoding token:', error)
-    }
-  }, [])
-
-  // Initialize selected values from props for concession mode
-  useEffect(() => {
-    if (mode === 'concession') {
-      if (date) setSelectedDate(date)
-      if (time) setSelectedTime(time)
-      if (hall) setSelectedHall(hall)
-    }
-  }, [mode, date, time, hall])
-
-  // Fetch concessions (for concession mode)
-  useEffect(() => {
-    if (mode !== 'concession') return
-
-    const fetchConcessions = async () => {
-      try {
-        setLoadingConcessions(true)
-        const res = await apiClient.get("/concession", {
-          params: {
-            page: 0,
-            size: 100,
-            stockStatus: "IN_STOCK",
-            concessionStatus: "ACTIVE",
-          },
-        })
-        const list = res.data?.data?.content || []
-        setConcessions(list)
-      } catch (error) {
-        console.error("Lỗi khi lấy concessions:", error)
-      } finally {
-        setLoadingConcessions(false)
-      }
-    }
-
-    fetchConcessions()
-  }, [mode])
-
-  // Fetch seat data when in concession mode and showtimeId is available
-  useEffect(() => {
-    if (mode !== 'concession' || !showtimeId) return
-
-    const fetchSeatData = async () => {
-      try {
-        setLoadingSeatData(true)
-        const response = await apiClient.get(
-          `/bookings/show-times/${showtimeId}/seats`
-        )
-        if (response.data?.status === 200 && response.data?.data?.length > 0) {
-          setSeatData(response.data.data[0].ticketResponses || [])
-        }
-      } catch (error) {
-        console.error("Error fetching seat data:", error)
-      } finally {
-        setLoadingSeatData(false)
-      }
-    }
-
-    fetchSeatData()
-  }, [mode, showtimeId])
-
 
   // Fetch showtimes
   const fetchShowtimes = async (id: string, date: string) => {
@@ -275,142 +175,7 @@ export default function BookingSelectionPage({
     }
   }, [movieId, selectedDate])
 
-  // Helper functions for concession mode
-  const updateConcessionQuantity = (comboId: string, quantity: number) => {
-    if (quantity <= 0) {
-      const newSelected = { ...selectedConcessions }
-      delete newSelected[comboId]
-      setSelectedConcessions(newSelected)
-    } else {
-      setSelectedConcessions(prev => ({ ...prev, [comboId]: quantity }))
-    }
-  }
-
-  const getSeatPrice = (seatId: string) => {
-    if (seatData.length > 0) {
-      const ticket = seatData.find(t => {
-        const rowLabel = String.fromCharCode(65 + t.rowIdx)
-        const seatNumber = t.columnInx + 1
-        return `${rowLabel}${seatNumber}` === seatId
-      })
-      if (ticket) {
-        return ticket.ticketPrice
-      }
-    }
-    // Fallback to hardcoded prices if seat data not available
-    const row = seatId[0]
-    if (row === 'H') return 200000
-    if (['E', 'F', 'G'].includes(row)) return 150000
-    return 100000
-  }
-
-  const getSeatTotal = () => {
-    if (!seats) return 0
-    return seats.split(',').reduce((total, seatId) => {
-      return total + getSeatPrice(seatId.trim())
-    }, 0)
-  }
-
-  const getConcessionTotal = () => {
-    return Object.entries(selectedConcessions).reduce((total, [id, qty]) => {
-      const item = concessions.find(c => c.concessionId === parseInt(id))
-      return total + (item ? item.price * qty : 0)
-    }, 0)
-  }
-
-  const getTotalPrice = () => {
-    return getSeatTotal() + getConcessionTotal()
-  }
-
-  // Prepare data for BookingOrderSummary component
-  const seatsInfo: SeatInfo[] = useMemo(() => {
-    if (!seats || mode !== 'concession') return []
-    return seats.split(',').map(seatId => {
-      const trimmedSeatId = seatId.trim()
-      
-      // Try to get from seatData first
-      if (seatData.length > 0) {
-        const ticket = seatData.find(t => {
-          const rowLabel = String.fromCharCode(65 + t.rowIdx)
-          const seatNumber = t.columnInx + 1
-          return `${rowLabel}${seatNumber}` === trimmedSeatId
-        })
-        if (ticket) {
-          const seatType = ticket.seatType.toLowerCase()
-          let type: 'standard' | 'vip' | 'premium' = 'standard'
-          if (seatType.includes('premium')) type = 'premium'
-          else if (seatType.includes('vip')) type = 'vip'
-          return { id: trimmedSeatId, type, price: ticket.ticketPrice }
-        }
-      }
-      
-      // Fallback to hardcoded logic
-      const row = trimmedSeatId[0]
-      let price = 100000
-      let type: 'standard' | 'vip' | 'premium' = 'standard'
-      if (row === 'H') {
-        price = 200000
-        type = 'premium'
-      } else if (['E', 'F', 'G'].includes(row)) {
-        price = 150000
-        type = 'vip'
-      }
-      return { id: trimmedSeatId, type, price }
-    })
-  }, [seats, mode, seatData])
-
-  const concessionsInfo: ConcessionInfo[] = useMemo(() => {
-    if (mode !== 'concession') return []
-    const result: ConcessionInfo[] = []
-    Object.entries(selectedConcessions)
-      .filter(([_, qty]) => qty > 0)
-      .forEach(([comboId, quantity]) => {
-        const item = concessions.find(c => String(c.concessionId) === String(comboId))
-        if (item) {
-          result.push({
-            id: String(comboId),
-            name: item.name,
-            quantity,
-            price: item.price
-          })
-        }
-      })
-    return result
-  }, [selectedConcessions, concessions, mode])
-
-  const movieInfo: MovieInfo | undefined = useMemo(() => {
-    if (!movie || mode !== 'concession') return undefined
-    return {
-      title: movie.name,
-      poster: movie.posterUrl,
-      date: date || undefined,
-      time: time || undefined,
-      hall: hall || undefined
-    }
-  }, [movie, date, time, hall, mode])
-
   const handleContinue = () => {
-    if (mode === 'concession') {
-      // Handle concession mode - go to payment
-      const comboData = Object.entries(selectedConcessions)
-        .map(([comboId, quantity]) => ({ comboId, quantity }))
-        .filter(item => item.quantity > 0)
-      
-      const params = new URLSearchParams({
-        movieId: movieId || '',
-        showtimeId: showtimeId || '',
-        seats: seats || '',
-        date: date || '',
-        time: time || '',
-        hall: hall || '',
-        combos: JSON.stringify(comboData)
-      })
-      
-      router.push(`/booking/payment?${params.toString()}`)
-      return
-    }
-
-    // Handle showtime mode - go to seats
     if (!selectedTime || !selectedHall) {
       return
     }
@@ -466,156 +231,53 @@ export default function BookingSelectionPage({
           <div className="w-20 h-1 bg-gradient-to-r from-primary to-primary/50 rounded-full"></div>
         </div>
 
-        <div className={`grid grid-cols-1 gap-8 ${mode === 'concession' ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}>
-          {/* Left: Movie info - only show in showtime mode */}
-          {mode === 'showtime' && (
-            <div className="lg:col-span-1 lg:sticky lg:top-8 lg:h-fit">
-              <Card className="shadow-xl border-0 bg-gradient-to-br from-background to-gray-50/50 backdrop-blur-sm">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-2 text-primary font-semibold">
-                    <Play className="h-4 w-4" />
-                    <span>Thông tin phim</span>
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+          {/* Left: Movie info */}
+          <div className="lg:col-span-1 lg:sticky lg:top-8 lg:h-fit">
+            <Card className="shadow-xl border-0 bg-gradient-to-br from-background to-gray-50/50 backdrop-blur-sm">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2 text-primary font-semibold">
+                  <Play className="h-4 w-4" />
+                  <span>Thông tin phim</span>
+                </div>
+              </CardHeader>
+              <CardContent className="p-6 pt-0">
+                <div className="text-center mb-4">
+                  <img
+                    src={movie?.posterUrl || "/placeholder.svg"}
+                    alt={movie?.name || "Movie"}
+                    className="w-full max-w-48 mx-auto rounded-lg shadow-lg mb-3"
+                    onError={(e) => {
+                      e.currentTarget.src = "/placeholder.svg"
+                    }}
+                  />
+                  <h2 className="text-lg font-bold mb-2 text-foreground">{movie?.name || "Tên phim"}</h2>
+                  <div className="flex items-center justify-center gap-2 mb-4">
+                    <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                      P{movie?.ageRating || 13}
+                    </Badge>
                   </div>
-                </CardHeader>
-                <CardContent className="p-6 pt-0">
-                  <div className="text-center mb-4">
-                    <img
-                      src={movie?.posterUrl || "/placeholder.svg"}
-                      alt={movie?.name || "Movie"}
-                      className="w-full max-w-48 mx-auto rounded-lg shadow-lg mb-3"
-                      onError={(e) => {
-                        e.currentTarget.src = "/placeholder.svg"
-                      }}
-                    />
-                    <h2 className="text-lg font-bold mb-2 text-foreground">{movie?.name || "Tên phim"}</h2>
-                    <div className="flex items-center justify-center gap-2 mb-4">
-                      <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
-                        P{movie?.ageRating || 13}
-                      </Badge>
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    <div className="flex items-center justify-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      <span>{movie?.duration || 120} phút</span>
                     </div>
-                    <div className="space-y-2 text-sm text-muted-foreground">
-                      <div className="flex items-center justify-center gap-2">
-                        <Clock className="h-4 w-4" />
-                        <span>{movie?.duration || 120} phút</span>
-                      </div>
-                      <div className="flex items-center justify-center gap-2">
-                        <Calendar className="h-4 w-4" />
-                        <span>{movie?.releaseDate ? new Date(movie.releaseDate).getFullYear() : "2024"}</span>
-                      </div>
-                      <div className="flex items-center justify-center gap-2">
-                        <MapPin className="h-4 w-4" />
-                        <span>{movie?.country?.name || "Mỹ"}</span>
-                      </div>
+                    <div className="flex items-center justify-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      <span>{movie?.releaseDate ? new Date(movie.releaseDate).getFullYear() : "2024"}</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      <span>{movie?.country?.name || "Mỹ"}</span>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-          {/* Right: selections */}
-          {mode === 'concession' ? (
-            /* Concession Selection Mode - Full width grid */
-            <>
-              <div className="lg:col-span-3 mb-6">
-                <p className="text-muted-foreground">Thêm đồ ăn và thức uống cho buổi xem phim</p>
-              </div>
-              <div className="lg:col-span-3">
-                <Card className="shadow-2xl border-2 border-primary/30 bg-white hover:shadow-primary/20 transition-all duration-300">
-                  <CardHeader className="bg-gradient-to-r from-primary/15 via-primary/10 to-primary/15 border-b-2 border-primary/40">
-                    <CardTitle className="flex items-center gap-2 text-primary">
-                      <ShoppingCart className="h-5 w-5" />
-                      Chọn sản phẩm
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {loadingConcessions ? (
-                        <p className="text-center text-muted-foreground col-span-full">Đang tải danh sách sản phẩm...</p>
-                      ) : concessions.length === 0 ? (
-                        <p className="text-center text-muted-foreground col-span-full">Không có sản phẩm khả dụng</p>
-                      ) : (
-                        concessions.map((item) => (
-                          <Card key={item.concessionId} className="overflow-hidden hover:shadow-lg transition-all duration-300 group">
-                            <div className="relative aspect-[4/3] overflow-hidden bg-gray-50 flex items-center justify-center">
-                              <img
-                                src={item.urlImage || "/placeholder.svg"}
-                                alt={item.name}
-                                className="max-w-full max-h-full object-contain rounded-md transition-transform duration-300 group-hover:scale-110"
-                              />
-                              <div className="absolute top-2 right-2">
-                                <Badge className="bg-primary text-white">
-                                  {item.price.toLocaleString('vi-VN')} VNĐ
-                                </Badge>
-                              </div>
-                            </div>
-                            <CardContent className="p-4">
-                              <h3 className="font-semibold text-lg mb-2">{item.name}</h3>
-                              <p className="text-sm text-muted-foreground mb-3">{item.description || "Không có mô tả"}</p>
-                              <div className="flex items-center justify-between mt-4">
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => updateConcessionQuantity(item.concessionId.toString(), (selectedConcessions[item.concessionId.toString()] || 0) - 1)}
-                                    disabled={!selectedConcessions[item.concessionId.toString()]}
-                                    className="w-8 h-8 p-0"
-                                  >
-                                    <Minus className="h-4 w-4" />
-                                  </Button>
-                                  <span className="w-8 text-center font-semibold">
-                                    {selectedConcessions[item.concessionId.toString()] || 0}
-                                  </span>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => updateConcessionQuantity(item.concessionId.toString(), (selectedConcessions[item.concessionId.toString()] || 0) + 1)}
-                                    className="w-8 h-8 p-0"
-                                  >
-                                    <Plus className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                                <div className="text-right">
-                                  <div className="text-sm text-muted-foreground">Tổng</div>
-                                  <div className="font-semibold">
-                                    {((selectedConcessions[item.concessionId.toString()] || 0) * item.price).toLocaleString('vi-VN')} VNĐ
-                                  </div>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-              {/* Order Summary Sidebar */}
-              <div className="lg:col-span-1 lg:sticky lg:top-8 lg:h-fit">
-                <BookingOrderSummary
-                  movieInfo={movieInfo}
-                  seats={seatsInfo}
-                  seatsTotal={getSeatTotal()}
-                  concessions={concessionsInfo}
-                  concessionsTotal={getConcessionTotal()}
-                  total={getTotalPrice()}
-                  showtimeId={showtimeId ? parseInt(showtimeId) : null}
-                  userId={userId}
-                  movieId={movieId}
-                  actionButton={
-                    <Button
-                      onClick={handleContinue}
-                      className="w-full bg-gradient-to-r from-black to-gray-900 hover:from-gray-900 hover:to-black text-white font-semibold px-8 py-3 shadow-2xl hover:shadow-gray-900/50 transition-all duration-300 hover:scale-105 border-2 border-gray-800 active:scale-95"
-                    >
-                      Tiếp tục thanh toán
-                    </Button>
-                  }
-                />
-              </div>
-            </>
-          ) : (
-            /* Showtime Selection Mode */
-            <div className="lg:col-span-2 space-y-6">
+          {/* Right: showtime selections */}
+          <div className="lg:col-span-2 space-y-6">
             {/* Date + time */}
             <Card className="shadow-2xl border-2 border-primary/30 bg-white hover:shadow-primary/20 transition-all duration-300">
               <CardHeader className="bg-gradient-to-r from-primary/15 via-primary/10 to-primary/15 border-b-2 border-primary/40">
@@ -921,7 +583,7 @@ export default function BookingSelectionPage({
             )}
 
             {/* Continue */}
-            {selectedTime && mode === 'showtime' && (
+            {selectedTime && (
               <Card className="shadow-lg border-0">
                 <CardContent className="p-4">
                   <Button
@@ -943,8 +605,7 @@ export default function BookingSelectionPage({
                 </CardContent>
               </Card>
             )}
-            </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

@@ -2,7 +2,7 @@
 
 import { HomeLayout } from "@/components/layouts/home-layout"
 import { useSearchParams } from "next/navigation"
-import BookingSelectionPage from "@/components/booking/booking-selection-page"
+import ShowtimeSelectionPage from "@/components/booking/showtime-selection-page"
 
 export default function BookingPage() {
   const searchParams = useSearchParams()
@@ -10,7 +10,7 @@ export default function BookingPage() {
 
   return (
     <HomeLayout>
-      <BookingSelectionPage movieId={movieId} />
+      <ShowtimeSelectionPage movieId={movieId} />
     </HomeLayout>
   )
 }
