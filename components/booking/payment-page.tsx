@@ -1,13 +1,36 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useMemo, useState, useEffect } from "react"
+import { useMemo, useState, useEffect, useCallback, useRef } from "react"
+import { useToast } from "@/hooks/use-toast"
 import CustomerInfoCard, { CustomerInfo } from "./customer-info-card"
 import PaymentMethodCard from "./payment-method-card"
 import BookingOrderSummary, { SeatInfo, ConcessionInfo, MovieInfo } from "./booking-order-summary"
 import { apiClient } from "@/src/api/interceptor"
 import { Movie } from "@/type/movie"
 import { jwtDecode } from "jwt-decode"
+import { useSeatWebSocket } from "@/hooks/use-seat-websocket"
+
+type TicketResponse = {
+  ticketId: number
+  rowIdx: number
+  columnInx: number
+  seatType: string
+  seatStatus: string
+  ticketPrice: number
+}
+
+type ShowtimeSeatData = {
+  showTimeId: number
+  roomId: number
+  ticketResponses: TicketResponse[]
+}
+
+type ShowtimeSeatResponse = {
+  status: number
+  message: string
+  data: ShowtimeSeatData[]
+}
 
 type PaymentPageProps = {
   movieId: string | null
@@ -45,6 +68,13 @@ export default function PaymentPage({
   const [userId, setUserId] = useState<number | null>(null)
   const [comboQty, setComboQty] = useState<Record<string, number>>({})
 
+  // Seat data
+  const [seatData, setSeatData] = useState<TicketResponse[]>([])
+  const [loadingSeats, setLoadingSeats] = useState(false)
+
+  const { toast } = useToast()
+  const bookingExpiredHandlerRef = useRef<(() => void) | null>(null)
+  
   // Get userId from token
   useEffect(() => {
     try {
@@ -57,6 +87,41 @@ export default function PaymentPage({
       console.error("Error decoding token:", error)
     }
   }, [])
+  
+  // Callback khi seat hold hết hạn từ Redis notification (qua WebSocket)
+  const handleSeatHoldExpired = useCallback(() => {
+    if (userId && showtimeId) {
+      console.log('[Payment] Seat hold expired via Redis notification')
+      
+      // Hiển thị toast thông báo cho user
+      toast({
+        title: "⏰ Hết thời gian giữ ghế",
+        description: "Thời gian giữ ghế đã hết hạn. Vui lòng chọn lại ghế.",
+        variant: "destructive",
+      })
+      
+      // Redirect về home sau khi hiển thị toast
+      setTimeout(() => {
+        router.push('/home')
+      }, 3000)
+    }
+  }, [userId, showtimeId, router, toast])
+  
+  // Callback để truyền vào BookingOrderSummary
+  const handleBookingExpired = useCallback(() => {
+    if (bookingExpiredHandlerRef.current) {
+      bookingExpiredHandlerRef.current()
+    }
+    handleSeatHoldExpired()
+  }, [handleSeatHoldExpired])
+  
+  // WebSocket connection để nhận EXPIRED message từ Redis
+  const { isConnected } = useSeatWebSocket(
+    showtimeId ? parseInt(showtimeId) : null,
+    userId,
+    !!(showtimeId && userId), // Enable WebSocket nếu có showtimeId và userId
+    handleSeatHoldExpired
+  )
 
   // Fetch movie data
   useEffect(() => {
@@ -107,6 +172,31 @@ export default function PaymentPage({
     fetchConcessions()
   }, [])
 
+  // Fetch seat data
+  useEffect(() => {
+    const fetchSeatData = async () => {
+      if (!showtimeId) return
+
+      try {
+        setLoadingSeats(true)
+        const response = await apiClient.get<ShowtimeSeatResponse>(
+          `/bookings/show-times/${showtimeId}/seats`
+        )
+
+        if (response.data?.status === 200 && response.data?.data?.length > 0) {
+          const data = response.data.data[0]
+          setSeatData(data.ticketResponses)
+        }
+      } catch (error) {
+        console.error("Error fetching seat data:", error)
+      } finally {
+        setLoadingSeats(false)
+      }
+    }
+
+    fetchSeatData()
+  }, [showtimeId])
+
   // Parse combo quantities from URL params
   useEffect(() => {
     if (combosParam) {
@@ -135,11 +225,46 @@ export default function PaymentPage({
   }, [comboQty, concessions])
 
   const getSeatPrice = (seatId: string) => {
-    // Use hardcoded prices based on row
-    const row = seatId[0]
-    if (row === "H") return 200000
-    if (["E", "F", "G"].includes(row)) return 150000
-    return 100000
+    if (seatData.length === 0) {
+      // Fallback to hardcoded prices if seat data not loaded yet
+      const row = seatId[0]
+      if (row === "H") return 200000
+      if (["E", "F", "G"].includes(row)) return 150000
+      return 100000
+    }
+
+    const seat = seatData.find(ticket => {
+      const rowLabel = String.fromCharCode(65 + ticket.rowIdx)
+      const seatNumber = ticket.columnInx + 1
+      const expectedSeatId = `${rowLabel}${seatNumber}`
+      return expectedSeatId === seatId
+    })
+
+    return seat ? seat.ticketPrice : 100000
+  }
+
+  const getSeatType = (seatId: string): 'standard' | 'vip' | 'premium' => {
+    if (seatData.length === 0) {
+      // Fallback to hardcoded type if seat data not loaded yet
+      const row = seatId[0]
+      if (row === 'H') return 'premium'
+      if (['E', 'F', 'G'].includes(row)) return 'vip'
+      return 'standard'
+    }
+
+    const seat = seatData.find(ticket => {
+      const rowLabel = String.fromCharCode(65 + ticket.rowIdx)
+      const seatNumber = ticket.columnInx + 1
+      const expectedSeatId = `${rowLabel}${seatNumber}`
+      return expectedSeatId === seatId
+    })
+
+    if (!seat) return 'standard'
+    
+    const seatTypeLower = seat.seatType.toLowerCase()
+    if (seatTypeLower === 'vip') return 'vip'
+    if (seatTypeLower === 'premium') return 'premium'
+    return 'standard'
   }
 
   const calculateTicketTotal = () => {
@@ -158,19 +283,13 @@ export default function PaymentPage({
     if (!seats) return []
     return seats.split(',').map(seatId => {
       const trimmedSeatId = seatId.trim()
-      const row = trimmedSeatId[0]
-      let price = 100000
-      let type: 'standard' | 'vip' | 'premium' = 'standard'
-      if (row === 'H') {
-        price = 200000
-        type = 'premium'
-      } else if (['E', 'F', 'G'].includes(row)) {
-        price = 150000
-        type = 'vip'
+      return { 
+        id: trimmedSeatId, 
+        type: getSeatType(trimmedSeatId), 
+        price: getSeatPrice(trimmedSeatId) 
       }
-      return { id: trimmedSeatId, type, price }
     })
-  }, [seats])
+  }, [seats, seatData])
 
   const concessionsInfo: ConcessionInfo[] = useMemo(() => {
     const result: ConcessionInfo[] = []
@@ -208,27 +327,36 @@ export default function PaymentPage({
       return
     }
 
+    // Prevent double submission
+    if (isProcessing) return
+
     setIsProcessing(true)
 
-    if (selectedPayment === "vnpay") {
-      // Call API createPayment
-      const res = await fetch("/api/payment/vnpay", {
-        method: "POST",
-        body: JSON.stringify({
-          total: calculateTotal(),
-        }),
-      })
+    try {
+      if (selectedPayment === "vnpay") {
+        // Call API createPayment
+        const res = await fetch("/api/payment/vnpay", {
+          method: "POST",
+          body: JSON.stringify({
+            total: calculateTotal(),
+          }),
+        })
 
-      const data = await res.json()
-      window.location.href = data.paymentUrl
-      return
+        const data = await res.json()
+        window.location.href = data.paymentUrl
+        return
+      }
+
+      // Cash mock
+      setTimeout(() => {
+        const bookingId = `BK${Date.now()}`
+        router.push(`/booking/confirmation?bookingId=${bookingId}`)
+      }, 1500)
+    } catch (error) {
+      console.error("Payment processing error:", error)
+      // Reset processing state on error
+      setIsProcessing(false)
     }
-
-    // Cash mock
-    setTimeout(() => {
-      const bookingId = `BK${Date.now()}`
-      router.push(`/booking/confirmation?bookingId=${bookingId}`)
-    }, 1500)
   }
 
   return (
@@ -258,6 +386,9 @@ export default function PaymentPage({
             showtimeId={showtimeId ? parseInt(showtimeId) : null}
             userId={userId}
             movieId={movieId}
+            onSeatHoldExpired={(handler) => {
+              bookingExpiredHandlerRef.current = handler
+            }}
           />
 
           {/* Payment Button */}

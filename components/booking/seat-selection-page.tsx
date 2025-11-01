@@ -5,7 +5,8 @@ import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card"
 import {Badge} from "@/components/ui/badge"
 import {Clock, Crown, Loader2, Monitor, Sofa} from "lucide-react"
 import {useRouter, useSearchParams} from "next/navigation"
-import {useEffect, useState, useMemo, useCallback} from "react"
+import {useEffect, useState, useMemo, useCallback, useRef} from "react"
+import {useToast} from "@/hooks/use-toast"
 import {Movie} from "@/type/movie"
 import {apiClient} from "@/src/api/interceptor"
 import {useSeatWebSocket} from "@/hooks/use-seat-websocket"
@@ -47,6 +48,7 @@ export default function SeatSelectionPage() {
   const seatsParam = searchParams.get('seats')
   const [selectedSeats, setSelectedSeats] = useState<string[]>([])
   const [selectedTicketIds, setSelectedTicketIds] = useState<number[]>([])
+  const [syncTrigger, setSyncTrigger] = useState(0) // Trigger để sync TTL khi chọn ghế
   const [movie, setMovie] = useState<Movie | null>(null)
   const [loading, setLoading] = useState(true)
   const [showtimeId, setShowtimeId] = useState<number | null>(null)
@@ -69,10 +71,62 @@ export default function SeatSelectionPage() {
     }
   }, [])
 
+  const { toast } = useToast()
+  
+  // Callback khi seat hold hết hạn từ Redis notification (qua WebSocket)
+  const handleSeatHoldExpired = useCallback(() => {
+    if (userId && showtimeId) {
+      console.log('[SeatSelection] Seat hold expired via Redis notification')
+      
+      // Hiển thị toast thông báo cho user
+      toast({
+        title: "⏰ Hết thời gian giữ ghế",
+        description: "Thời gian giữ ghế đã hết hạn. Vui lòng chọn lại ghế.",
+        variant: "destructive",
+      })
+      
+      // Reset selected seats
+      setSelectedSeats([])
+      setSelectedTicketIds([])
+      // Xóa sentSeatsRef
+      sentSeatsRef.current.clear()
+      
+      // Redirect về home sau khi hiển thị toast
+      setTimeout(() => {
+        router.push('/home')
+      }, 3000) // Đợi 3 giây để user đọc thông báo
+    }
+  }, [userId, showtimeId, router, toast])
+  
+  // Callback để truyền vào BookingOrderSummary
+  // BookingOrderSummary sẽ expose handler qua ref này
+  // Khi nhận EXPIRED message từ WebSocket, chúng ta sẽ gọi handler này để BookingOrderSummary xử lý countdown
+  const bookingExpiredHandlerRef = useRef<(() => void) | null>(null)
+  
+  // Callback để BookingOrderSummary có thể register handler
+  const handleBookingExpired = useCallback(() => {
+    // Khi được gọi từ BookingOrderSummary, nó sẽ set handler vào ref
+    // Nhưng thực tế, chúng ta cần gọi handler khi nhận EXPIRED message
+    if (bookingExpiredHandlerRef.current) {
+      bookingExpiredHandlerRef.current()
+    }
+  }, [])
+  
+  // Update handleSeatHoldExpired để cũng gọi bookingExpiredHandlerRef
+  const handleSeatHoldExpiredWithBooking = useCallback(() => {
+    // Gọi handler từ BookingOrderSummary nếu có
+    if (bookingExpiredHandlerRef.current) {
+      bookingExpiredHandlerRef.current()
+    }
+    // Sau đó xử lý UI như bình thường
+    handleSeatHoldExpired()
+  }, [handleSeatHoldExpired])
+  
   const { isConnected, heldSeats, seatsByUser, selectSeats, deselectSeats } = useSeatWebSocket(
     showtimeId,
     userId,
-    !!showtimeId && !!userId
+    !!showtimeId && !!userId,
+    handleSeatHoldExpiredWithBooking // Subscribe vào Redis expiration notification
   )
 
   useEffect(() => {
@@ -190,12 +244,21 @@ export default function SeatSelectionPage() {
     setSelectedTicketIds(restoredTicketIds)
   }, [seatData, seatsParam]) // Only depend on seatData and seatsParam
 
+  // Track đã gửi ghế nào qua WebSocket để tránh gửi lại
+  const sentSeatsRef = useRef<Set<number>>(new Set())
+  
   // Sync selected seats with WebSocket after restoring from URL
+  // CHỈ gọi khi có ghế MỚI được thêm vào (không gọi lại khi đã gửi rồi)
   useEffect(() => {
     if (!isConnected || !showtimeId || !userId || selectedTicketIds.length === 0) return
 
-    // Only select seats that aren't already held by someone else
-    const ticketsToSelect = selectedTicketIds.filter(ticketId => {
+    // Chỉ lấy những ghế MỚI chưa được gửi qua WebSocket
+    const newTicketsToSelect = selectedTicketIds.filter(ticketId => {
+      // Đã gửi rồi, bỏ qua
+      if (sentSeatsRef.current.has(ticketId)) {
+        return false
+      }
+      
       // Check if this ticket is held by someone else (not current user)
       if (!heldSeats.has(ticketId)) {
         // Not held by anyone, can select
@@ -213,10 +276,28 @@ export default function SeatSelectionPage() {
       return false
     })
 
-    if (ticketsToSelect.length > 0) {
-      selectSeats(ticketsToSelect)
+    if (newTicketsToSelect.length > 0) {
+      // Đánh dấu đã gửi những ghế này
+      newTicketsToSelect.forEach(ticketId => sentSeatsRef.current.add(ticketId))
+      selectSeats(newTicketsToSelect)
     }
   }, [isConnected, showtimeId, userId, selectedTicketIds, selectSeats, heldSeats, seatsByUser])
+  
+  // Cleanup: xóa ghế đã bỏ chọn khỏi sentSeatsRef
+  useEffect(() => {
+    // So sánh với selectedTicketIds hiện tại
+    const currentSelectedSet = new Set(selectedTicketIds)
+    const toRemove: number[] = []
+    
+    sentSeatsRef.current.forEach((ticketId: number) => {
+      if (!currentSelectedSet.has(ticketId)) {
+        // Ghế này không còn trong selectedTicketIds nữa, xóa khỏi sentSeatsRef
+        toRemove.push(ticketId)
+      }
+    })
+    
+    toRemove.forEach(ticketId => sentSeatsRef.current.delete(ticketId))
+  }, [selectedTicketIds])
 
   const getTicketId = (seatId: string): number | null => {
     const seat = seatData.find(ticket => {
@@ -265,9 +346,21 @@ export default function SeatSelectionPage() {
 
       const newSelectedSeats = selectedSeats.filter(id => id !== seatId)
       const newSelectedTicketIds = selectedTicketIds.filter(id => id !== ticketId)
+      
+      // Trigger sync TTL nếu có ghế được chọn
+      if (newSelectedSeats.length > 0) {
+        setSyncTrigger(prev => prev + 1)
+      } else {
+        // Nếu không còn ghế nào, không cần trigger (TTL sẽ tự động hết)
+        setSyncTrigger(0)
+      }
 
       setSelectedSeats(newSelectedSeats)
       setSelectedTicketIds(newSelectedTicketIds)
+      
+      // Xóa khỏi sentSeatsRef khi user bỏ chọn
+      // (sẽ được cleanup tự động bởi useEffect ở trên, nhưng xóa ngay để chắc chắn)
+      sentSeatsRef.current.delete(ticketId)
 
       // Deselect via WebSocket - this will release the hold on backend
       console.log('[SeatSelection] Deselecting seat:', seatId, 'ticketId:', ticketId, 'isConnected:', isConnected)
@@ -303,8 +396,16 @@ export default function SeatSelectionPage() {
 
     setSelectedSeats(newSelectedSeats)
     setSelectedTicketIds(newSelectedTicketIds)
-
-    selectSeats([ticketId])
+    
+    // Đánh dấu ghế này đã được chọn (sẽ được gửi qua WebSocket bởi useEffect)
+    // KHÔNG gọi selectSeats trực tiếp ở đây để tránh duplicate calls
+    // useEffect sẽ tự động gửi ghế mới qua WebSocket
+    
+    // Trigger sync TTL ngay khi user chọn ghế (backend sẽ tạo seatHold với TTL)
+    setSyncTrigger(prev => prev + 1)
+    
+    // Note: selectSeats sẽ được gọi tự động bởi useEffect khi selectedTicketIds thay đổi
+    // Không cần gọi trực tiếp ở đây để tránh duplicate calls
   }
 
   const getSeatLayout = () => {
@@ -639,6 +740,10 @@ export default function SeatSelectionPage() {
               showtimeId={showtimeId}
               userId={userId}
               movieId={movieId}
+              triggerSync={syncTrigger}
+              onSeatHoldExpired={(handler) => {
+                bookingExpiredHandlerRef.current = handler
+              }}
               showSeatTypeStats={true}
               actionButton={
                 <Button
