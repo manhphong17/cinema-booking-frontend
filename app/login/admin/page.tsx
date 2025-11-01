@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import {useState} from "react"
+import {useState, useEffect} from "react"
 import {useRouter} from "next/navigation"
 import {Button} from "@/components/ui/button"
 import {Input} from "@/components/ui/input"
@@ -20,6 +20,18 @@ import {
 
 const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL
 
+// Helper function to check if token is valid (not expired)
+const isTokenValid = (token: string | null): boolean => {
+    if (!token) return false
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        const currentTime = Date.now() / 1000
+        return payload.exp > currentTime
+    } catch {
+        return false
+    }
+}
+
 export default function LoginPage() {
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
@@ -27,6 +39,34 @@ export default function LoginPage() {
     const [isLoading, setIsLoading] = useState(false)
     const [showVerifyModal, setShowVerifyModal] = useState(false)
     const router = useRouter()
+
+    // Check if user is already logged in - redirect to appropriate dashboard based on role
+    useEffect(() => {
+        const token = localStorage.getItem("accessToken")
+        const roleName = localStorage.getItem("roleName")
+        
+        if (token && isTokenValid(token) && roleName) {
+            try {
+                const roles: string[] = JSON.parse(roleName)
+                const allowedRoles = ["ADMIN", "OPERATION", "STAFF", "BUSINESS"]
+                
+                // Only redirect if user has admin/system roles
+                if (roles.some(r => allowedRoles.includes(r))) {
+                    if (roles.includes("ADMIN")) {
+                        router.replace("/admin")
+                    } else if (roles.includes("OPERATION")) {
+                        router.replace("/operator-manager/dashboard")
+                    } else if (roles.includes("STAFF")) {
+                        router.replace("/staff")
+                    } else if (roles.includes("BUSINESS")) {
+                        router.replace("/business-manager/dashboard")
+                    }
+                }
+            } catch (error) {
+                console.error("Error parsing roleName:", error)
+            }
+        }
+    }, [router])
 
     const validateLogin = (email: string, password: string) => {
         if (!email.trim() || !password.trim()) {
@@ -79,37 +119,20 @@ export default function LoginPage() {
                 toast.success(data.message)
                 console.log("Admin redirecting based on role:", roles) // Debug log
                 
-                // Add delay to ensure state is saved
-                setTimeout(() => {
-                    try {
-                        if (roles.includes("ADMIN")) {
-                            console.log("Redirecting to /admin")
-                            router.push("/admin")
-                        } else if (roles.includes("OPERATION")) {
-                            console.log("Redirecting to /operator-manager")
-                            router.push("/operator-manager")
-                        } else if (roles.includes("STAFF")) {
-                            console.log("Redirecting to /staff")
-                            router.push("/staff")
-                        } else if (roles.includes("BUSINESS")) {
-                            console.log("Redirecting to /business")
-                            router.push("/business-manager")
-                        }
-                        console.log("Admin router.push called successfully")
-                    } catch (error) {
-                        console.error("Admin router.push error:", error)
-                        // Fallback to window.location
-                        if (roles.includes("ADMIN")) {
-                            window.location.href = "/admin"
-                        } else if (roles.includes("OPERATION")) {
-                            window.location.href = "/operator-manager"
-                        } else if (roles.includes("STAFF")) {
-                            window.location.href = "/staff"
-                        } else if (roles.includes("BUSINESS")) {
-                            window.location.href = "/business-manager"
-                        }
-                    }
-                }, 100)
+                // Redirect based on role immediately
+                if (roles.includes("ADMIN")) {
+                    console.log("Redirecting to /admin")
+                    router.replace("/admin")
+                } else if (roles.includes("OPERATION")) {
+                    console.log("Redirecting to /operator-manager/dashboard")
+                    router.replace("/operator-manager/dashboard")
+                } else if (roles.includes("STAFF")) {
+                    console.log("Redirecting to /staff")
+                    router.replace("/staff")
+                } else if (roles.includes("BUSINESS")) {
+                    console.log("Redirecting to /business-manager/dashboard")
+                    router.replace("/business-manager/dashboard")
+                }
             } else if (data.status === 1003) {
                 setShowVerifyModal(true)
             } else if (data.status === 1004) {

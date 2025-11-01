@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import {useState} from "react"
+import {useState, useEffect} from "react"
 import {useRouter} from "next/navigation"
 import {Button} from "@/components/ui/button"
 import {Input} from "@/components/ui/input"
@@ -20,6 +20,18 @@ import {
 
 const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL
 
+// Helper function to check if token is valid (not expired)
+const isTokenValid = (token: string | null): boolean => {
+    if (!token) return false
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        const currentTime = Date.now() / 1000
+        return payload.exp > currentTime
+    } catch {
+        return false
+    }
+}
+
 export default function LoginPage() {
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
@@ -27,6 +39,15 @@ export default function LoginPage() {
     const [isLoading, setIsLoading] = useState(false)
     const [showVerifyModal, setShowVerifyModal] = useState(false)
     const router = useRouter()
+
+    // Check if user is already logged in - redirect to home if token exists and is valid
+    useEffect(() => {
+        const token = localStorage.getItem("accessToken")
+        if (token && isTokenValid(token)) {
+            // User is already logged in, redirect to home
+            router.replace("/home")
+        }
+    }, [router])
 
     const validateLogin = (email: string, password: string) => {
         if (!email.trim() || !password.trim()) {
