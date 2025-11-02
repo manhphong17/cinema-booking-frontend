@@ -112,15 +112,15 @@ const formatLocalDateYMD = (d: Date) => {
 }
 
 const MONTHS = [
-    { value: 0, label: "January" },{ value: 1, label: "February" },{ value: 2, label: "March" },
-    { value: 3, label: "April" },  { value: 4, label: "May" },      { value: 5, label: "June" },
-    { value: 6, label: "July" },   { value: 7, label: "August" },   { value: 8, label: "September" },
-    { value: 9, label: "October" },{ value:10, label: "November" }, { value:11, label: "December" },
+    { value: 0, label: "Tháng 1" },{ value: 1, label: "Tháng 2" },{ value: 2, label: "Tháng 3" },
+    { value: 3, label: "Tháng 4" },  { value: 4, label: "Tháng 5" },      { value: 5, label: "Tháng 6" },
+    { value: 6, label: "Tháng 7" },   { value: 7, label: "Tháng 8" },   { value: 8, label: "Tháng 9" },
+    { value: 9, label: "Tháng 10" },{ value:10, label: "Tháng 11" }, { value:11, label: "Tháng 12" },
 ]
 
-const getDayAbbrev = (date: Date) => ["SUN","MON","TUE","WED","THU","FRI","SAT"][date.getDay()]
+const getDayAbbrev = (date: Date) => ["CN","T2","T3","T4","T5","T6","T7"][date.getDay()]
 const formatSingleDate = (date: Date) =>
-    `${date.getDate()} ${date.toLocaleDateString("en-US", { month: "long" })} '${date.getFullYear().toString().slice(-2)}`
+    `Ngày ${date.getDate()} ${date.toLocaleDateString("vi-VN", { month: "long" })} ${date.getFullYear()}`
 
 /** Map từ BE → View theo đúng payload bạn đưa */
 const mapToView = (it: BEItem): ShowtimeView => {
@@ -301,10 +301,19 @@ function CreateShowtimeDialog({
     const [roomId, setRoomId] = useState("")
     const [subtitleId, setSubtitleId] = useState("")
     const [submitting, setSubmitting] = useState(false)
+    const [startDateYMD, setStartDateYMD] = useState(() => formatLocalDateYMD(currentDate))
+    const [endDateYMD, setEndDateYMD] = useState(() => formatLocalDateYMD(currentDate))
     const [startHHmm, setStartHHmm] = useState("") // "HH:mm"
     const [endHHmm, setEndHHmm] = useState("")     // "HH:mm"
     const [serverErr, setServerErr] = useState<ProblemDetail | null>(null)
     const [fieldErrs, setFieldErrs] = useState<Record<string, string[]>>({})
+
+    // Reset startDate và endDate khi currentDate thay đổi
+    useEffect(() => {
+        const ymd = formatLocalDateYMD(currentDate)
+        setStartDateYMD(ymd)
+        setEndDateYMD(ymd)
+    }, [currentDate])
 
     const parseHHmm = (s: string) => {
         const parts = s.split(":")
@@ -315,27 +324,50 @@ function CreateShowtimeDialog({
         return hh * 60 + mm
     }
 
-    const minutesDiff = useMemo(() => {
-        const a = parseHHmm(startHHmm)
-        const b = parseHHmm(endHHmm)
-        if (a == null || b == null) return null
-        return b - a // không cho qua ngày mới; nếu cần +24h thì tùy chỉnh
-    }, [startHHmm, endHHmm])
+    // Validation: endDate >= startDate, và nếu cùng ngày thì endTime > startTime
+    const dateTimeValidation = useMemo(() => {
+        if (!startDateYMD || !endDateYMD) return { valid: false, message: "" }
+        
+        const startDate = new Date(startDateYMD)
+        const endDate = new Date(endDateYMD)
+        
+        // So sánh ngày (bỏ qua thời gian)
+        const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
+        const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
+        
+        if (endDateOnly < startDateOnly) {
+            return { valid: false, message: "Ngày kết thúc không được trước ngày bắt đầu" }
+        }
+        
+        if (endDateOnly.getTime() === startDateOnly.getTime()) {
+            // Cùng ngày: kiểm tra giờ
+            const startMin = parseHHmm(startHHmm)
+            const endMin = parseHHmm(endHHmm)
+            if (startMin != null && endMin != null && endMin <= startMin) {
+                return { valid: false, message: "Giờ kết thúc phải lớn hơn giờ bắt đầu trong cùng ngày" }
+            }
+        }
+        
+        return { valid: true, message: "" }
+    }, [startDateYMD, endDateYMD, startHHmm, endHHmm])
 
-    const invalidTime = minutesDiff != null && minutesDiff <= 0
     const canSubmit =
         !!movieId &&
         !!roomId &&
         !!subtitleId &&
+        !!startDateYMD &&
+        !!endDateYMD &&
         parseHHmm(startHHmm) != null &&
         parseHHmm(endHHmm) != null &&
-        !invalidTime &&
+        dateTimeValidation.valid &&
         !submitting
 
     const resetForm = () => {
         setMovieId("")
         setRoomId("")
         setSubtitleId("")
+        setStartDateYMD(formatLocalDateYMD(currentDate))
+        setEndDateYMD(formatLocalDateYMD(currentDate))
         setStartHHmm("")
         setEndHHmm("")
         setServerErr(null)
@@ -379,8 +411,8 @@ function CreateShowtimeDialog({
             movieId: Number(movieId),
             roomId: Number(roomId),
             subtitleId: Number(subtitleId),
-            startTime: joinDateTimeT(currentDate, startHHmm),
-            endTime: joinDateTimeT(currentDate, endHHmm),
+            startTime: joinLocalDateHHmm(startDateYMD, startHHmm),
+            endTime: joinLocalDateHHmm(endDateYMD, endHHmm),
         }
 
         try {
@@ -459,10 +491,10 @@ function CreateShowtimeDialog({
                     </div>
 
                     <div className="grid gap-2">
-                        <Label>Subtitle <span className="text-destructive">*</span></Label>
+                        <Label>Phụ đề <span className="text-destructive">*</span></Label>
                         <Select value={subtitleId} onValueChange={setSubtitleId} disabled={submitting}>
                             <SelectTrigger className={`bg-input border-border ${fieldHasErr('subtitleId') ? 'border-destructive' : ''}`}>
-                                <SelectValue placeholder="Chọn subtitle" />
+                                <SelectValue placeholder="Chọn phụ đề" />
                             </SelectTrigger>
                             <SelectContent className="bg-popover border-border">
                                 {subtitles.map(s => (
@@ -475,8 +507,20 @@ function CreateShowtimeDialog({
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
-                            <Label>Ngày chiếu</Label>
-                            <Input value={formatLocalDateYMD(currentDate)} readOnly className="bg-muted/50 border-border" />
+                            <Label>Ngày bắt đầu <span className="text-destructive">*</span></Label>
+                            <Input
+                                type="date"
+                                value={startDateYMD}
+                                onChange={e => {
+                                    setStartDateYMD(e.target.value)
+                                    // Tự động cập nhật endDate nếu endDate < startDate
+                                    if (e.target.value && endDateYMD && e.target.value > endDateYMD) {
+                                        setEndDateYMD(e.target.value)
+                                    }
+                                }}
+                                disabled={submitting}
+                                className="bg-input border-border"
+                            />
                         </div>
                         <div className="grid gap-2">
                             <Label>Giờ bắt đầu <span className="text-destructive">*</span></Label>
@@ -490,15 +534,27 @@ function CreateShowtimeDialog({
                                 className={`bg-input border-border ${fieldHasErr('startTime') ? 'border-destructive' : ''}`}
                                 disabled={submitting}
                                 aria-invalid={fieldHasErr('startTime')}
+                                style={{ colorScheme: 'light' }}
                             />
-                            {invalidTime && (
-                                <p className="text-xs text-destructive mt-1">Giờ kết thúc phải lớn hơn giờ bắt đầu trong cùng ngày.</p>
-                            )}
                             {renderFieldError('startTime')}
                         </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                            <Label>Ngày kết thúc <span className="text-destructive">*</span></Label>
+                            <Input
+                                type="date"
+                                value={endDateYMD}
+                                onChange={e => setEndDateYMD(e.target.value)}
+                                min={startDateYMD}
+                                disabled={submitting}
+                                className={`bg-input border-border ${!dateTimeValidation.valid && dateTimeValidation.message ? 'border-destructive' : ''}`}
+                            />
+                            {!dateTimeValidation.valid && dateTimeValidation.message && (
+                                <p className="text-xs text-destructive mt-1">{dateTimeValidation.message}</p>
+                            )}
+                        </div>
                         <div className="grid gap-2">
                             <Label>Giờ kết thúc <span className="text-destructive">*</span></Label>
                             <Input
@@ -508,26 +564,37 @@ function CreateShowtimeDialog({
                                 value={endHHmm}
                                 onChange={e => setEndHHmm(e.target.value)}
                                 onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit() }}
-                                className={`bg-input border-border ${fieldHasErr('endTime') ? 'border-destructive' : ''}`}
+                                className={`bg-input border-border ${fieldHasErr('endTime') || (!dateTimeValidation.valid && dateTimeValidation.message) ? 'border-destructive' : ''}`}
                                 disabled={submitting}
                                 aria-invalid={fieldHasErr('endTime')}
+                                style={{ colorScheme: 'light' }}
                             />
                             {renderFieldError('endTime')}
                         </div>
-                        <div className="grid gap-2">
-                            <Label>Thông tin</Label>
-                            <Input
-                                readOnly
-                                className="bg-muted/50 border-border"
-                                value={
-                                    minutesDiff != null && minutesDiff > 0
-                                        ? `Thời lượng: ${Math.floor(minutesDiff/60)}h ${minutesDiff%60}m`
-                                        : ""
-                                }
-                                placeholder="—"
-                            />
-                        </div>
                     </div>
+                    {dateTimeValidation.valid && startDateYMD === endDateYMD && (
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                                <Label>Thông tin</Label>
+                                <Input
+                                    readOnly
+                                    className="bg-muted/50 border-border"
+                                    value={
+                                        (() => {
+                                            const startMin = parseHHmm(startHHmm)
+                                            const endMin = parseHHmm(endHHmm)
+                                            if (startMin != null && endMin != null && endMin > startMin) {
+                                                const diff = endMin - startMin
+                                                return `Thời lượng: ${Math.floor(diff/60)}h ${diff%60}m`
+                                            }
+                                            return ""
+                                        })()
+                                    }
+                                    placeholder="—"
+                                />
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex justify-end gap-2 pt-2 border-t border-border">
@@ -667,7 +734,7 @@ function ShowtimeDetailDialog({
                                 if (!imgUrl) {
                                     return (
                                         <div className="w-full h-[180px] rounded-md bg-muted/40 border border-border flex items-center justify-center text-xs text-muted-foreground">
-                                            No image available
+                                            Không có hình ảnh
                                         </div>
                                     )
                                 }
@@ -701,45 +768,45 @@ function ShowtimeDetailDialog({
 
                         {/* Phần thông tin chi tiết */}
                         <div className="grid gap-2 text-sm">
+                                <div>
+                                    <span className="text-muted-foreground">ID suất chiếu:</span>{' '}
+                                    <span className="font-medium">{detail.showtimeId}</span>
+                                </div>
                             <div>
-                                <span className="text-muted-foreground">Showtime ID:</span>{' '}
-                                <span className="font-medium">{detail.showtimeId}</span>
-                            </div>
-                            <div>
-                                <span className="text-muted-foreground">Movie:</span>{' '}
+                                <span className="text-muted-foreground">Phim:</span>{' '}
                                 <span className="font-medium">
                 {detail.movieName} (#{detail.movieId})
               </span>
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                                 <div>
-                                    <span className="text-muted-foreground">Room:</span>{' '}
+                                    <span className="text-muted-foreground">Phòng:</span>{' '}
                                     <span className="font-medium">
                   {detail.roomName} (#{detail.roomId})
                 </span>
                                 </div>
                                 <div>
-                                    <span className="text-muted-foreground">Type:</span>{' '}
+                                    <span className="text-muted-foreground">Loại phòng:</span>{' '}
                                     <span className="font-medium">{detail.roomTypeName}</span>
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                                 <div>
-                                    <span className="text-muted-foreground">Subtitle:</span>{' '}
+                                    <span className="text-muted-foreground">Phụ đề:</span>{' '}
                                     <span className="font-medium">{detail.subtitleName}</span>
                                 </div>
                                 <div>
-                                    <span className="text-muted-foreground">Subtitle ID:</span>{' '}
+                                    <span className="text-muted-foreground">ID phụ đề:</span>{' '}
                                     <span className="font-medium">{detail.subtitleId}</span>
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                                 <div>
-                                    <span className="text-muted-foreground">Start:</span>{' '}
+                                    <span className="text-muted-foreground">Bắt đầu:</span>{' '}
                                     <span className="font-medium">{detail.startTime}</span>
                                 </div>
                                 <div>
-                                    <span className="text-muted-foreground">End:</span>{' '}
+                                    <span className="text-muted-foreground">Kết thúc:</span>{' '}
                                     <span className="font-medium">{detail.endTime}</span>
                                 </div>
                             </div>
@@ -749,7 +816,7 @@ function ShowtimeDetailDialog({
                                     className="bg-primary text-primary-foreground"
                                     onClick={() => onRequestUpdate?.(detail)}
                                 >
-                                    Update
+                                    Cập nhật
                                 </Button>
 
 
@@ -758,7 +825,7 @@ function ShowtimeDetailDialog({
                                     <AlertDialogTrigger asChild>
                                         <Button variant="destructive" className="inline-flex items-center gap-2">
                                             <Trash2 className="w-4 h-4" />
-                                            Delete
+                                            Xóa
                                         </Button>
                                     </AlertDialogTrigger>
                                     <AlertDialogContent className="bg-card text-card-foreground border-border">
@@ -825,7 +892,8 @@ function UpdateShowtimeDialog({
     const [movieId, setMovieId] = useState("")
     const [roomId, setRoomId] = useState("")
     const [subtitleId, setSubtitleId] = useState("")
-    const [dateYMD, setDateYMD] = useState("")
+    const [startDateYMD, setStartDateYMD] = useState("")
+    const [endDateYMD, setEndDateYMD] = useState("")
     const [startHHmm, setStartHHmm] = useState("")
     const [endHHmm, setEndHHmm] = useState("")
     const [submitting, setSubmitting] = useState(false)
@@ -837,7 +905,8 @@ function UpdateShowtimeDialog({
         setMovieId(String(initial.movieId))
         setRoomId(String(initial.roomId))
         setSubtitleId(String(initial.subtitleId))
-        setDateYMD(extractYMD(initial.startTime))
+        setStartDateYMD(extractYMD(initial.startTime))
+        setEndDateYMD(extractYMD(initial.endTime))
         setStartHHmm(extractHHmm(initial.startTime))
         setEndHHmm(extractHHmm(initial.endTime))
         setServerErr(null); setFieldErrs({})
@@ -851,23 +920,44 @@ function UpdateShowtimeDialog({
         return hh*60 + mm
     }
 
-    const minutesDiff = useMemo(() => {
-        const a = parseHHmm(startHHmm); const b = parseHHmm(endHHmm)
-        if (a == null || b == null) return null
-        return b - a
-    }, [startHHmm, endHHmm])
+    // Validation: endDate >= startDate, và nếu cùng ngày thì endTime > startTime
+    const dateTimeValidation = useMemo(() => {
+        if (!startDateYMD || !endDateYMD) return { valid: false, message: "" }
+        
+        const startDate = new Date(startDateYMD)
+        const endDate = new Date(endDateYMD)
+        
+        // So sánh ngày (bỏ qua thời gian)
+        const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
+        const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
+        
+        if (endDateOnly < startDateOnly) {
+            return { valid: false, message: "Ngày kết thúc không được trước ngày bắt đầu" }
+        }
+        
+        if (endDateOnly.getTime() === startDateOnly.getTime()) {
+            // Cùng ngày: kiểm tra giờ
+            const startMin = parseHHmm(startHHmm)
+            const endMin = parseHHmm(endHHmm)
+            if (startMin != null && endMin != null && endMin <= startMin) {
+                return { valid: false, message: "Giờ kết thúc phải lớn hơn giờ bắt đầu trong cùng ngày" }
+            }
+        }
+        
+        return { valid: true, message: "" }
+    }, [startDateYMD, endDateYMD, startHHmm, endHHmm])
 
-    const invalidTime = minutesDiff != null && minutesDiff <= 0
     const canSubmitBase =
-        !!movieId && !!roomId && !!subtitleId && !!dateYMD &&
-        parseHHmm(startHHmm) != null && parseHHmm(endHHmm) != null && !invalidTime && !submitting
+        !!movieId && !!roomId && !!subtitleId && !!startDateYMD && !!endDateYMD &&
+        parseHHmm(startHHmm) != null && parseHHmm(endHHmm) != null && 
+        dateTimeValidation.valid && !submitting
 
     const isChanged = initial ? (
         Number(movieId) !== initial.movieId ||
         Number(roomId) !== initial.roomId ||
         Number(subtitleId) !== initial.subtitleId ||
-        joinLocalDateHHmm(dateYMD, startHHmm) !== initial.startTime.replace(" ", "T").slice(0,16)+":00" ||
-        joinLocalDateHHmm(dateYMD, endHHmm)   !== initial.endTime.replace(" ", "T").slice(0,16)+":00"
+        joinLocalDateHHmm(startDateYMD, startHHmm) !== initial.startTime.replace(" ", "T").slice(0,16)+":00" ||
+        joinLocalDateHHmm(endDateYMD, endHHmm)   !== initial.endTime.replace(" ", "T").slice(0,16)+":00"
     ) : false
 
     const canSubmit = canSubmitBase && isChanged
@@ -902,8 +992,8 @@ function UpdateShowtimeDialog({
             movieId: Number(movieId),
             roomId: Number(roomId),
             subtitleId: Number(subtitleId),
-            startTime: joinLocalDateHHmm(dateYMD, startHHmm),
-            endTime:   joinLocalDateHHmm(dateYMD, endHHmm),
+            startTime: joinLocalDateHHmm(startDateYMD, startHHmm),
+            endTime:   joinLocalDateHHmm(endDateYMD, endHHmm),
         }
 
         try {
@@ -933,7 +1023,7 @@ function UpdateShowtimeDialog({
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="bg-card text-card-foreground border-border max-w-2xl">
-                <DialogHeader><DialogTitle>Update suất chiếu</DialogTitle></DialogHeader>
+                <DialogHeader><DialogTitle>Cập nhật suất chiếu</DialogTitle></DialogHeader>
 
                 {serverErr && (
                     <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
@@ -970,10 +1060,10 @@ function UpdateShowtimeDialog({
                     </div>
 
                     <div className="grid gap-2">
-                        <Label>Subtitle</Label>
+                        <Label>Phụ đề</Label>
                         <Select value={subtitleId} onValueChange={setSubtitleId} disabled={submitting}>
                             <SelectTrigger className={`bg-input border-border ${fieldHasErr('subtitleId')?'border-destructive':''}`}>
-                                <SelectValue placeholder="Chọn subtitle"/>
+                                <SelectValue placeholder="Chọn phụ đề"/>
                             </SelectTrigger>
                             <SelectContent className="bg-popover border-border">
                                 {subtitles.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
@@ -982,35 +1072,97 @@ function UpdateShowtimeDialog({
                         {renderFieldError('subtitleId')}
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
-                            <Label>Ngày</Label>
-                            <Input type="date" value={dateYMD} onChange={e=>setDateYMD(e.target.value)} disabled={submitting} className="bg-input border-border"/>
+                            <Label>Ngày bắt đầu <span className="text-destructive">*</span></Label>
+                            <Input
+                                type="date"
+                                value={startDateYMD}
+                                onChange={e => {
+                                    setStartDateYMD(e.target.value)
+                                    // Tự động cập nhật endDate nếu endDate < startDate
+                                    if (e.target.value && endDateYMD && e.target.value > endDateYMD) {
+                                        setEndDateYMD(e.target.value)
+                                    }
+                                }}
+                                disabled={submitting}
+                                className="bg-input border-border"
+                            />
                         </div>
                         <div className="grid gap-2">
-                            <Label>Bắt đầu</Label>
-                            <Input type="time" step={60} value={startHHmm} onChange={e=>setStartHHmm(e.target.value)} disabled={submitting} className={`bg-input border-border ${fieldHasErr('startTime')?'border-destructive':''}`}/>
-                            {invalidTime && <p className="text-xs text-destructive">End phải &gt; Start.</p>}
+                            <Label>Giờ bắt đầu <span className="text-destructive">*</span></Label>
+                            <Input 
+                                type="time" 
+                                step={60} 
+                                value={startHHmm} 
+                                onChange={e=>setStartHHmm(e.target.value)} 
+                                disabled={submitting} 
+                                className={`bg-input border-border ${fieldHasErr('startTime')?'border-destructive':''}`}
+                                style={{ colorScheme: 'light' }}
+                            />
                             {renderFieldError('startTime')}
                         </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
-                            <Label>Kết thúc</Label>
-                            <Input type="time" step={60} value={endHHmm} onChange={e=>setEndHHmm(e.target.value)} disabled={submitting} className={`bg-input border-border ${fieldHasErr('endTime')?'border-destructive':''}`}/>
+                            <Label>Ngày kết thúc <span className="text-destructive">*</span></Label>
+                            <Input
+                                type="date"
+                                value={endDateYMD}
+                                onChange={e => setEndDateYMD(e.target.value)}
+                                min={startDateYMD}
+                                disabled={submitting}
+                                className={`bg-input border-border ${!dateTimeValidation.valid && dateTimeValidation.message ? 'border-destructive' : ''}`}
+                            />
+                            {!dateTimeValidation.valid && dateTimeValidation.message && (
+                                <p className="text-xs text-destructive mt-1">{dateTimeValidation.message}</p>
+                            )}
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Giờ kết thúc <span className="text-destructive">*</span></Label>
+                            <Input 
+                                type="time" 
+                                step={60} 
+                                value={endHHmm} 
+                                onChange={e=>setEndHHmm(e.target.value)} 
+                                disabled={submitting} 
+                                className={`bg-input border-border ${fieldHasErr('endTime') || (!dateTimeValidation.valid && dateTimeValidation.message) ? 'border-destructive' : ''}`}
+                                style={{ colorScheme: 'light' }}
+                            />
                             {renderFieldError('endTime')}
                         </div>
                     </div>
+                    {dateTimeValidation.valid && startDateYMD === endDateYMD && (
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                                <Label>Thông tin</Label>
+                                <Input
+                                    readOnly
+                                    className="bg-muted/50 border-border"
+                                    value={
+                                        (() => {
+                                            const startMin = parseHHmm(startHHmm)
+                                            const endMin = parseHHmm(endHHmm)
+                                            if (startMin != null && endMin != null && endMin > startMin) {
+                                                const diff = endMin - startMin
+                                                return `Thời lượng: ${Math.floor(diff/60)}h ${diff%60}m`
+                                            }
+                                            return ""
+                                        })()
+                                    }
+                                    placeholder="—"
+                                />
+                            </div>
+                        </div>
+                    )}
                 </div>
 
-                <div className="flex justify-between items-center pt-2 border-t border-border">
-                    <div className="text-xs text-muted-foreground">
-                        {minutesDiff!=null && minutesDiff>0 ? `Duration: ${Math.floor(minutesDiff/60)}h ${minutesDiff%60}m` : ''}
-                    </div>
-                    <div className="flex gap-2">
-                        <Button variant="outline" onClick={()=>onOpenChange(false)} disabled={submitting} className="border-border">Hủy</Button>
-                        <Button onClick={handleSubmit} disabled={!canSubmit} className="bg-primary text-primary-foreground">
-                            {submitting ? (<span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin"/>Đang lưu…</span>) : "Lưu cập nhật"}
-                        </Button>
-                    </div>
+                <div className="flex justify-end gap-2 pt-2 border-t border-border">
+                    <Button variant="outline" onClick={()=>onOpenChange(false)} disabled={submitting} className="border-border">Hủy</Button>
+                    <Button onClick={handleSubmit} disabled={!canSubmit} className="bg-primary text-primary-foreground">
+                        {submitting ? (<span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin"/>Đang lưu…</span>) : "Lưu cập nhật"}
+                    </Button>
                 </div>
             </DialogContent>
         </Dialog>
@@ -1348,27 +1500,27 @@ export function ShowtimeManagement() {
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold text-foreground">Movie/Event Scheduling</h1>
-                        <p className="text-muted-foreground mt-1">Filter & print showtimes table from API payload</p>
+                        <h1 className="text-3xl font-bold text-foreground">Lập lịch suất chiếu</h1>
+                        <p className="text-muted-foreground mt-1">Quản lý và lọc danh sách suất chiếu</p>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-4">
                     {/* Movie filter */}
                     <div className="flex items-center gap-2">
-                        <Label htmlFor="movie-filter" className="text-sm text-muted-foreground whitespace-nowrap">Filter movie:</Label>
+                        <Label htmlFor="movie-filter" className="text-sm text-muted-foreground whitespace-nowrap">Lọc phim:</Label>
                         <Select value={selectedMovie} onValueChange={setSelectedMovie} disabled={isLoading}>
                             <SelectTrigger id="movie-filter" className="w-[220px] bg-input border-border text-foreground">
-                                <SelectValue placeholder={isLoading ? "Loading..." : "All movies"} />
+                                <SelectValue placeholder={isLoading ? "Đang tải..." : "Tất cả phim"} />
                             </SelectTrigger>
                             <SelectContent className="bg-popover border-border">
-                                <SelectItem value="all">All movies</SelectItem>
+                                <SelectItem value="all">Tất cả phim</SelectItem>
                                 {uniqueMovies.map((m) => (
                                     <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
-                        {isLoading && <div className="text-sm text-muted-foreground ml-2">Loading...</div>}
+                        {isLoading && <div className="text-sm text-muted-foreground ml-2">Đang tải...</div>}
                         {error && <div className="text-sm text-destructive ml-2">{error}</div>}
                     </div>
 
@@ -1398,7 +1550,7 @@ export function ShowtimeManagement() {
 
                     {/* Create button + Modal */}
                     <Button onClick={() => setIsDialogOpen(true)} className="bg-primary text-primary-foreground hover:bg-primary/90">
-                        <Plus className="w-4 h-4 mr-2" />Create
+                        <Plus className="w-4 h-4 mr-2" />Tạo mới
                     </Button>
                     <CreateShowtimeDialog
                         open={isDialogOpen}
@@ -1417,12 +1569,12 @@ export function ShowtimeManagement() {
                 <div className="p-4">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h2 className="text-lg font-semibold text-foreground">Showtimes (Filtered)</h2>
+                            <h2 className="text-lg font-semibold text-foreground">Danh sách suất chiếu</h2>
                             <p className="text-sm text-muted-foreground">
-                                Date: {formatLocalDateYMD(currentDate)} • Movie: {selectedMovie === 'all' ? 'All' : (uniqueMovies.find(m => String(m.id) === selectedMovie)?.name || selectedMovie)}
+                                Ngày: {formatLocalDateYMD(currentDate)} • Phim: {selectedMovie === 'all' ? 'Tất cả' : (uniqueMovies.find(m => String(m.id) === selectedMovie)?.name || selectedMovie)}
                             </p>
                         </div>
-                        <div className="text-sm text-muted-foreground">{filteredShowtimes.length} item(s)</div>
+                        <div className="text-sm text-muted-foreground">{filteredShowtimes.length} mục</div>
                     </div>
 
                     <div className="overflow-x-auto mt-3">
@@ -1430,34 +1582,34 @@ export function ShowtimeManagement() {
                             <thead className="bg-muted/30">
                             <tr>
                                 <th onClick={() => toggleSort('start')} className="text-left p-2 border-b cursor-pointer select-none">
-                                    Start{indicator('start')}
+                                    Bắt đầu{indicator('start')}
                                 </th>
                                 <th onClick={() => toggleSort('end')} className="text-left p-2 border-b cursor-pointer select-none">
-                                    End{indicator('end')}
+                                    Kết thúc{indicator('end')}
                                 </th>
                                 <th onClick={() => toggleSort('movie')} className="text-left p-2 border-b cursor-pointer select-none">
-                                    Movie{indicator('movie')}
+                                    Phim{indicator('movie')}
                                 </th>
                                 <th onClick={() => toggleSort('room')} className="text-left p-2 border-b cursor-pointer select-none">
-                                    Room{indicator('room')}
+                                    Phòng{indicator('room')}
                                 </th>
                                 <th onClick={() => toggleSort('subtitles')} className="text-left p-2 border-b cursor-pointer select-none">
-                                    Subtitles{indicator('subtitles')}
+                                    Phụ đề{indicator('subtitles')}
                                 </th>
                                 <th onClick={() => toggleSort('type')} className="text-left p-2 border-b cursor-pointer select-none">
-                                    Type{indicator('type')}
+                                    Loại{indicator('type')}
                                 </th>
                                 <th onClick={() => toggleSort('duration')} className="text-left p-2 border-b cursor-pointer select-none">
-                                    Duration{indicator('duration')}
+                                    Thời lượng{indicator('duration')}
                                 </th>
-                                <th className="text-left p-2 border-b">Details</th>
+                                <th className="text-left p-2 border-b">Chi tiết</th>
                             </tr>
                             </thead>
 
                             <tbody>
                             {filteredShowtimes.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} className="p-3 text-center text-muted-foreground">No data</td>
+                                    <td colSpan={8} className="p-3 text-center text-muted-foreground">Không có dữ liệu</td>
                                 </tr>
                             ) : (
                                 filteredShowtimes.map((st) => (
@@ -1471,7 +1623,7 @@ export function ShowtimeManagement() {
                                         <td className="p-2">{formatDuration(st.durationMin)}</td>
                                         <td className="p-2">
                                             <Button variant="link" className="p-0 h-auto inline-flex items-center gap-1" onClick={() => openDetail(st.showtimeId)}>
-                                                View details <ExternalLink className="w-3 h-3"/>
+                                                Xem chi tiết <ExternalLink className="w-3 h-3"/>
                                             </Button>
                                         </td>
                                     </tr>
