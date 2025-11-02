@@ -3,11 +3,9 @@
 import { HomeLayout } from "@/components/layouts/home-layout";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useEffect } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import CustomerInfoCard, { CustomerInfo } from "./CustomerInfoCard";
 import PaymentMethodCard from "./PaymentMethodCard";
 import OrderSummary from "./OrderSummary";
-import { CheckCircle } from "lucide-react";
 
 export default function PaymentPage() {
     const router = useRouter();
@@ -24,6 +22,7 @@ export default function PaymentPage() {
     const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({
         name: "",
         email: "",
+        loyalPoint: 0,
 
     });
 
