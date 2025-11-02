@@ -1,6 +1,7 @@
 "use client"
 
 import {useState, useEffect} from "react"
+import {useRouter, useSearchParams} from "next/navigation"
 import {HomeLayout} from "@/components/layouts/home-layout"
 import {CustomerProfile} from "@/components/customer/customer-profile"
 import {CustomerOrders} from "@/components/customer/customer-orders"
@@ -10,16 +11,28 @@ import {Button} from "@/components/ui/button"
 import {User, ShoppingBag, Gift} from "lucide-react"
 
 export default function CustomerPage() {
+    const router = useRouter()
+    const searchParams = useSearchParams()
     const [activeSection, setActiveSection] = useState("profile")
+
+    // Handle OAuth callback - get access token from URL
+    useEffect(() => {
+        const token = searchParams.get('token')
+        if (token) {
+            // Store access token in localStorage
+            localStorage.setItem('accessToken', token)
+            // Remove token from URL for security
+            router.replace('/customer', { scroll: false })
+        }
+    }, [searchParams, router])
 
     // Get section from URL params
     useEffect(() => {
-        const urlParams = new URLSearchParams(window.location.search)
-        const section = urlParams.get('section')
+        const section = searchParams.get('section')
         if (section && ['profile', 'orders', 'vouchers'].includes(section)) {
             setActiveSection(section)
         }
-    }, [])
+    }, [searchParams])
 
     const renderContent = () => {
         switch (activeSection) {

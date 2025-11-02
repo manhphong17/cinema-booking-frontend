@@ -1,7 +1,8 @@
 import {Analytics} from '@vercel/analytics/next'
 import './globals.css'
 import '../styles/home.css'
-import {Toaster} from "sonner"
+import {Toaster as SonnerToaster} from "sonner"
+import {Toaster as ShadcnToaster} from "@/components/ui/toaster"
 import {Inter, JetBrains_Mono} from "next/font/google"
 import {Suspense} from "react";
 
@@ -27,7 +28,8 @@ export default function RootLayout({
         <body className={`font-sans antialiased ${inter.variable} ${jetbrainsMono.variable}`}>
         <Suspense fallback={null}>
             {children}
-            <Toaster richColors position="top-right"/>
+            <SonnerToaster richColors position="top-right"/>
+            <ShadcnToaster />
         </Suspense>
         <Analytics/>
         </body>
