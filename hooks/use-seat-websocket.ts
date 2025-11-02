@@ -14,7 +14,8 @@ export function useSeatWebSocket(
   showtimeId: number | null,
   userId: number | null,
   enabled: boolean = true,
-  onExpired?: (userId: number, showtimeId: number) => void
+  onExpired?: (userId: number, showtimeId: number) => void,
+  onReleased?: (userId: number, ticketIds: number[]) => void
 ) {
   const clientRef = useRef<Client | null>(null)
   const [isConnected, setIsConnected] = useState(false)
@@ -61,6 +62,11 @@ export function useSeatWebSocket(
         }
         return updated
       })
+      
+      // Notify callback when seats are released (for cleanup purposes)
+      if (onReleased && message.userId === userId) {
+        onReleased(message.userId, ticketIds)
+      }
     } else if (message.status === 'FAILED') {
       console.warn('[useSeatWebSocket] Seat selection failed for user', message.userId)
     } else if (message.status === 'EXPIRED') {
@@ -70,7 +76,7 @@ export function useSeatWebSocket(
         onExpired(message.userId, message.showtimeId)
       }
     }
-  }, [onExpired])
+  }, [onExpired, onReleased, userId])
 
   // Connect to WebSocket
   useEffect(() => {
@@ -150,12 +156,36 @@ export function useSeatWebSocket(
     sendSeatAction(clientRef.current, request)
   }, [showtimeId, userId])
 
+  // Sync WebSocket state with seatData from API
+  // This ensures WebSocket state matches backend status when page loads
+  const syncWithSeatData = useCallback((seatData: Array<{ ticketId: number; seatStatus: string }>) => {
+    if (!seatData || seatData.length === 0) return
+
+    // Find all seats with HELD status and add them to heldSeats
+    const heldTicketIds = seatData
+      .filter(seat => seat.seatStatus === 'HELD')
+      .map(seat => seat.ticketId)
+
+    if (heldTicketIds.length > 0) {
+      setHeldSeats(prev => {
+        const updated = new Set(prev)
+        heldTicketIds.forEach(id => updated.add(id))
+        return updated
+      })
+      
+      console.log('[useSeatWebSocket] Synced with seatData:', { 
+        heldSeatsCount: heldTicketIds.length 
+      })
+    }
+  }, [])
+
   return {
     isConnected,
     heldSeats,
     seatsByUser,
     selectSeats,
-    deselectSeats
+    deselectSeats,
+    syncWithSeatData
   }
 }
 

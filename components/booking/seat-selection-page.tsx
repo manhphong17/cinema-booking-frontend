@@ -122,11 +122,38 @@ export default function SeatSelectionPage() {
     handleSeatHoldExpired()
   }, [handleSeatHoldExpired])
   
+  // Track seats that were just released by current user (to ignore stale backendStatus HELD)
+  const releasedSeatsRef = useRef<Set<number>>(new Set())
+  
+  // WebSocket callback when seats are released
+  const handleSeatReleased = useCallback((releasedUserId: number, ticketIds: number[]) => {
+    // When current user's seats are released via WebSocket, update local seatData
+    // This ensures UI reflects the release immediately, even if backendStatus hasn't updated in API response
+    if (releasedUserId === userId) {
+      console.log('[SeatSelection] WebSocket RELEASED confirmed, updating local seatData:', ticketIds)
+      
+      // Update local seatData to reflect the release
+      setSeatData(prev => prev.map(seat => {
+        if (ticketIds.includes(seat.ticketId) && seat.seatStatus === 'HELD') {
+          return { ...seat, seatStatus: 'AVAILABLE' }
+        }
+        return seat
+      }))
+      
+      // Now cleanup releasedSeatsRef since we've updated the local state
+      ticketIds.forEach(ticketId => {
+        releasedSeatsRef.current.delete(ticketId)
+        console.log('[SeatSelection] Removed from releasedSeatsRef - local state updated:', ticketId)
+      })
+    }
+  }, [userId])
+  
   const { isConnected, heldSeats, seatsByUser, selectSeats, deselectSeats } = useSeatWebSocket(
     showtimeId,
     userId,
     !!showtimeId && !!userId,
-    handleSeatHoldExpiredWithBooking // Subscribe vào Redis expiration notification
+    handleSeatHoldExpiredWithBooking, // Subscribe vào Redis expiration notification
+    handleSeatReleased // Callback when seats are released
   )
 
   useEffect(() => {
@@ -179,7 +206,13 @@ export default function SeatSelectionPage() {
         if (response.data?.status === 200 && response.data?.data?.length > 0) {
           const data = response.data.data[0]
           setShowtimeId(data.showTimeId)
-          setSeatData(data.ticketResponses)
+          const tickets = data.ticketResponses
+          setSeatData(tickets)
+          
+          // Reset restore flag when fetching new seats (new showtime or reload)
+          hasRestoredRef.current = false
+          // Clear releasedSeatsRef when fetching new seats (new showtime or reload)
+          releasedSeatsRef.current.clear()
         }
       } catch (error) {
         console.error("Error fetching seat data:", error)
@@ -191,13 +224,69 @@ export default function SeatSelectionPage() {
     fetchSeatData()
   }, [searchParams, dateParam, timeParam, hallParam, movieId])
 
+  // Track if we've already restored seats to avoid infinite loop
+  const hasRestoredRef = useRef(false)
+  
+  // Restore user's held seats from API when seatData is loaded (on page load/reload)
+  useEffect(() => {
+    if (!userId || !showtimeId || !seatData.length) return
+    if (hasRestoredRef.current) return // Already restored once
+    
+    const restoreHeldSeats = async () => {
+      try {
+        const response = await apiClient.get<{
+          status: number
+          message: string
+          data: {
+            seats: Array<{ ticketId: number; rowIdx: number; columnIdx: number; seatType: string; status: string }>
+          }
+        }>(`/bookings/show-times/${showtimeId}/users/${userId}/seat-hold`)
+        
+        if (response.data?.status === 200 && response.data?.data?.seats) {
+          const heldSeats = response.data.data.seats
+          const restoredSeats: string[] = []
+          const restoredTicketIds: number[] = []
+          
+          heldSeats.forEach(seat => {
+            const rowLabel = String.fromCharCode(65 + seat.rowIdx)
+            const seatNumber = seat.columnIdx + 1
+            const seatId = `${rowLabel}${seatNumber}`
+            restoredSeats.push(seatId)
+            restoredTicketIds.push(seat.ticketId)
+          })
+          
+          console.log('[SeatSelection] Restoring held seats from API:', restoredSeats)
+          if (restoredSeats.length > 0) {
+            hasRestoredRef.current = true
+            setSelectedSeats(restoredSeats)
+            setSelectedTicketIds(restoredTicketIds)
+            // Clear releasedSeatsRef when restoring - these seats are being restored, not released
+            restoredTicketIds.forEach(ticketId => {
+              releasedSeatsRef.current.delete(ticketId)
+            })
+          } else {
+            // If no seats to restore, clear releasedSeatsRef for this showtime
+            releasedSeatsRef.current.clear()
+          }
+        }
+      } catch (error) {
+        // No held seats or error - ignore
+        console.log('[SeatSelection] No held seats to restore or error:', error)
+      }
+    }
+    
+    restoreHeldSeats()
+  }, [userId, showtimeId, seatData])
+  
   // Restore selected seats from URL params when returning from combo page
   useEffect(() => {
     if (!seatData.length) return
 
     // If no seats param, clear selections (coming from booking page)
+    // But don't clear if we just restored from API (hasRestoredRef)
     if (!seatsParam) {
-      if (selectedSeats.length > 0) {
+      // Only clear if we haven't restored from API yet
+      if (!hasRestoredRef.current && selectedSeats.length > 0) {
         setSelectedSeats([])
         setSelectedTicketIds([])
       }
@@ -240,8 +329,17 @@ export default function SeatSelectionPage() {
     })
     
     console.log('[Restore Seats] Restoring:', { restoredSeats, restoredTicketIds, seatsFromUrl })
-    setSelectedSeats(restoredSeats)
-    setSelectedTicketIds(restoredTicketIds)
+    if (restoredSeats.length > 0) {
+      setSelectedSeats(restoredSeats)
+      setSelectedTicketIds(restoredTicketIds)
+      // Clear releasedSeatsRef when restoring - these seats are being restored, not released
+      restoredTicketIds.forEach(ticketId => {
+        releasedSeatsRef.current.delete(ticketId)
+      })
+    } else {
+      // If no seats to restore, clear releasedSeatsRef for this showtime
+      releasedSeatsRef.current.clear()
+    }
   }, [seatData, seatsParam]) // Only depend on seatData and seatsParam
 
   // Track đã gửi ghế nào qua WebSocket để tránh gửi lại
@@ -298,6 +396,25 @@ export default function SeatSelectionPage() {
     
     toRemove.forEach(ticketId => sentSeatsRef.current.delete(ticketId))
   }, [selectedTicketIds])
+  
+  // Clean up releasedSeatsRef when backendStatus is no longer HELD
+  // Primary cleanup happens via handleSeatReleased when WebSocket confirms RELEASED message
+  // This is just a fallback in case WebSocket message is missed
+  useEffect(() => {
+    if (!seatData.length) return
+    
+    releasedSeatsRef.current.forEach((ticketId) => {
+      // Check if backendStatus is no longer HELD for this seat
+      const seat = seatData.find(t => t.ticketId === ticketId)
+      const backendStatus = seat?.seatStatus || 'AVAILABLE'
+      
+      // Remove from releasedSeatsRef if backendStatus is NOT HELD (fallback cleanup)
+      if (backendStatus !== 'HELD') {
+        releasedSeatsRef.current.delete(ticketId)
+        console.log('[SeatSelection] Removed from releasedSeatsRef - backendStatus updated (fallback):', ticketId, backendStatus)
+      }
+    })
+  }, [seatData])
 
   const getTicketId = (seatId: string): number | null => {
     const seat = seatData.find(ticket => {
@@ -361,6 +478,9 @@ export default function SeatSelectionPage() {
       // Xóa khỏi sentSeatsRef khi user bỏ chọn
       // (sẽ được cleanup tự động bởi useEffect ở trên, nhưng xóa ngay để chắc chắn)
       sentSeatsRef.current.delete(ticketId)
+
+      // Mark as released to ignore stale backendStatus HELD
+      releasedSeatsRef.current.add(ticketId)
 
       // Deselect via WebSocket - this will release the hold on backend
       console.log('[SeatSelection] Deselecting seat:', seatId, 'ticketId:', ticketId, 'isConnected:', isConnected)
@@ -637,12 +757,19 @@ export default function SeatSelectionPage() {
                                 )
                               : false
                             
-                            // Backend status HELD - only consider it if seat is not selected by current user
-                            // (because if current user selected it, backend might mark it as HELD, but we still allow deselection)
-                            const isHeldByBackend = !isSelected && backendStatus === 'HELD'
-                            
                             // WebSocket held - only if not selected by current user
                             const isHeldByWebSocket = !isSelected && heldSeats.has(ticketId)
+                            
+                            // Check if this seat was just released by current user
+                            // If so, don't trust backendStatus HELD as it may not be updated yet
+                            const isJustReleased = releasedSeatsRef.current.has(ticketId)
+                            
+                            // Backend status HELD - trust it if:
+                            // 1. Seat is not selected by current user
+                            // 2. AND it's not just released by current user (to avoid stale HELD status after release)
+                            // This allows showing HELD status for seats held by others (even if WebSocket hasn't synced yet),
+                            // but prevents showing HELD for seats that were just released by current user
+                            const isHeldByBackend = !isSelected && backendStatus === 'HELD' && !isJustReleased
                             
                             // If seat is selected by current user, it's not considered "held" (can be deselected)
                             // Even if backendStatus is HELD, if it's selected by current user, allow deselection

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Clock, Calendar, MapPin, Loader2 } from "lucide-react"
+import { Clock, Calendar, MapPin, Loader2, Monitor, Sofa } from "lucide-react"
 import { getMoviesWithShowtimesToday } from "@/src/api/movies"
 import type { StaffMovie } from "@/src/api/movies"
 import { apiClient } from "@/src/api/interceptor"
@@ -57,9 +57,10 @@ interface TicketSelectionProps {
     quantity: number
     details?: string
   }) => void
+  onSyncTicketsToCart?: (showtimeId: number | null, movieName: string | null, showtimeInfo: string | null, selectedSeats: string[], seatPrices: Record<string, number>, seatTypes?: Record<string, string>) => void
 }
 
-export function TicketSelection({ onAddToCart }: TicketSelectionProps) {
+export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSelectionProps) {
   const [selectedMovieId, setSelectedMovieId] = useState<number | null>(null)
   const [selectedShowtimeId, setSelectedShowtimeId] = useState<number | null>(null)
   const [selectedSeats, setSelectedSeats] = useState<string[]>([])
@@ -95,15 +96,41 @@ export function TicketSelection({ onAddToCart }: TicketSelectionProps) {
   }, [])
   
   // WebSocket for seat synchronization
-  const { isConnected, heldSeats, seatsByUser, selectSeats, deselectSeats } = useSeatWebSocket(
+  const handleSeatReleased = useCallback((releasedUserId: number, ticketIds: number[]) => {
+    // When current user's seats are released via WebSocket, update local seatData
+    // This ensures UI reflects the release immediately, even if backendStatus hasn't updated in API response
+    if (releasedUserId === userId) {
+      console.log('[Staff] WebSocket RELEASED confirmed, updating local seatData:', ticketIds)
+      
+      // Update local seatData to reflect the release
+      setSeatData(prev => prev.map(seat => {
+        if (ticketIds.includes(seat.ticketId) && seat.seatStatus === 'HELD') {
+          return { ...seat, seatStatus: 'AVAILABLE' }
+        }
+        return seat
+      }))
+      
+      // Now cleanup releasedSeatsRef since we've updated the local state
+      ticketIds.forEach(ticketId => {
+        releasedSeatsRef.current.delete(ticketId)
+        console.log('[Staff] Removed from releasedSeatsRef - local state updated:', ticketId)
+      })
+    }
+  }, [userId])
+  
+  const { isConnected, heldSeats, seatsByUser, selectSeats, deselectSeats, syncWithSeatData } = useSeatWebSocket(
     selectedShowtimeId,
     userId,
     !!selectedShowtimeId && !!userId,
-    useCallback(() => {}, []) // No expiration handler for staff
+    useCallback(() => {}, []), // No expiration handler for staff
+    handleSeatReleased // Callback when seats are released
   )
   
   // Track sent seats to avoid duplicate WebSocket calls
   const sentSeatsRef = useRef<Set<number>>(new Set())
+  
+  // Track seats that were just released by current user (to ignore stale backendStatus HELD)
+  const releasedSeatsRef = useRef<Set<number>>(new Set())
 
   // Load movies on mount
   useEffect(() => {
@@ -157,6 +184,7 @@ export function TicketSelection({ onAddToCart }: TicketSelectionProps) {
       setSelectedSeats([])
       setSelectedTicketIds([])
       hasRestoredRef.current = false // Reset restore flag
+      releasedSeatsRef.current.clear() // Clear released seats when showtime is cleared
       return
     }
 
@@ -164,6 +192,7 @@ export function TicketSelection({ onAddToCart }: TicketSelectionProps) {
       setLoadingSeats(true)
       setSeatData([])
       hasRestoredRef.current = false // Reset restore flag when fetching new seats
+      releasedSeatsRef.current.clear() // Clear released seats when fetching new showtime
       // Don't clear selected seats here - let WebSocket restore them
       try {
         const response = await apiClient.get<SeatResponse>(
@@ -171,7 +200,13 @@ export function TicketSelection({ onAddToCart }: TicketSelectionProps) {
         )
         if (response.data?.status === 200 && response.data?.data && response.data.data.length > 0) {
           // API returns array of BookingSeatsData, extract ticketResponses
-          setSeatData(response.data.data[0].ticketResponses)
+          const tickets = response.data.data[0].ticketResponses
+          setSeatData(tickets)
+          
+          // Sync WebSocket state with seatData (for seats with HELD status)
+          if (syncWithSeatData && tickets.length > 0) {
+            syncWithSeatData(tickets.map(t => ({ ticketId: t.ticketId, seatStatus: t.seatStatus })))
+          }
         }
       } catch (error) {
         console.error("Error fetching seats:", error)
@@ -230,6 +265,16 @@ export function TicketSelection({ onAddToCart }: TicketSelectionProps) {
           if (restoredSeats.length > 0) {
             hasRestoredRef.current = true
             setSelectedSeats(restoredSeats)
+            // Clear releasedSeatsRef when restoring - these seats are being restored, not released
+            restoredSeats.forEach(seatId => {
+              const ticketId = getTicketId(seatId)
+              if (ticketId) {
+                releasedSeatsRef.current.delete(ticketId)
+              }
+            })
+          } else {
+            // If no seats to restore, clear releasedSeatsRef for this showtime
+            releasedSeatsRef.current.clear()
           }
         }
       } catch (error) {
@@ -290,47 +335,190 @@ export function TicketSelection({ onAddToCart }: TicketSelectionProps) {
     }
   }, [isConnected, selectedShowtimeId, userId, selectedTicketIds, selectSeats, heldSeats, seatsByUser])
 
-  // Cleanup deselected seats from WebSocket
+  // Cleanup: xóa ghế đã bỏ chọn khỏi sentSeatsRef
+  // Note: Không tự động deselect qua WebSocket ở đây - deselect sẽ được gọi trong handleSeatSelect
   useEffect(() => {
-    if (!isConnected || !selectedShowtimeId || !userId) return
-    
+    // So sánh với selectedTicketIds hiện tại
     const currentSelectedSet = new Set(selectedTicketIds)
     const toRemove: number[] = []
     
     sentSeatsRef.current.forEach((ticketId: number) => {
       if (!currentSelectedSet.has(ticketId)) {
+        // Ghế này không còn trong selectedTicketIds nữa, xóa khỏi sentSeatsRef
         toRemove.push(ticketId)
       }
     })
     
-    // Deselect removed seats via WebSocket
-    if (toRemove.length > 0 && isConnected) {
-      console.log('[Staff] Auto-deselecting via useEffect:', toRemove)
-      deselectSeats(toRemove)
-    }
-    
     toRemove.forEach(ticketId => sentSeatsRef.current.delete(ticketId))
-  }, [selectedTicketIds, isConnected, selectedShowtimeId, userId, deselectSeats])
+  }, [selectedTicketIds])
+  
+  // Clean up releasedSeatsRef when backendStatus is no longer HELD
+  // This is the primary cleanup mechanism - wait for backendStatus to actually update
+  // from HELD to AVAILABLE/BOOKED before removing from releasedSeatsRef
+  useEffect(() => {
+    if (!seatData.length) return
+    
+    releasedSeatsRef.current.forEach((ticketId) => {
+      // Check if backendStatus is no longer HELD for this seat
+      const seat = seatData.find(t => t.ticketId === ticketId)
+      const backendStatus = seat?.seatStatus || 'AVAILABLE'
+      
+      // Remove from releasedSeatsRef only when backendStatus is NOT HELD
+      // This ensures we don't prematurely remove it before backend actually updates
+      if (backendStatus !== 'HELD') {
+        releasedSeatsRef.current.delete(ticketId)
+        console.log('[Staff] Removed from releasedSeatsRef - backendStatus updated:', ticketId, backendStatus)
+      }
+    })
+  }, [seatData])
 
-  const handleSeatSelect = (seatId: string) => {
+  // Auto-sync selected seats to cart whenever selectedSeats changes
+  useEffect(() => {
+    if (!onSyncTicketsToCart || !selectedShowtimeId || !currentMovie || !currentShowtime) return
+
+    // Build seat prices map
+    const seatPrices: Record<string, number> = {}
+    // Build seat types map
+    const seatTypes: Record<string, string> = {}
+    selectedSeats.forEach(seatId => {
+      seatPrices[seatId] = getSeatPrice(seatId)
+      seatTypes[seatId] = getSeatType(seatId)
+    })
+
+    // Build showtime info string
+    const showtimeInfo = `${formatTime(currentShowtime.startTime)} - ${currentShowtime.roomName}`
+
+    // Sync to cart
+    onSyncTicketsToCart(
+      selectedShowtimeId,
+      currentMovie.name,
+      showtimeInfo,
+      selectedSeats,
+      seatPrices,
+      seatTypes
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSeats, selectedShowtimeId, currentMovie, currentShowtime, onSyncTicketsToCart, seatData])
+
+  const handleSeatSelect = (seatId: string, isOccupied: boolean, isHeld: boolean) => {
+    console.log('[Staff handleSeatSelect] Called with:', { seatId, isOccupied, isHeld })
     const ticketId = getTicketId(seatId)
-    if (!ticketId) return
+    if (!ticketId) {
+      console.log('[Staff handleSeatSelect] No ticketId found for seat:', seatId)
+      return
+    }
+
+    // If seat is already selected by current user, allow deselection
+    const isSelectedByCurrentUser = selectedSeats.includes(seatId)
+    console.log('[Staff handleSeatSelect] isSelectedByCurrentUser:', isSelectedByCurrentUser)
     
-    const isSelected = selectedSeats.includes(seatId)
-    
-    if (isSelected) {
-      // Deselect
+    if (isSelectedByCurrentUser) {
+      // Always allow deselection if seat is selected by current user
+      // Check directly if seat is held by someone else (not relying on isHeld parameter)
+      const isHeldByOther = userId && seatsByUser 
+        ? Array.from(seatsByUser.entries()).some(([otherUserId, seats]) => 
+            otherUserId !== userId && seats.has(ticketId)
+          )
+        : false
+
+      if (isHeldByOther) {
+        // Cannot deselect seat held by someone else
+        console.log('[Staff] Cannot deselect: seat is held by another user')
+        return
+      }
+
+      // Check if seat is booked or in maintenance - cannot deselect those
+      const seatFromData = seatData.find(t => t.ticketId === ticketId)
+      const backendStatus = seatFromData?.seatStatus || 'AVAILABLE'
+      if (backendStatus === 'BOOKED' || backendStatus === 'UNAVAILABLE') {
+        console.log('[Staff] Cannot deselect: seat is booked or unavailable')
+        return
+      }
+
       const newSelectedSeats = selectedSeats.filter(id => id !== seatId)
       const newSelectedTicketIds = selectedTicketIds.filter(id => id !== ticketId)
-      console.log('[Staff] Deselecting seat:', seatId, 'ticketId:', ticketId)
+
       setSelectedSeats(newSelectedSeats)
       setSelectedTicketIds(newSelectedTicketIds)
+      
+      // Xóa khỏi sentSeatsRef khi user bỏ chọn
+      sentSeatsRef.current.delete(ticketId)
+
+      // Mark as released to ignore stale backendStatus HELD
+      releasedSeatsRef.current.add(ticketId)
+      
+      // Deselect via WebSocket - this will release the hold on backend
+      console.log('[Staff] Deselecting seat:', seatId, 'ticketId:', ticketId, 'isConnected:', isConnected)
+      if (isConnected) {
+        deselectSeats([ticketId])
       } else {
-      // Select
-      console.log('[Staff] Selecting seat:', seatId, 'ticketId:', ticketId)
-      setSelectedSeats(prev => [...prev, seatId])
-      setSelectedTicketIds(prev => [...prev, ticketId])
+        console.warn('[Staff] WebSocket not connected, cannot deselect via WebSocket')
+      }
+      
+      // Sync to cart automatically (will be handled in useEffect after state update)
+      return
     }
+
+    // For selecting new seats, check if occupied or held
+    if (isOccupied || isHeld) return
+
+    const seatType = getSeatType(seatId)
+
+    const existingSeatTypes = [...new Set(selectedSeats.map(id => getSeatType(id)))]
+
+    if (existingSeatTypes.length > 0 && !existingSeatTypes.includes(seatType)) {
+      alert(`Bạn chỉ có thể chọn 1 loại ghế trong 1 lần đặt vé. Vui lòng bỏ chọn ghế ${existingSeatTypes[0] === 'vip' ? 'VIP' : 'thường'} trước khi chọn ghế ${seatType === 'vip' ? 'VIP' : 'thường'}.`)
+      return
+    }
+
+    const seatsOfSameType = selectedSeats.filter(id => getSeatType(id) === seatType)
+
+    if (seatsOfSameType.length >= 8) {
+      alert(`Bạn chỉ có thể chọn tối đa 8 ghế ${seatType === 'vip' ? 'VIP' : 'thường'} cùng loại`)
+      return
+    }
+
+    const newSelectedSeats = [...selectedSeats, seatId]
+    const newSelectedTicketIds = [...selectedTicketIds, ticketId]
+
+    setSelectedSeats(newSelectedSeats)
+    setSelectedTicketIds(newSelectedTicketIds)
+    
+    // Remove from releasedSeatsRef if user selects it again (meaning it's no longer released)
+    releasedSeatsRef.current.delete(ticketId)
+    
+    // Note: selectSeats will be called automatically by useEffect when selectedTicketIds changes
+    // Don't call directly here to avoid duplicate calls
+    
+    // Sync to cart automatically (will be handled in useEffect after state update)
+  }
+
+  const getSeatType = (seatId: string) => {
+    if (seatData.length === 0) return 'standard'
+
+    const seat = seatData.find(ticket => {
+      const rowLabel = String.fromCharCode(65 + ticket.rowIdx)
+      const seatNumber = ticket.columnInx + 1
+      const expectedSeatId = `${rowLabel}${seatNumber}`
+      return expectedSeatId === seatId
+    })
+
+    return seat ? seat.seatType.toLowerCase() : 'standard'
+  }
+
+  const isSeatTypeLimitReached = (type: string) => {
+    const seatsOfSameType = selectedSeats.filter(seatId => getSeatType(seatId) === type)
+    return seatsOfSameType.length >= 8
+  }
+
+  const getSelectedSeatType = () => {
+    if (selectedSeats.length === 0) return null
+    return getSeatType(selectedSeats[0])
+  }
+
+  const isDifferentSeatType = (type: string) => {
+    const selectedType = getSelectedSeatType()
+    return selectedType !== null && selectedType !== type
   }
 
   const getSeatPrice = (seatId: string) => {
@@ -547,25 +735,52 @@ export function TicketSelection({ onAddToCart }: TicketSelectionProps) {
               <>
                 {/* Screen */}
                 <div className="text-center mb-8">
-                  <div className="inline-block bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20 px-12 py-2 rounded-t-full">
-                    <span className="text-sm font-medium">MÀN HÌNH</span>
+                  <div className="relative">
+                    <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-6 px-12 rounded-2xl mx-auto inline-block font-bold text-lg shadow-2xl border-4 border-primary/50 transform hover:scale-105 transition-all duration-300" style={{
+                      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(148, 163, 184, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 0 30px rgba(59, 130, 246, 0.4)',
+                      background: 'linear-gradient(135deg, #1e293b 0%, #334155 25%, #475569 50%, #334155 75%, #1e293b 100%)'
+                    }}>
+                      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/40 via-purple-500/30 to-cyan-500/40 rounded-2xl blur-sm animate-pulse"></div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-transparent via-blue-400/20 to-transparent rounded-2xl"></div>
+                      <div className="relative z-10 flex items-center justify-center gap-3">
+                        <div className="relative">
+                          <Monitor className="h-7 w-7 text-blue-400 drop-shadow-lg animate-pulse" />
+                          <div className="absolute inset-0 bg-blue-400/50 blur-lg animate-ping"></div>
+                          <div className="absolute inset-0 bg-cyan-400/30 blur-md"></div>
+                        </div>
+                        <span className="text-white drop-shadow-lg tracking-wider font-extrabold text-xl">MÀN HÌNH</span>
+                      </div>
+                      <div className="absolute top-2 left-2 right-2 h-8 bg-gradient-to-b from-white/20 to-transparent rounded-t-2xl"></div>
+                      <div className="absolute inset-0 border-2 border-slate-500/50 rounded-2xl"></div>
+                      <div className="absolute inset-1 border border-slate-400/30 rounded-xl"></div>
+                    </div>
+                    <div className="relative mx-auto mt-3">
+                      <div className="w-16 h-4 bg-gradient-to-b from-slate-600 to-slate-800 rounded-b-lg shadow-lg border border-slate-500/50"></div>
+                      <div className="w-20 h-3 bg-gradient-to-b from-slate-700 to-slate-900 rounded-b-md shadow-md mx-auto -mt-1 border border-slate-600/50"></div>
+                      <div className="w-24 h-1 bg-gradient-to-b from-slate-800 to-black rounded-full mx-auto -mt-1 shadow-lg"></div>
+                    </div>
+                    <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 w-40 h-6 bg-black/30 rounded-full blur-lg"></div>
+                    <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-32 h-4 bg-black/20 rounded-full blur-md"></div>
+                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 w-48 h-8 bg-blue-500/10 rounded-full blur-xl"></div>
+                    <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-36 h-4 bg-cyan-500/5 rounded-full blur-lg"></div>
                   </div>
                 </div>
 
                 {/* Seat Grid */}
-                <div className="space-y-2 max-w-4xl mx-auto">
+                <div className="space-y-4 flex flex-col items-center">
                   {getSeatLayout().map((row) => (
-                    <div key={row.row} className="flex items-center justify-center gap-1">
-                      <div className="w-8 text-center font-bold text-sm text-foreground bg-gradient-to-r from-primary/10 to-primary/20 rounded-lg py-1 mr-4">
+                    <div key={row.row} className="flex items-center gap-4">
+                      <div className="w-8 text-center font-bold text-sm text-foreground bg-gradient-to-r from-primary/10 to-primary/20 rounded-lg py-1">
                         {row.row}
                       </div>
-
-                      {/* First 3 seats */}
-                      {row.seats.slice(0, 3).map((seat) => {
+                      <div className="flex gap-2 justify-center">
+                        {row.seats.map((seat) => {
                         const ticketId = seat.ticketId
-                        const isBooked = seat.status === 'BOOKED'
+                          const seatFromData = seatData.find(t => t.ticketId === ticketId)
+                          const backendStatus = seatFromData?.seatStatus || 'AVAILABLE'
+                          const isBooked = backendStatus === 'BOOKED'
+                          const isMaintenance = backendStatus === 'UNAVAILABLE'
                         const isSelected = selectedSeats.includes(seat.id)
-                        const isVip = seat.type === 'vip'
                         
                         // Check if held by current user (can be deselected)
                         const currentUserSeats = userId ? seatsByUser?.get(userId) : null
@@ -581,188 +796,98 @@ export function TicketSelection({ onAddToCart }: TicketSelectionProps) {
                         // WebSocket held - only if not selected by current user
                         const isHeldByWebSocket = !isSelected && heldSeats.has(ticketId)
                         
+                          // Check if this seat was just released by current user
+                          // If so, don't trust backendStatus HELD as it may not be updated yet
+                          const isJustReleased = releasedSeatsRef.current.has(ticketId)
+                          
+                          // Backend status HELD - trust it if:
+                          // 1. Seat is not selected by current user
+                          // 2. AND it's not just released by current user (to avoid stale HELD status after release)
+                          // This allows showing HELD status for seats held by others (even if WebSocket hasn't synced yet),
+                          // but prevents showing HELD for seats that were just released by current user
+                          const isHeldByBackend = !isSelected && backendStatus === 'HELD' && !isJustReleased
+                        
                         // If seat is selected by current user, it's not considered "held" (can be deselected)
-                        const isHeld = !isSelected && (isHeldByOther || isHeldByWebSocket)
+                          const isHeld = !isSelected && (isHeldByBackend || isHeldByOther || isHeldByWebSocket)
+                          const isOccupied = isBooked || isMaintenance || isHeld
+                          const seatType = getSeatType(seat.id)
+                          const isLimitReached = !isOccupied && !isSelected && isSeatTypeLimitReached(seatType)
+                          const isDifferentType = !isOccupied && !isSelected && isDifferentSeatType(seatType)
+
+                          // Debug: check disabled state
+                          const buttonDisabled = isSelected 
+                            ? (isBooked || isMaintenance) // If selected, only disable if booked/maintenance
+                            : (isOccupied || isLimitReached || isDifferentType) // If not selected, normal checks
 
                         return (
                           <button
                             key={seat.id}
-                            onClick={() => !isBooked && !isHeld && handleSeatSelect(seat.id)}
-                            disabled={isBooked || isHeld}
+                              onClick={(e) => {
+                                console.log('[Staff Button onClick] Seat clicked:', seat.id, 'isSelected:', isSelected, 'disabled:', buttonDisabled)
+                                if (!buttonDisabled) {
+                                  handleSeatSelect(seat.id, isBooked || isMaintenance, isHeld)
+                                } else {
+                                  console.log('[Staff Button onClick] Button is disabled, click ignored')
+                                }
+                              }}
+                              disabled={buttonDisabled}
                             className={`
-                              w-8 h-8 rounded text-xs font-bold transition-all duration-300 flex items-center justify-center
+                                w-10 h-10 rounded-lg text-xs font-bold transition-all duration-300 flex items-center justify-center relative
                               ${isBooked 
-                                ? 'bg-orange-500 text-white cursor-not-allowed' 
+                                  ? 'bg-gradient-to-br from-orange-500 to-orange-700 text-white cursor-not-allowed shadow-inner ring-2 ring-orange-300' 
+                                  : isMaintenance
+                                    ? 'bg-gradient-to-br from-gray-600 to-gray-800 text-white cursor-not-allowed shadow-inner ring-2 ring-gray-400'
                                 : isHeld
-                                  ? 'bg-yellow-500 text-white cursor-not-allowed animate-pulse'
+                                      ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-yellow-950 cursor-not-allowed shadow-inner animate-pulse ring-2 ring-yellow-300'
+                                    : isLimitReached
+                                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
+                                      : isDifferentType
+                                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-30'
                                   : isSelected
-                                    ? 'bg-emerald-500 text-white'
-                                    : isVip
-                                      ? 'bg-violet-600 text-white hover:bg-violet-500'
-                                      : 'bg-blue-600 text-white hover:bg-blue-500'
-                              }
-                            `}
-                          >
-                            {seat.id.slice(1)}
+                                        ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white scale-110 shadow-2xl ring-4 ring-emerald-300 ring-offset-2 font-extrabold'
+                                    : seatType === 'vip'
+                                          ? 'bg-gradient-to-br from-violet-500 to-violet-700 text-white hover:from-violet-400 hover:to-violet-600 shadow-xl hover:shadow-violet-500/60 ring-2 ring-violet-300'
+                                          : 'bg-gradient-to-br from-blue-500 to-blue-700 text-white hover:from-blue-400 hover:to-blue-600 shadow-xl hover:shadow-blue-500/60 ring-2 ring-blue-300'
+                                }
+                                hover:scale-110 active:scale-95
+                              `}
+                            >
+                              <span className="text-sm font-bold">{seat.id.slice(1)}</span>
                           </button>
                         )
                       })}
-
-                      <div className="w-4"></div>
-
-                      {/* Middle seats (4-9) */}
-                      {row.seats.slice(3, 9).map((seat) => {
-                        const ticketId = seat.ticketId
-                        const isBooked = seat.status === 'BOOKED'
-                        const isSelected = selectedSeats.includes(seat.id)
-                        const isVip = seat.type === 'vip'
-                        
-                        // Check if held by current user (can be deselected)
-                        const currentUserSeats = userId ? seatsByUser?.get(userId) : null
-                        const isHeldByCurrentUser = isSelected && currentUserSeats && currentUserSeats.has(ticketId)
-                        
-                        // Check if held by someone else (not current user)
-                        const isHeldByOther = !isSelected && userId && seatsByUser 
-                          ? Array.from(seatsByUser.entries()).some(([otherUserId, seats]) => 
-                              otherUserId !== userId && seats.has(ticketId)
-                            )
-                          : false
-                        
-                        // WebSocket held - only if not selected by current user
-                        const isHeldByWebSocket = !isSelected && heldSeats.has(ticketId)
-                        
-                        // If seat is selected by current user, it's not considered "held" (can be deselected)
-                        const isHeld = !isSelected && (isHeldByOther || isHeldByWebSocket)
-
-                        return (
-                          <button
-                            key={seat.id}
-                            onClick={() => !isBooked && !isHeld && handleSeatSelect(seat.id)}
-                            disabled={isBooked || isHeld}
-                            className={`
-                              w-8 h-8 rounded text-xs font-bold transition-all duration-300 flex items-center justify-center
-                              ${isBooked 
-                                ? 'bg-orange-500 text-white cursor-not-allowed' 
-                                : isHeld
-                                  ? 'bg-yellow-500 text-white cursor-not-allowed animate-pulse'
-                                  : isSelected
-                                    ? 'bg-emerald-500 text-white'
-                                    : isVip
-                                      ? 'bg-violet-600 text-white hover:bg-violet-500'
-                                      : 'bg-blue-600 text-white hover:bg-blue-500'
-                              }
-                            `}
-                          >
-                            {seat.id.slice(1)}
-                          </button>
-                        )
-                      })}
-
-                      <div className="w-4"></div>
-
-                      {/* Last seats (10+) */}
-                      {row.seats.slice(9).map((seat) => {
-                        const ticketId = seat.ticketId
-                        const isBooked = seat.status === 'BOOKED'
-                        const isSelected = selectedSeats.includes(seat.id)
-                        const isVip = seat.type === 'vip'
-                        
-                        // Check if held by current user (can be deselected)
-                        const currentUserSeats = userId ? seatsByUser?.get(userId) : null
-                        const isHeldByCurrentUser = isSelected && currentUserSeats && currentUserSeats.has(ticketId)
-                        
-                        // Check if held by someone else (not current user)
-                        const isHeldByOther = !isSelected && userId && seatsByUser 
-                          ? Array.from(seatsByUser.entries()).some(([otherUserId, seats]) => 
-                              otherUserId !== userId && seats.has(ticketId)
-                            )
-                          : false
-                        
-                        // WebSocket held - only if not selected by current user
-                        const isHeldByWebSocket = !isSelected && heldSeats.has(ticketId)
-                        
-                        // If seat is selected by current user, it's not considered "held" (can be deselected)
-                        const isHeld = !isSelected && (isHeldByOther || isHeldByWebSocket)
-
-                        return (
-                          <button
-                            key={seat.id}
-                            onClick={() => !isBooked && !isHeld && handleSeatSelect(seat.id)}
-                            disabled={isBooked || isHeld}
-                            className={`
-                              w-8 h-8 rounded text-xs font-bold transition-all duration-300 flex items-center justify-center
-                              ${isBooked 
-                                ? 'bg-orange-500 text-white cursor-not-allowed' 
-                                : isHeld
-                                  ? 'bg-yellow-500 text-white cursor-not-allowed animate-pulse'
-                                  : isSelected
-                                    ? 'bg-emerald-500 text-white'
-                                    : isVip
-                                      ? 'bg-violet-600 text-white hover:bg-violet-500'
-                                      : 'bg-blue-600 text-white hover:bg-blue-500'
-                              }
-                            `}
-                          >
-                            {seat.id.slice(1)}
-                          </button>
-                        )
-                      })}
+                      </div>
                     </div>
                   ))}
                 </div>
 
                 {/* Legend */}
-                <div className="mt-8 bg-muted rounded-lg p-4 border-2 border-border">
+                <div className="mt-8 bg-gray-50 rounded-xl p-4 border-2 border-gray-300">
                   <h4 className="font-semibold text-center mb-3 text-foreground text-base">Chú thích ghế</h4>
                   <div className="grid grid-cols-2 gap-2 text-xs mb-4 max-w-sm mx-auto">
-                    <div className="flex items-center gap-2 bg-background rounded-lg p-2 shadow-md border border-blue-200">
-                      <div className="w-5 h-5 bg-gradient-to-br from-blue-500 to-blue-700 rounded"></div>
+                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-blue-200">
+                      <div className="w-5 h-5 bg-gradient-to-br from-blue-500 to-blue-700 rounded ring-2 ring-blue-300"></div>
                       <span className="text-foreground font-medium">Có thể chọn</span>
                     </div>
-                    <div className="flex items-center gap-2 bg-background rounded-lg p-2 shadow-md border border-emerald-200">
-                      <div className="w-5 h-5 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded"></div>
+                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-emerald-200">
+                      <div className="w-5 h-5 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded ring-2 ring-emerald-300"></div>
                       <span className="text-foreground font-medium">Đã chọn</span>
                     </div>
-                    <div className="flex items-center gap-2 bg-background rounded-lg p-2 shadow-md border border-orange-200">
-                      <div className="w-5 h-5 bg-gradient-to-br from-orange-500 to-orange-700 rounded"></div>
+                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-orange-200">
+                      <div className="w-5 h-5 bg-gradient-to-br from-orange-500 to-orange-700 rounded ring-2 ring-orange-300"></div>
                       <span className="text-foreground font-medium">Đã đặt</span>
                     </div>
-                    <div className="flex items-center gap-2 bg-background rounded-lg p-2 shadow-md border border-yellow-200">
-                      <div className="w-5 h-5 bg-yellow-500 rounded animate-pulse"></div>
+                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-yellow-200">
+                      <div className="w-5 h-5 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded animate-pulse ring-2 ring-yellow-300"></div>
                       <span className="text-foreground font-medium">Đang giữ</span>
                     </div>
-                    <div className="flex items-center gap-2 bg-background rounded-lg p-2 shadow-md border border-violet-200">
-                      <div className="w-5 h-5 bg-gradient-to-br from-violet-500 to-violet-700 rounded"></div>
-                      <span className="text-foreground font-medium">VIP</span>
+                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-gray-300 col-span-2">
+                      <div className="w-5 h-5 bg-gradient-to-br from-gray-600 to-gray-800 rounded ring-2 ring-gray-400"></div>
+                      <span className="text-foreground font-medium">Bảo trì</span>
                     </div>
                   </div>
                 </div>
 
-            {selectedSeats.length > 0 && (
-              <div className="mt-6 p-4 bg-muted rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">
-                          {selectedSeats.length} vé × {formatTime(currentShowtime.startTime)}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Ghế: {selectedSeats.join(", ")}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-primary">
-                          {selectedSeats
-                            .reduce((sum, seatLabel) => {
-                              return sum + getSeatPrice(seatLabel)
-                            }, 0)
-                            .toLocaleString("vi-VN")}
-                          đ
-                    </p>
-                    <Button onClick={handleAddTickets} className="mt-2">
-                      Thêm vào giỏ
-                    </Button>
-                  </div>
-                </div>
-              </div>
-                )}
               </>
             )}
           </CardContent>
