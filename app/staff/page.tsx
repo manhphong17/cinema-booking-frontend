@@ -8,8 +8,7 @@ import { ConcessionsSelection } from "@/components/staff/concessions-selection"
 import { ETicketScanner } from "@/components/staff/eticket-scanner"
 import { RevenueDashboard } from "@/components/staff/revenue-dashboard"
 import BookingOrderSummary, { SeatInfo, ConcessionInfo } from "@/components/booking/booking-order-summary"
-import { PaymentMethodModal } from "@/components/staff/payment-method-modal"
-import { Button } from "@/components/ui/button"
+import { PaymentTab } from "@/components/staff/payment-tab"
 import { toast } from "sonner"
 
 interface CartItem {
@@ -26,7 +25,6 @@ interface CartItem {
 export default function CinemaManagement() {
   const [activeTab, setActiveTab] = useState("tickets")
   const [cartItems, setCartItems] = useState<CartItem[]>([])
-  const [paymentModalOpen, setPaymentModalOpen] = useState(false)
 
   const addToCart = (item: Omit<CartItem, "id">) => {
     const existingItem = cartItems.find((cartItem) => cartItem.name === item.name && cartItem.details === item.details)
@@ -54,14 +52,6 @@ export default function CinemaManagement() {
     setCartItems((prev) => prev.filter((item) => item.id !== id))
   }
 
-  const handleCheckout = () => {
-    // Mở modal chọn phương thức thanh toán
-    if (cartItems.length === 0) {
-      toast.error("Vui lòng thêm sản phẩm vào giỏ hàng")
-      return
-    }
-    setPaymentModalOpen(true)
-  }
 
   const handlePaymentSuccess = async () => {
     try {
@@ -74,8 +64,20 @@ export default function CinemaManagement() {
       // }
       // await apiClient.post("/bookings/create", bookingData)
       
-      toast.success("Thanh toán thành công!")
+      // Thông báo thành công với thông tin chi tiết
+      toast.success("Thanh toán thành công!", {
+        description: `Đã thanh toán ${total.toLocaleString("vi-VN")}đ`,
+        duration: 5000,
+      })
+      
+      // Clear cart sau khi thanh toán thành công
       setCartItems([])
+      
+      // Tự động chuyển về tab chọn vé để bắt đầu đơn mới
+      setTimeout(() => {
+        // Optional: có thể tự động chuyển tab nếu muốn
+        // setActiveTab("tickets")
+      }, 2000)
     } catch (error: any) {
       console.error("Payment success error:", error)
       toast.error(error?.message || "Lỗi khi xử lý thanh toán")
@@ -220,6 +222,18 @@ export default function CinemaManagement() {
         return <TicketSelection onAddToCart={addToCart} onSyncTicketsToCart={syncTicketsToCart} />
       case "concessions":
         return <ConcessionsSelection onAddToCart={addToCart} onSyncConcessionsToCart={syncConcessionsToCart} />
+      case "payment":
+        return (
+          <PaymentTab
+            seats={seats}
+            seatsTotal={seatsTotal}
+            concessions={concessions}
+            concessionsTotal={concessionsTotal}
+            total={total}
+            onPaymentSuccess={handlePaymentSuccess}
+            onNavigateToTickets={() => setActiveTab("tickets")}
+          />
+        )
       case "eticket":
         return <ETicketScanner />
       case "revenue":
@@ -242,36 +256,21 @@ export default function CinemaManagement() {
         <div className="flex gap-6">
           <div className="flex-1">{renderContent()}</div>
 
-          <div className="shrink-0 w-80 sticky top-8 h-fit">
-            <BookingOrderSummary
-              seats={seats}
-              seatsTotal={seatsTotal}
-              concessions={concessions}
-              concessionsTotal={concessionsTotal}
-              total={total}
-              title="Giỏ hàng"
-              showSeatTypeStats={false}
-              actionButton={
-                <Button
-                  onClick={handleCheckout}
-                  disabled={cartItems.length === 0}
-                  className="w-full"
-                  size="lg"
-                >
-                  Thanh toán
-                </Button>
-              }
-            />
-          </div>
+          {activeTab !== "payment" && (
+            <div className="shrink-0 w-80 sticky top-8 h-fit">
+              <BookingOrderSummary
+                seats={seats}
+                seatsTotal={seatsTotal}
+                concessions={concessions}
+                concessionsTotal={concessionsTotal}
+                total={total}
+                title="Giỏ hàng"
+                showSeatTypeStats={false}
+              />
+            </div>
+          )}
         </div>
       </div>
-
-      <PaymentMethodModal
-        open={paymentModalOpen}
-        onOpenChange={setPaymentModalOpen}
-        total={total}
-        onPaymentSuccess={handlePaymentSuccess}
-      />
     </div>
   )
 }
