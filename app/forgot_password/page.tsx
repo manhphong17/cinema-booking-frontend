@@ -27,7 +27,7 @@ export default function VerifyMailPage() {
 
         setIsLoading(true)
         try {
-            const res = await fetch(`${BACKEND_BASE_URL}/accounts/forgot-password`, {
+            const res = await fetch(`${BACKEND_BASE_URL}/auth/forgot-password`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email: trimmed }),

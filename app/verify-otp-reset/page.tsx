@@ -51,7 +51,7 @@ export default function VerifyOtpPage() {
 
         setIsLoading(true)
         try {
-            const res = await fetch(`${BACKEND_BASE_URL}/accounts/verify-otp-reset`, {
+            const res = await fetch(`${BACKEND_BASE_URL}/auth/verify-otp-reset`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, otpCode: otp }),
@@ -121,7 +121,7 @@ export default function VerifyOtpPage() {
             return
         }
         try {
-            const res = await fetch(`${BACKEND_BASE_URL}/accounts/forgot-password`, {
+            const res = await fetch(`${BACKEND_BASE_URL}/auth/forgot-password`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email }),

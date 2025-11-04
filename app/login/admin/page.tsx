@@ -151,7 +151,7 @@ export default function LoginPage() {
     }
 
     const handleForgotPassword = () => {
-        router.push("/forgot-password")
+        router.push("/forgot_password")
     }
 
     const handleRegister = () => {
