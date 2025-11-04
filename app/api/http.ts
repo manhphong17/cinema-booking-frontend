@@ -1,5 +1,5 @@
 // app/api/http.ts
-import { apiClient } from "@/src/api/interceptor"; // hoặc dùng path tương đối nếu bạn không có alias
+import { apiClient } from "@/src/api/interceptor";
 
 export async function GET<T>(url: string, params?: any): Promise<T> {
     const { data } = await apiClient.get<T>(url, { params });
