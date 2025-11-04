@@ -53,7 +53,8 @@ export async function getMe(email: string) {
         address: raw?.address ?? "",
         phoneNumber: raw?.phoneNumber ?? raw?.phone ?? "",
         loyaltyPoints: raw?.loyaltyPoints ?? raw?.loyalPoint ?? 0,
-        // gender and dateOfBirth are client-managed when backend lacks them
+        gender: raw?.gender ?? undefined,
+        dateOfBirth: raw?.dateOfBirth ?? undefined,
     };
     return normalized;
 }
