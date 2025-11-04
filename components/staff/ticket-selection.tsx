@@ -1,27 +1,52 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Clock, Calendar, MapPin } from "lucide-react"
-import { SeatMap } from "@/components/staff/seat-map"
+import { Clock, Calendar, MapPin, Loader2, Monitor, Sofa } from "lucide-react"
+import { getMoviesWithShowtimesToday } from "@/src/api/movies"
+import type { StaffMovie } from "@/src/api/movies"
+import { apiClient } from "@/src/api/interceptor"
+import { useSeatWebSocket } from "@/hooks/use-seat-websocket"
+import { jwtDecode } from "jwt-decode"
 
-interface Movie {
-  id: string
-  title: string
-  duration: string
-  genre: string
-  rating: string
-  poster: string
+interface ShowtimeInfo {
+  showTimeId: number
+  startTime: string
+  endTime: string
+  roomId: number
+  roomName: string
+  roomType: string
+  totalSeat: number
+  totalSeatAvailable: number
 }
 
-interface Showtime {
-  id: string
-  time: string
-  room: string
-  price: number
-  availableSeats: number
+interface ShowtimeResponse {
+  status: number
+  message: string
+  data: ShowtimeInfo[]
+}
+
+interface TicketResponse {
+  ticketId: number
+  rowIdx: number
+  columnInx: number
+  seatType: string
+  seatStatus: string
+  ticketPrice: number
+}
+
+interface BookingSeatsData {
+  showTimeId: number
+  roomId: number
+  ticketResponses: TicketResponse[]
+}
+
+interface SeatResponse {
+  status: number
+  message: string
+  data: BookingSeatsData[]
 }
 
 interface TicketSelectionProps {
@@ -32,100 +57,544 @@ interface TicketSelectionProps {
     quantity: number
     details?: string
   }) => void
+  onSyncTicketsToCart?: (showtimeId: number | null, movieName: string | null, showtimeInfo: string | null, selectedSeats: string[], seatPrices: Record<string, number>, seatTypes?: Record<string, string>) => void
 }
 
-const movies: Movie[] = [
-  {
-    id: "1",
-    title: "Avengers: Endgame",
-    duration: "181 phút",
-    genre: "Hành động, Khoa học viễn tưởng",
-    rating: "13+",
-    poster: "/generic-superhero-team-poster.png",
-  },
-  {
-    id: "2",
-    title: "Spider-Man: No Way Home",
-    duration: "148 phút",
-    genre: "Hành động, Phiêu lưu",
-    rating: "13+",
-    poster: "/spiderman-no-way-home-movie-poster.jpg",
-  },
-  {
-    id: "3",
-    title: "The Batman",
-    duration: "176 phút",
-    genre: "Hành động, Tội phạm",
-    rating: "16+",
-    poster: "/images/posters/the-batman-poster.png",
-  },
-  {
-    id: "4",
-    title: "Top Gun: Maverick",
-    duration: "130 phút",
-    genre: "Hành động, Drama",
-    rating: "13+",
-    poster: "/top-gun-maverick-movie-poster.jpg",
-  },
-]
-
-const showtimes: Record<string, Showtime[]> = {
-  "1": [
-    { id: "1-1", time: "09:00", room: "Phòng 1", price: 120000, availableSeats: 45 },
-    { id: "1-2", time: "12:30", room: "Phòng 2", price: 150000, availableSeats: 32 },
-    { id: "1-3", time: "16:00", room: "Phòng 1", price: 150000, availableSeats: 28 },
-    { id: "1-4", time: "19:30", room: "Phòng 3", price: 180000, availableSeats: 15 },
-    { id: "1-5", time: "22:00", room: "Phòng 2", price: 150000, availableSeats: 38 },
-  ],
-  "2": [
-    { id: "2-1", time: "10:15", room: "Phòng 2", price: 120000, availableSeats: 42 },
-    { id: "2-2", time: "13:45", room: "Phòng 1", price: 150000, availableSeats: 25 },
-    { id: "2-3", time: "17:15", room: "Phòng 3", price: 150000, availableSeats: 30 },
-    { id: "2-4", time: "20:45", room: "Phòng 2", price: 180000, availableSeats: 18 },
-  ],
-  "3": [
-    { id: "3-1", time: "11:00", room: "Phòng 3", price: 120000, availableSeats: 35 },
-    { id: "3-2", time: "14:30", room: "Phòng 1", price: 150000, availableSeats: 22 },
-    { id: "3-3", time: "18:00", room: "Phòng 2", price: 150000, availableSeats: 27 },
-    { id: "3-4", time: "21:30", room: "Phòng 3", price: 180000, availableSeats: 12 },
-  ],
-  "4": [
-    { id: "4-1", time: "09:30", room: "Phòng 2", price: 120000, availableSeats: 40 },
-    { id: "4-2", time: "13:00", room: "Phòng 3", price: 150000, availableSeats: 33 },
-    { id: "4-3", time: "16:30", room: "Phòng 1", price: 150000, availableSeats: 29 },
-    { id: "4-4", time: "20:00", room: "Phòng 2", price: 180000, availableSeats: 16 },
-  ],
-}
-
-export function TicketSelection({ onAddToCart }: TicketSelectionProps) {
-  const [selectedMovie, setSelectedMovie] = useState<string>("")
-  const [selectedShowtime, setSelectedShowtime] = useState<string>("")
+export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSelectionProps) {
+  const [selectedMovieId, setSelectedMovieId] = useState<number | null>(null)
+  const [selectedShowtimeId, setSelectedShowtimeId] = useState<number | null>(null)
   const [selectedSeats, setSelectedSeats] = useState<string[]>([])
+  const [selectedTicketIds, setSelectedTicketIds] = useState<number[]>([])
+  
+  // API data
+  const [apiMovies, setApiMovies] = useState<StaffMovie[]>([])
+  const [showtimes, setShowtimes] = useState<ShowtimeInfo[]>([])
+  const [seatData, setSeatData] = useState<TicketResponse[]>([])
+  
+  // Loading states
+  const [loadingMovies, setLoadingMovies] = useState(false)
+  const [loadingShowtimes, setLoadingShowtimes] = useState(false)
+  const [loadingSeats, setLoadingSeats] = useState(false)
+  
+  // User ID from token
+  const [userId, setUserId] = useState<number | null>(null)
 
-  const currentMovie = movies.find((m) => m.id === selectedMovie)
-  const currentShowtime = selectedMovie ? showtimes[selectedMovie]?.find((s) => s.id === selectedShowtime) : null
+  // Get today's date
+  const today = new Date().toISOString().split('T')[0]
+  
+  // Get user ID from token
+  useEffect(() => {
+    try {
+      const token = localStorage.getItem('accessToken')
+      if (token) {
+        const decoded: any = jwtDecode(token)
+        setUserId(decoded.userId)
+      }
+    } catch (error) {
+      console.error('Error decoding token:', error)
+    }
+  }, [])
+  
+  // WebSocket for seat synchronization
+  const handleSeatReleased = useCallback((releasedUserId: number, ticketIds: number[]) => {
+    // When current user's seats are released via WebSocket, update local seatData
+    // This ensures UI reflects the release immediately, even if backendStatus hasn't updated in API response
+    if (releasedUserId === userId) {
+      console.log('[Staff] WebSocket RELEASED confirmed, updating local seatData:', ticketIds)
+      
+      // Update local seatData to reflect the release
+      setSeatData(prev => prev.map(seat => {
+        if (ticketIds.includes(seat.ticketId) && seat.seatStatus === 'HELD') {
+          return { ...seat, seatStatus: 'AVAILABLE' }
+        }
+        return seat
+      }))
+      
+      // Now cleanup releasedSeatsRef since we've updated the local state
+      ticketIds.forEach(ticketId => {
+        releasedSeatsRef.current.delete(ticketId)
+        console.log('[Staff] Removed from releasedSeatsRef - local state updated:', ticketId)
+      })
+    }
+  }, [userId])
+  
+  const { isConnected, heldSeats, seatsByUser, selectSeats, deselectSeats, syncWithSeatData } = useSeatWebSocket(
+    selectedShowtimeId,
+    userId,
+    !!selectedShowtimeId && !!userId,
+    useCallback(() => {}, []), // No expiration handler for staff
+    handleSeatReleased // Callback when seats are released
+  )
+  
+  // Track sent seats to avoid duplicate WebSocket calls
+  const sentSeatsRef = useRef<Set<number>>(new Set())
+  
+  // Track seats that were just released by current user (to ignore stale backendStatus HELD)
+  const releasedSeatsRef = useRef<Set<number>>(new Set())
 
-  const handleSeatSelect = (seatId: string) => {
-    setSelectedSeats((prev) => {
-      if (prev.includes(seatId)) {
-        return prev.filter((id) => id !== seatId)
-      } else {
-        return [...prev, seatId]
+  // Load movies on mount
+  useEffect(() => {
+    const fetchMovies = async () => {
+      setLoadingMovies(true)
+      try {
+        const moviesData = await getMoviesWithShowtimesToday(today)
+        setApiMovies(moviesData)
+      } catch (error) {
+        console.error("Error fetching movies:", error)
+      } finally {
+        setLoadingMovies(false)
+      }
+    }
+    fetchMovies()
+  }, [today])
+
+  // Fetch showtimes when movie is selected
+  useEffect(() => {
+    if (!selectedMovieId) {
+      setShowtimes([])
+      return
+    }
+
+    const fetchShowtimes = async () => {
+      setLoadingShowtimes(true)
+      setShowtimes([])
+      setSelectedShowtimeId(null)
+      setSeatData([])
+      try {
+        const response = await apiClient.get<ShowtimeResponse>(
+          `/bookings/movies/${selectedMovieId}/show-times/${today}`
+        )
+        if (response.data?.status === 200 && response.data?.data) {
+          setShowtimes(response.data.data)
+        }
+      } catch (error) {
+        console.error("Error fetching showtimes:", error)
+      } finally {
+        setLoadingShowtimes(false)
+      }
+    }
+
+    fetchShowtimes()
+  }, [selectedMovieId, today])
+
+  // Fetch seats when showtime is selected
+  useEffect(() => {
+    if (!selectedShowtimeId) {
+      setSeatData([])
+      setSelectedSeats([])
+      setSelectedTicketIds([])
+      hasRestoredRef.current = false // Reset restore flag
+      releasedSeatsRef.current.clear() // Clear released seats when showtime is cleared
+      return
+    }
+
+    const fetchSeats = async () => {
+      setLoadingSeats(true)
+      setSeatData([])
+      hasRestoredRef.current = false // Reset restore flag when fetching new seats
+      releasedSeatsRef.current.clear() // Clear released seats when fetching new showtime
+      // Don't clear selected seats here - let WebSocket restore them
+      try {
+        const response = await apiClient.get<SeatResponse>(
+          `/bookings/show-times/${selectedShowtimeId}/seats`
+        )
+        if (response.data?.status === 200 && response.data?.data && response.data.data.length > 0) {
+          // API returns array of BookingSeatsData, extract ticketResponses
+          const tickets = response.data.data[0].ticketResponses
+          setSeatData(tickets)
+          
+          // Sync WebSocket state with seatData (for seats with HELD status)
+          if (syncWithSeatData && tickets.length > 0) {
+            syncWithSeatData(tickets.map(t => ({ ticketId: t.ticketId, seatStatus: t.seatStatus })))
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching seats:", error)
+      } finally {
+        setLoadingSeats(false)
+      }
+    }
+
+    fetchSeats()
+  }, [selectedShowtimeId])
+
+  const currentMovie = apiMovies.find((m) => m.id === selectedMovieId)
+  const currentShowtime = showtimes.find((s) => s.showTimeId === selectedShowtimeId)
+
+  // Helper functions to work with TicketResponse
+  const getTicketId = (seatId: string): number | null => {
+    const seat = seatData.find(ticket => {
+      const rowLabel = String.fromCharCode(65 + ticket.rowIdx)
+      const seatNumber = ticket.columnInx + 1
+      const expectedSeatId = `${rowLabel}${seatNumber}`
+      return expectedSeatId === seatId
+    })
+    return seat?.ticketId || null
+  }
+
+  // Track if we've already restored seats to avoid infinite loop
+  const hasRestoredRef = useRef(false)
+  
+  // Restore user's held seats from API when seatData is loaded
+  useEffect(() => {
+    if (!userId || !selectedShowtimeId || !seatData.length) return
+    if (hasRestoredRef.current) return // Already restored once
+    
+    const restoreHeldSeats = async () => {
+      try {
+        const response = await apiClient.get<{
+          status: number
+          message: string
+          data: {
+            seats: Array<{ ticketId: number; rowIdx: number; columnIdx: number; seatType: string; status: string }>
+          }
+        }>(`/bookings/show-times/${selectedShowtimeId}/users/${userId}/seat-hold`)
+        
+        if (response.data?.status === 200 && response.data?.data?.seats) {
+          const heldSeats = response.data.data.seats
+          const restoredSeats: string[] = []
+          
+          heldSeats.forEach(seat => {
+            const rowLabel = String.fromCharCode(65 + seat.rowIdx)
+            const seatNumber = seat.columnIdx + 1
+            const seatId = `${rowLabel}${seatNumber}`
+            restoredSeats.push(seatId)
+          })
+          
+          console.log('[Staff] Restoring held seats from API:', restoredSeats)
+          if (restoredSeats.length > 0) {
+            hasRestoredRef.current = true
+            setSelectedSeats(restoredSeats)
+            // Clear releasedSeatsRef when restoring - these seats are being restored, not released
+            restoredSeats.forEach(seatId => {
+              const ticketId = getTicketId(seatId)
+              if (ticketId) {
+                releasedSeatsRef.current.delete(ticketId)
+              }
+            })
+          } else {
+            // If no seats to restore, clear releasedSeatsRef for this showtime
+            releasedSeatsRef.current.clear()
+          }
+        }
+      } catch (error) {
+        // No held seats or error - ignore
+        console.log('[Staff] No held seats to restore or error:', error)
+      }
+    }
+    
+    restoreHeldSeats()
+  }, [userId, selectedShowtimeId, seatData])
+  
+  // Sync selected seats with ticket IDs
+  useEffect(() => {
+    const ticketIds: number[] = []
+    selectedSeats.forEach(seatId => {
+      const ticketId = getTicketId(seatId)
+      if (ticketId) {
+        ticketIds.push(ticketId)
       }
     })
+    setSelectedTicketIds(ticketIds)
+  }, [selectedSeats, seatData])
+
+  // Sync ticket IDs with WebSocket after restoring from URL/page load
+  // CHỈ gọi khi có ghế MỚI được thêm vào (không gọi lại khi đã gửi rồi)
+  useEffect(() => {
+    if (!isConnected || !selectedShowtimeId || !userId || selectedTicketIds.length === 0) return
+
+    // Chỉ lấy những ghế MỚI chưa được gửi qua WebSocket
+    const newTicketsToSelect = selectedTicketIds.filter(ticketId => {
+      // Đã gửi rồi, bỏ qua
+      if (sentSeatsRef.current.has(ticketId)) {
+        return false
+      }
+      
+      // Check if this ticket is held by someone else (not current user)
+      if (!heldSeats.has(ticketId)) {
+        // Not held by anyone, can select
+        return true
+      }
+      
+      // Check if held by current user
+      const currentUserSeats = userId ? seatsByUser.get(userId) : null
+      if (currentUserSeats && currentUserSeats.has(ticketId)) {
+        // Held by current user, can select
+        return true
+      }
+      
+      // Held by someone else, cannot select
+      return false
+    })
+
+    if (newTicketsToSelect.length > 0) {
+      console.log('[Staff] Auto-selecting new tickets via WebSocket:', newTicketsToSelect)
+      // Đánh dấu đã gửi những ghế này
+      newTicketsToSelect.forEach(ticketId => sentSeatsRef.current.add(ticketId))
+      selectSeats(newTicketsToSelect)
+    }
+  }, [isConnected, selectedShowtimeId, userId, selectedTicketIds, selectSeats, heldSeats, seatsByUser])
+
+  // Cleanup: xóa ghế đã bỏ chọn khỏi sentSeatsRef
+  // Note: Không tự động deselect qua WebSocket ở đây - deselect sẽ được gọi trong handleSeatSelect
+  useEffect(() => {
+    // So sánh với selectedTicketIds hiện tại
+    const currentSelectedSet = new Set(selectedTicketIds)
+    const toRemove: number[] = []
+    
+    sentSeatsRef.current.forEach((ticketId: number) => {
+      if (!currentSelectedSet.has(ticketId)) {
+        // Ghế này không còn trong selectedTicketIds nữa, xóa khỏi sentSeatsRef
+        toRemove.push(ticketId)
+      }
+    })
+    
+    toRemove.forEach(ticketId => sentSeatsRef.current.delete(ticketId))
+  }, [selectedTicketIds])
+  
+  // Clean up releasedSeatsRef when backendStatus is no longer HELD
+  // This is the primary cleanup mechanism - wait for backendStatus to actually update
+  // from HELD to AVAILABLE/BOOKED before removing from releasedSeatsRef
+  useEffect(() => {
+    if (!seatData.length) return
+    
+    releasedSeatsRef.current.forEach((ticketId) => {
+      // Check if backendStatus is no longer HELD for this seat
+      const seat = seatData.find(t => t.ticketId === ticketId)
+      const backendStatus = seat?.seatStatus || 'AVAILABLE'
+      
+      // Remove from releasedSeatsRef only when backendStatus is NOT HELD
+      // This ensures we don't prematurely remove it before backend actually updates
+      if (backendStatus !== 'HELD') {
+        releasedSeatsRef.current.delete(ticketId)
+        console.log('[Staff] Removed from releasedSeatsRef - backendStatus updated:', ticketId, backendStatus)
+      }
+    })
+  }, [seatData])
+
+  // Auto-sync selected seats to cart whenever selectedSeats changes
+  useEffect(() => {
+    if (!onSyncTicketsToCart || !selectedShowtimeId || !currentMovie || !currentShowtime) return
+
+    // Build seat prices map
+    const seatPrices: Record<string, number> = {}
+    // Build seat types map
+    const seatTypes: Record<string, string> = {}
+    selectedSeats.forEach(seatId => {
+      seatPrices[seatId] = getSeatPrice(seatId)
+      seatTypes[seatId] = getSeatType(seatId)
+    })
+
+    // Build showtime info string
+    const showtimeInfo = `${formatTime(currentShowtime.startTime)} - ${currentShowtime.roomName}`
+
+    // Sync to cart
+    onSyncTicketsToCart(
+      selectedShowtimeId,
+      currentMovie.name,
+      showtimeInfo,
+      selectedSeats,
+      seatPrices,
+      seatTypes
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSeats, selectedShowtimeId, currentMovie, currentShowtime, onSyncTicketsToCart, seatData])
+
+  const handleSeatSelect = (seatId: string, isOccupied: boolean, isHeld: boolean) => {
+    console.log('[Staff handleSeatSelect] Called with:', { seatId, isOccupied, isHeld })
+    const ticketId = getTicketId(seatId)
+    if (!ticketId) {
+      console.log('[Staff handleSeatSelect] No ticketId found for seat:', seatId)
+      return
+    }
+
+    // If seat is already selected by current user, allow deselection
+    const isSelectedByCurrentUser = selectedSeats.includes(seatId)
+    console.log('[Staff handleSeatSelect] isSelectedByCurrentUser:', isSelectedByCurrentUser)
+    
+    if (isSelectedByCurrentUser) {
+      // Always allow deselection if seat is selected by current user
+      // Check directly if seat is held by someone else (not relying on isHeld parameter)
+      const isHeldByOther = userId && seatsByUser 
+        ? Array.from(seatsByUser.entries()).some(([otherUserId, seats]) => 
+            otherUserId !== userId && seats.has(ticketId)
+          )
+        : false
+
+      if (isHeldByOther) {
+        // Cannot deselect seat held by someone else
+        console.log('[Staff] Cannot deselect: seat is held by another user')
+        return
+      }
+
+      // Check if seat is booked or in maintenance - cannot deselect those
+      const seatFromData = seatData.find(t => t.ticketId === ticketId)
+      const backendStatus = seatFromData?.seatStatus || 'AVAILABLE'
+      if (backendStatus === 'BOOKED' || backendStatus === 'UNAVAILABLE') {
+        console.log('[Staff] Cannot deselect: seat is booked or unavailable')
+        return
+      }
+
+      const newSelectedSeats = selectedSeats.filter(id => id !== seatId)
+      const newSelectedTicketIds = selectedTicketIds.filter(id => id !== ticketId)
+
+      setSelectedSeats(newSelectedSeats)
+      setSelectedTicketIds(newSelectedTicketIds)
+      
+      // Xóa khỏi sentSeatsRef khi user bỏ chọn
+      sentSeatsRef.current.delete(ticketId)
+
+      // Mark as released to ignore stale backendStatus HELD
+      releasedSeatsRef.current.add(ticketId)
+      
+      // Deselect via WebSocket - this will release the hold on backend
+      console.log('[Staff] Deselecting seat:', seatId, 'ticketId:', ticketId, 'isConnected:', isConnected)
+      if (isConnected) {
+        deselectSeats([ticketId])
+      } else {
+        console.warn('[Staff] WebSocket not connected, cannot deselect via WebSocket')
+      }
+      
+      // Sync to cart automatically (will be handled in useEffect after state update)
+      return
+    }
+
+    // For selecting new seats, check if occupied or held
+    if (isOccupied || isHeld) return
+
+    const seatType = getSeatType(seatId)
+
+    const existingSeatTypes = [...new Set(selectedSeats.map(id => getSeatType(id)))]
+
+    if (existingSeatTypes.length > 0 && !existingSeatTypes.includes(seatType)) {
+      alert(`Bạn chỉ có thể chọn 1 loại ghế trong 1 lần đặt vé. Vui lòng bỏ chọn ghế ${existingSeatTypes[0] === 'vip' ? 'VIP' : 'thường'} trước khi chọn ghế ${seatType === 'vip' ? 'VIP' : 'thường'}.`)
+      return
+    }
+
+    const seatsOfSameType = selectedSeats.filter(id => getSeatType(id) === seatType)
+
+    if (seatsOfSameType.length >= 8) {
+      alert(`Bạn chỉ có thể chọn tối đa 8 ghế ${seatType === 'vip' ? 'VIP' : 'thường'} cùng loại`)
+      return
+    }
+
+    const newSelectedSeats = [...selectedSeats, seatId]
+    const newSelectedTicketIds = [...selectedTicketIds, ticketId]
+
+    setSelectedSeats(newSelectedSeats)
+    setSelectedTicketIds(newSelectedTicketIds)
+    
+    // Remove from releasedSeatsRef if user selects it again (meaning it's no longer released)
+    releasedSeatsRef.current.delete(ticketId)
+    
+    // Note: selectSeats will be called automatically by useEffect when selectedTicketIds changes
+    // Don't call directly here to avoid duplicate calls
+    
+    // Sync to cart automatically (will be handled in useEffect after state update)
+  }
+
+  const getSeatType = (seatId: string) => {
+    if (seatData.length === 0) return 'standard'
+
+    const seat = seatData.find(ticket => {
+      const rowLabel = String.fromCharCode(65 + ticket.rowIdx)
+      const seatNumber = ticket.columnInx + 1
+      const expectedSeatId = `${rowLabel}${seatNumber}`
+      return expectedSeatId === seatId
+    })
+
+    return seat ? seat.seatType.toLowerCase() : 'standard'
+  }
+
+  const isSeatTypeLimitReached = (type: string) => {
+    const seatsOfSameType = selectedSeats.filter(seatId => getSeatType(seatId) === type)
+    return seatsOfSameType.length >= 8
+  }
+
+  const getSelectedSeatType = () => {
+    if (selectedSeats.length === 0) return null
+    return getSeatType(selectedSeats[0])
+  }
+
+  const isDifferentSeatType = (type: string) => {
+    const selectedType = getSelectedSeatType()
+    return selectedType !== null && selectedType !== type
+  }
+
+  const getSeatPrice = (seatId: string) => {
+    if (seatData.length === 0) return 0
+
+    const seat = seatData.find(ticket => {
+      const rowLabel = String.fromCharCode(65 + ticket.rowIdx)
+      const seatNumber = ticket.columnInx + 1
+      const expectedSeatId = `${rowLabel}${seatNumber}`
+      return expectedSeatId === seatId
+    })
+
+    return seat ? seat.ticketPrice : 0
   }
 
   const handleAddTickets = () => {
     if (currentMovie && currentShowtime && selectedSeats.length > 0) {
+      // Calculate total price from selected seats
+      const totalPrice = selectedSeats.reduce((sum, seatLabel) => {
+        return sum + getSeatPrice(seatLabel)
+      }, 0)
+
       onAddToCart({
         type: "ticket",
-        name: `${currentMovie.title}`,
-        price: currentShowtime.price,
+        name: currentMovie.name,
+        price: totalPrice,
         quantity: selectedSeats.length,
-        details: `${currentShowtime.time} - ${currentShowtime.room} - Ghế: ${selectedSeats.join(", ")}`,
+        details: `${formatTime(currentShowtime.startTime)} - ${currentShowtime.roomName} - Ghế: ${selectedSeats.join(", ")}`,
       })
       setSelectedSeats([])
     }
+  }
+
+  // Format time to HH:mm
+  const formatTime = (dateTime: string) => {
+    return new Date(dateTime).toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    })
+  }
+
+  // Generate seat layout from seatData (similar to seat-selection-page)
+  const getSeatLayout = () => {
+    if (seatData.length === 0) return []
+
+    const layout: Record<number, { row: string; seats: Array<{ id: string; type: string; price: number; ticketId: number; status: string }> }> = {}
+
+    seatData.forEach((ticket) => {
+      const rowIndex = ticket.rowIdx
+      const rowLabel = String.fromCharCode(65 + rowIndex)
+
+      if (!layout[rowIndex]) {
+        layout[rowIndex] = { row: rowLabel, seats: [] }
+      }
+
+      const seatNumber = ticket.columnInx + 1
+      const seatId = `${rowLabel}${seatNumber}`
+      const seatType = ticket.seatType.toLowerCase()
+      const price = ticket.ticketPrice
+
+      layout[rowIndex].seats.push({
+        id: seatId,
+        type: seatType,
+        price,
+        ticketId: ticket.ticketId,
+        status: ticket.seatStatus
+      })
+    })
+
+    return Object.values(layout)
+      .map(row => ({
+        ...row,
+        seats: row.seats.sort((a, b) => parseInt(a.id.slice(1)) - parseInt(b.id.slice(1)))
+      }))
+      .sort((a, b) => a.row.localeCompare(b.row))
   }
 
   return (
@@ -139,119 +608,287 @@ export function TicketSelection({ onAddToCart }: TicketSelectionProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
+          {loadingMovies ? (
+            <div className="text-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
+              <p className="text-muted-foreground">Đang tải danh sách phim...</p>
+            </div>
+          ) : apiMovies.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">Không có phim nào có suất chiếu hôm nay</p>
+            </div>
+          ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {movies.map((movie) => (
+              {apiMovies.map((movie) => (
               <div
                 key={movie.id}
                 className={`cursor-pointer rounded-lg border-2 transition-all ${
-                  selectedMovie === movie.id ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"
+                    selectedMovieId === movie.id
+                      ? "border-primary bg-primary/10"
+                      : "border-border hover:border-primary/50"
                 }`}
                 onClick={() => {
-                  setSelectedMovie(movie.id)
-                  setSelectedShowtime("")
+                    setSelectedMovieId(movie.id)
+                    setSelectedShowtimeId(null)
                   setSelectedSeats([])
                 }}
               >
                 <div className="p-4">
                   <img
-                    src={movie.poster || "/placeholder.svg"}
-                    alt={movie.title}
+                      src={movie.posterUrl || "/placeholder.svg"}
+                      alt={movie.name}
                     className="movie-poster w-full object-cover rounded-md mb-3"
                   />
-                  <h3 className="font-semibold text-sm mb-2 line-clamp-2">{movie.title}</h3>
+                    <h3 className="font-semibold text-sm mb-2 line-clamp-2">{movie.name}</h3>
                   <div className="space-y-1 text-xs text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      {movie.duration}
+                        {movie.duration} phút
                     </div>
-                    <p>{movie.genre}</p>
                     <Badge variant="secondary" className="text-xs">
-                      {movie.rating}
+                        {movie.ageRating}+
                     </Badge>
                   </div>
                 </div>
               </div>
             ))}
           </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Showtime Selection */}
-      {selectedMovie && (
+      {selectedMovieId && currentMovie && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Clock className="h-5 w-5" />
-              Chọn suất chiếu - {currentMovie?.title}
+              Chọn suất chiếu - {currentMovie.name}
             </CardTitle>
           </CardHeader>
           <CardContent>
+            {loadingShowtimes ? (
+              <div className="text-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
+                <p className="text-muted-foreground">Đang tải suất chiếu...</p>
+              </div>
+            ) : showtimes.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">Không có suất chiếu cho ngày hôm nay</p>
+              </div>
+            ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
-              {showtimes[selectedMovie]?.map((showtime) => (
+                {showtimes.map((showtime) => (
                 <div
-                  key={showtime.id}
+                    key={showtime.showTimeId}
                   className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
-                    selectedShowtime === showtime.id
+                      selectedShowtimeId === showtime.showTimeId
                       ? "border-primary bg-primary/10"
                       : "border-border hover:border-primary/50"
                   }`}
                   onClick={() => {
-                    setSelectedShowtime(showtime.id)
+                      setSelectedShowtimeId(showtime.showTimeId)
                     setSelectedSeats([])
                   }}
                 >
                   <div className="text-center">
-                    <div className="text-lg font-bold">{showtime.time}</div>
+                      <div className="text-lg font-bold">{formatTime(showtime.startTime)}</div>
                     <div className="text-sm text-muted-foreground flex items-center justify-center gap-1 mt-1">
                       <MapPin className="h-3 w-3" />
-                      {showtime.room}
+                        {showtime.roomName}
                     </div>
-                    <div className="text-sm font-medium text-primary mt-2">
-                      {showtime.price.toLocaleString("vi-VN")}đ
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {showtime.totalSeatAvailable}/{showtime.totalSeat} ghế trống
                     </div>
-                    <div className="text-xs text-muted-foreground mt-1">{showtime.availableSeats} ghế trống</div>
                   </div>
                 </div>
               ))}
             </div>
+            )}
           </CardContent>
         </Card>
       )}
 
       {/* Seat Selection */}
-      {selectedShowtime && (
+      {selectedShowtimeId && currentShowtime && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <MapPin className="h-5 w-5" />
-                Chọn ghế - {currentShowtime?.room}
+                Chọn ghế - {currentShowtime.roomName}
               </div>
               <div className="text-sm text-muted-foreground">Đã chọn: {selectedSeats.length} ghế</div>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <SeatMap selectedSeats={selectedSeats} onSeatSelect={handleSeatSelect} />
-
-            {selectedSeats.length > 0 && (
-              <div className="mt-6 p-4 bg-muted rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">
-                      {selectedSeats.length} vé × {currentShowtime?.price.toLocaleString("vi-VN")}đ
-                    </p>
-                    <p className="text-sm text-muted-foreground">Ghế: {selectedSeats.join(", ")}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-primary">
-                      {((currentShowtime?.price || 0) * selectedSeats.length).toLocaleString("vi-VN")}đ
-                    </p>
-                    <Button onClick={handleAddTickets} className="mt-2">
-                      Thêm vào giỏ
-                    </Button>
+            {loadingSeats ? (
+              <div className="text-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
+                <p className="text-muted-foreground">Đang tải sơ đồ ghế...</p>
+              </div>
+            ) : seatData.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">Không có thông tin ghế cho suất chiếu này</p>
+              </div>
+            ) : (
+              <>
+                {/* Screen */}
+                <div className="text-center mb-8">
+                  <div className="relative">
+                    <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-6 px-12 rounded-2xl mx-auto inline-block font-bold text-lg shadow-2xl border-4 border-primary/50 transform hover:scale-105 transition-all duration-300" style={{
+                      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(148, 163, 184, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 0 30px rgba(59, 130, 246, 0.4)',
+                      background: 'linear-gradient(135deg, #1e293b 0%, #334155 25%, #475569 50%, #334155 75%, #1e293b 100%)'
+                    }}>
+                      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/40 via-purple-500/30 to-cyan-500/40 rounded-2xl blur-sm animate-pulse"></div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-transparent via-blue-400/20 to-transparent rounded-2xl"></div>
+                      <div className="relative z-10 flex items-center justify-center gap-3">
+                        <div className="relative">
+                          <Monitor className="h-7 w-7 text-blue-400 drop-shadow-lg animate-pulse" />
+                          <div className="absolute inset-0 bg-blue-400/50 blur-lg animate-ping"></div>
+                          <div className="absolute inset-0 bg-cyan-400/30 blur-md"></div>
+                        </div>
+                        <span className="text-white drop-shadow-lg tracking-wider font-extrabold text-xl">MÀN HÌNH</span>
+                      </div>
+                      <div className="absolute top-2 left-2 right-2 h-8 bg-gradient-to-b from-white/20 to-transparent rounded-t-2xl"></div>
+                      <div className="absolute inset-0 border-2 border-slate-500/50 rounded-2xl"></div>
+                      <div className="absolute inset-1 border border-slate-400/30 rounded-xl"></div>
+                    </div>
+                    <div className="relative mx-auto mt-3">
+                      <div className="w-16 h-4 bg-gradient-to-b from-slate-600 to-slate-800 rounded-b-lg shadow-lg border border-slate-500/50"></div>
+                      <div className="w-20 h-3 bg-gradient-to-b from-slate-700 to-slate-900 rounded-b-md shadow-md mx-auto -mt-1 border border-slate-600/50"></div>
+                      <div className="w-24 h-1 bg-gradient-to-b from-slate-800 to-black rounded-full mx-auto -mt-1 shadow-lg"></div>
+                    </div>
+                    <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 w-40 h-6 bg-black/30 rounded-full blur-lg"></div>
+                    <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-32 h-4 bg-black/20 rounded-full blur-md"></div>
+                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 w-48 h-8 bg-blue-500/10 rounded-full blur-xl"></div>
+                    <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-36 h-4 bg-cyan-500/5 rounded-full blur-lg"></div>
                   </div>
                 </div>
-              </div>
+
+                {/* Seat Grid */}
+                <div className="space-y-4 flex flex-col items-center">
+                  {getSeatLayout().map((row) => (
+                    <div key={row.row} className="flex items-center gap-4">
+                      <div className="w-8 text-center font-bold text-sm text-foreground bg-gradient-to-r from-primary/10 to-primary/20 rounded-lg py-1">
+                        {row.row}
+                      </div>
+                      <div className="flex gap-2 justify-center">
+                        {row.seats.map((seat) => {
+                        const ticketId = seat.ticketId
+                          const seatFromData = seatData.find(t => t.ticketId === ticketId)
+                          const backendStatus = seatFromData?.seatStatus || 'AVAILABLE'
+                          const isBooked = backendStatus === 'BOOKED'
+                          const isMaintenance = backendStatus === 'UNAVAILABLE'
+                        const isSelected = selectedSeats.includes(seat.id)
+                        
+                        // Check if held by current user (can be deselected)
+                        const currentUserSeats = userId ? seatsByUser?.get(userId) : null
+                        const isHeldByCurrentUser = isSelected && currentUserSeats && currentUserSeats.has(ticketId)
+                        
+                        // Check if held by someone else (not current user)
+                        const isHeldByOther = !isSelected && userId && seatsByUser 
+                          ? Array.from(seatsByUser.entries()).some(([otherUserId, seats]) => 
+                              otherUserId !== userId && seats.has(ticketId)
+                            )
+                          : false
+                        
+                        // WebSocket held - only if not selected by current user
+                        const isHeldByWebSocket = !isSelected && heldSeats.has(ticketId)
+                        
+                          // Check if this seat was just released by current user
+                          // If so, don't trust backendStatus HELD as it may not be updated yet
+                          const isJustReleased = releasedSeatsRef.current.has(ticketId)
+                          
+                          // Backend status HELD - trust it if:
+                          // 1. Seat is not selected by current user
+                          // 2. AND it's not just released by current user (to avoid stale HELD status after release)
+                          // This allows showing HELD status for seats held by others (even if WebSocket hasn't synced yet),
+                          // but prevents showing HELD for seats that were just released by current user
+                          const isHeldByBackend = !isSelected && backendStatus === 'HELD' && !isJustReleased
+                        
+                        // If seat is selected by current user, it's not considered "held" (can be deselected)
+                          const isHeld = !isSelected && (isHeldByBackend || isHeldByOther || isHeldByWebSocket)
+                          const isOccupied = isBooked || isMaintenance || isHeld
+                          const seatType = getSeatType(seat.id)
+                          const isLimitReached = !isOccupied && !isSelected && isSeatTypeLimitReached(seatType)
+                          const isDifferentType = !isOccupied && !isSelected && isDifferentSeatType(seatType)
+
+                          // Debug: check disabled state
+                          const buttonDisabled = isSelected 
+                            ? (isBooked || isMaintenance) // If selected, only disable if booked/maintenance
+                            : (isOccupied || isLimitReached || isDifferentType) // If not selected, normal checks
+
+                        return (
+                          <button
+                            key={seat.id}
+                              onClick={(e) => {
+                                console.log('[Staff Button onClick] Seat clicked:', seat.id, 'isSelected:', isSelected, 'disabled:', buttonDisabled)
+                                if (!buttonDisabled) {
+                                  handleSeatSelect(seat.id, isBooked || isMaintenance, isHeld)
+                                } else {
+                                  console.log('[Staff Button onClick] Button is disabled, click ignored')
+                                }
+                              }}
+                              disabled={buttonDisabled}
+                            className={`
+                                w-10 h-10 rounded-lg text-xs font-bold transition-all duration-300 flex items-center justify-center relative
+                              ${isBooked 
+                                  ? 'bg-gradient-to-br from-orange-500 to-orange-700 text-white cursor-not-allowed shadow-inner ring-2 ring-orange-300' 
+                                  : isMaintenance
+                                    ? 'bg-gradient-to-br from-gray-600 to-gray-800 text-white cursor-not-allowed shadow-inner ring-2 ring-gray-400'
+                                : isHeld
+                                      ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-yellow-950 cursor-not-allowed shadow-inner animate-pulse ring-2 ring-yellow-300'
+                                    : isLimitReached
+                                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
+                                      : isDifferentType
+                                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-30'
+                                  : isSelected
+                                        ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white scale-110 shadow-2xl ring-4 ring-emerald-300 ring-offset-2 font-extrabold'
+                                    : seatType === 'vip'
+                                          ? 'bg-gradient-to-br from-violet-500 to-violet-700 text-white hover:from-violet-400 hover:to-violet-600 shadow-xl hover:shadow-violet-500/60 ring-2 ring-violet-300'
+                                          : 'bg-gradient-to-br from-blue-500 to-blue-700 text-white hover:from-blue-400 hover:to-blue-600 shadow-xl hover:shadow-blue-500/60 ring-2 ring-blue-300'
+                                }
+                                hover:scale-110 active:scale-95
+                              `}
+                            >
+                              <span className="text-sm font-bold">{seat.id.slice(1)}</span>
+                          </button>
+                        )
+                      })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Legend */}
+                <div className="mt-8 bg-gray-50 rounded-xl p-4 border-2 border-gray-300">
+                  <h4 className="font-semibold text-center mb-3 text-foreground text-base">Chú thích ghế</h4>
+                  <div className="grid grid-cols-2 gap-2 text-xs mb-4 max-w-sm mx-auto">
+                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-blue-200">
+                      <div className="w-5 h-5 bg-gradient-to-br from-blue-500 to-blue-700 rounded ring-2 ring-blue-300"></div>
+                      <span className="text-foreground font-medium">Có thể chọn</span>
+                    </div>
+                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-emerald-200">
+                      <div className="w-5 h-5 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded ring-2 ring-emerald-300"></div>
+                      <span className="text-foreground font-medium">Đã chọn</span>
+                    </div>
+                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-orange-200">
+                      <div className="w-5 h-5 bg-gradient-to-br from-orange-500 to-orange-700 rounded ring-2 ring-orange-300"></div>
+                      <span className="text-foreground font-medium">Đã đặt</span>
+                    </div>
+                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-yellow-200">
+                      <div className="w-5 h-5 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded animate-pulse ring-2 ring-yellow-300"></div>
+                      <span className="text-foreground font-medium">Đang giữ</span>
+                    </div>
+                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-gray-300 col-span-2">
+                      <div className="w-5 h-5 bg-gradient-to-br from-gray-600 to-gray-800 rounded ring-2 ring-gray-400"></div>
+                      <span className="text-foreground font-medium">Bảo trì</span>
+                    </div>
+                  </div>
+                </div>
+
+              </>
             )}
           </CardContent>
         </Card>

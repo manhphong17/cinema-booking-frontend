@@ -29,6 +29,14 @@ export interface Movie {
   status: 'PLAYING' | 'UPCOMING' | 'ENDED'
 }
 
+export interface StaffMovie {
+  id: number
+  name: string
+  posterUrl: string
+  duration: number
+  ageRating: number
+}
+
 export interface MoviesResponse {
   status: number
   message: string
@@ -482,5 +490,56 @@ export const getMovieById = async (id: number): Promise<Movie | null> => {
   } catch (error) {
     console.error('Error fetching movie by ID:', error)
     return null
+  }
+}
+
+/**
+ * Lấy danh sách phim có suất chiếu trong ngày (cho Staff)
+ */
+export const getMoviesWithShowtimesToday = async (
+  date: string,
+  keyword?: string
+): Promise<StaffMovie[]> => {
+  try {
+    const cacheKey = `staff-movies-${date}-${keyword || 'all'}`
+    
+    // Check cache first
+    const cachedData = getCachedData(cacheKey)
+    if (cachedData) {
+      console.log('Using cached data for staff movies:', cachedData.length)
+      return cachedData
+    }
+    
+    const params = keyword ? { keyword } : {}
+    const response = await apiClient.get<{
+      status: number
+      message: string
+      data: Array<{
+        id: number
+        name: string
+        posterUrl: string
+        duration: number
+        ageRating: number
+      }>
+    }>(`/movies/with-showtimes/${date}`, { params })
+    
+    if (response.data.status === 200 && response.data.data) {
+      const movies = response.data.data.map(movie => ({
+        id: movie.id,
+        name: movie.name,
+        posterUrl: movie.posterUrl,
+        duration: movie.duration,
+        ageRating: movie.ageRating
+      }))
+      
+      // Cache the result
+      setCachedData(cacheKey, movies)
+      return movies
+    }
+    
+    return []
+  } catch (error) {
+    console.error('Error fetching movies with showtimes:', error)
+    return []
   }
 }

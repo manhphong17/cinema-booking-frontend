@@ -1,6 +1,11 @@
 "use client"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Film, ShoppingCart, Ticket, TrendingUp } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Film, ShoppingCart, Ticket, TrendingUp, LogOut, User, CreditCard } from "lucide-react"
+import { jwtDecode } from "jwt-decode"
+import { apiClient } from "@/src/api/interceptor"
 
 interface CinemaNavbarProps {
   activeTab: string
@@ -8,6 +13,48 @@ interface CinemaNavbarProps {
 }
 
 export function CinemaNavbar({ activeTab, onTabChange }: CinemaNavbarProps) {
+  const router = useRouter()
+  const [staffName, setStaffName] = useState<string>("")
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchStaffInfo = async () => {
+      try {
+        const token = localStorage.getItem("accessToken")
+        if (token) {
+          const decoded: any = jwtDecode(token)
+          // JWT only has email, userId, roles - not name
+          // So we fetch from /users/me API
+          try {
+            const response = await apiClient.get('/users/me')
+            if (response.data?.status === 200 && response.data?.data?.name) {
+              setStaffName(response.data.data.name)
+            } else {
+              setStaffName(decoded.sub || "Staff") // Use email as fallback
+            }
+          } catch (apiError) {
+            // If API fails, use email from token
+            setStaffName(decoded.sub || "Staff")
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching staff info:", error)
+        setStaffName("Staff")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    fetchStaffInfo()
+  }, [])
+
+  const handleLogout = () => {
+    localStorage.removeItem("accessToken")
+    localStorage.removeItem("refreshToken")
+    localStorage.removeItem("roleName")
+    router.push("/login/admin")
+  }
+
   return (
     <div className="cinema-navbar border-b border-border bg-card">
       <div className="container mx-auto px-6 py-4">
@@ -30,11 +77,30 @@ export function CinemaNavbar({ activeTab, onTabChange }: CinemaNavbarProps) {
               </span>
             </div>
           </div>
-          <div className="text-sm text-muted-foreground font-medium">Management System</div>
+          
+          <div className="flex items-center gap-4">
+            {!isLoading && (
+              <>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <User className="h-4 w-4" />
+                  <span className="font-medium">{staffName}</span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLogout}
+                  className="flex items-center gap-2"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Đăng xuất
+                </Button>
+              </>
+            )}
+          </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-          <TabsList className="tabs-list grid w-full grid-cols-4 bg-muted">
+          <TabsList className="tabs-list grid w-full grid-cols-5 bg-muted">
             <TabsTrigger value="tickets" className="flex items-center gap-2">
               <Ticket className="h-4 w-4" />
               Chọn vé
@@ -42,6 +108,10 @@ export function CinemaNavbar({ activeTab, onTabChange }: CinemaNavbarProps) {
             <TabsTrigger value="concessions" className="flex items-center gap-2">
               <ShoppingCart className="h-4 w-4" />
               Chọn bắp nước
+            </TabsTrigger>
+            <TabsTrigger value="payment" className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4" />
+              Thanh toán
             </TabsTrigger>
             <TabsTrigger value="eticket" className="flex items-center gap-2">
               <Ticket className="h-4 w-4" />
