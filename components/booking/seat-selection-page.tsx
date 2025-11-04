@@ -147,13 +147,51 @@ export default function SeatSelectionPage() {
       })
     }
   }, [userId])
+
+  // WebSocket callback when seats are booked
+  const handleSeatBooked = useCallback((ticketIds: number[]) => {
+    console.log('[SeatSelection] WebSocket BOOKED received, updating local seatData:', ticketIds)
+    
+    // Update local seatData to reflect the booking
+    setSeatData(prev => prev.map(seat => {
+      if (ticketIds.includes(seat.ticketId)) {
+        return { ...seat, seatStatus: 'BOOKED' }
+      }
+      return seat
+    }))
+    
+    // Remove from selected seats if current user had selected these seats
+    setSelectedTicketIds(prev => prev.filter(ticketId => !ticketIds.includes(ticketId)))
+    
+    // Remove corresponding seatIds from selectedSeats
+    setSelectedSeats(prev => {
+      return prev.filter(seatId => {
+        // Find ticketId for this seatId from current seatData
+        const seat = seatData.find(ticket => {
+          const rowLabel = String.fromCharCode(65 + ticket.rowIdx)
+          const seatNumber = ticket.columnInx + 1
+          const expectedSeatId = `${rowLabel}${seatNumber}`
+          return expectedSeatId === seatId
+        })
+        const ticketId = seat?.ticketId
+        return ticketId === undefined || !ticketIds.includes(ticketId)
+      })
+    })
+    
+    // Clean up sentSeatsRef
+    ticketIds.forEach(ticketId => {
+      sentSeatsRef.current.delete(ticketId)
+      releasedSeatsRef.current.delete(ticketId)
+    })
+  }, [seatData])
   
   const { isConnected, heldSeats, seatsByUser, selectSeats, deselectSeats } = useSeatWebSocket(
     showtimeId,
     userId,
     !!showtimeId && !!userId,
     handleSeatHoldExpiredWithBooking, // Subscribe vào Redis expiration notification
-    handleSeatReleased // Callback when seats are released
+    handleSeatReleased, // Callback when seats are released
+    handleSeatBooked // Callback when seats are booked
   )
 
   useEffect(() => {

@@ -16,6 +16,7 @@ import { Film, User, ShoppingBag, Gift, LogOut, Mail, Phone, MapPin, Facebook, I
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {jwtDecode} from "jwt-decode";
+import { logout } from "@/src/api/interceptor"
 
 interface HomeLayoutProps {
   children: ReactNode
@@ -97,19 +98,9 @@ export function HomeLayout({ children }: HomeLayoutProps) {
   }, [dropdownOpen])
 
   const handleLogout = () => {
-    localStorage.removeItem("auth")
-    localStorage.removeItem("accessToken")
-    localStorage.removeItem("email")
-    localStorage.removeItem("userEmail")
-    localStorage.removeItem("userName")
-    localStorage.removeItem("customerName")
-    localStorage.removeItem("userGender")
-    localStorage.removeItem("userDob")
-    localStorage.removeItem("userAddress")
-    localStorage.removeItem("userPhone")
     setIsAuthenticated(false)
     setDropdownOpen(false)
-    router.push("/home")
+    logout()
   }
 
   const handleDropdownOpenChange = (open: boolean) => {

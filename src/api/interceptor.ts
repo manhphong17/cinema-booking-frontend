@@ -40,27 +40,24 @@ const getLoginPage = (): string => {
 
 const refreshAccessToken = async (): Promise<string | null> => {
     try {
-        // Use apiClient to ensure withCredentials: true is set
-        // Skip request interceptor to avoid adding expired Authorization header
-        const response = await apiClient.post('/auth/refresh-token', {}, {
-            skipAuth: true // Custom flag to skip auth in interceptor
-        })
+        const response = await apiClient.post(
+            '/auth/refresh-token',
+            {},
+            {  withCredentials: true }
+        )
 
-        // Backend response format: ResponseData<SignInResponse>
-        // ResponseData structure: { status: 200, message: "...", data: { accessToken, userId, email, roleName } }
         if (response.data?.status === 200 && response.data?.data?.accessToken) {
             const newAccessToken = response.data.data.accessToken
             localStorage.setItem("accessToken", newAccessToken)
             return newAccessToken
         }
-        
+
         return null
-    } catch (error: any) {
-        // If refresh token is invalid/expired, cookie might be missing
-        // Backend might return 401 or 403 if refresh token is invalid
+    } catch {
         return null
     }
 }
+
 
 // Request interceptor - tự động thêm token
 apiClient.interceptors.request.use(
@@ -72,10 +69,15 @@ apiClient.interceptors.request.use(
 
         const token = localStorage.getItem("accessToken")
 
-        // Skip auth for login/register endpoints (except refresh-token)
+        // Skip auth for login/register/logout endpoints (except refresh-token)
         if ((config.url?.includes('/auth/') && !config.url?.includes('/auth/refresh-token')) || 
             config.url?.includes('/login') || 
             config.url?.includes('/register')) {
+            return config
+        }
+        
+        // Skip auth for logout endpoint
+        if (config.url?.includes('/auth/log-out')) {
             return config
         }
 
@@ -103,6 +105,11 @@ apiClient.interceptors.response.use(
         if ((originalRequest.url?.includes('/auth/') && !originalRequest.url?.includes('/auth/refresh-token')) || 
             originalRequest.url?.includes('/login') || 
             originalRequest.url?.includes('/register')) {
+            return Promise.reject(error)
+        }
+
+        // Skip refresh token if logout endpoint was called
+        if (originalRequest.url?.includes('/auth/log-out')) {
             return Promise.reject(error)
         }
 
@@ -141,6 +148,42 @@ const redirectToLogin = () => {
         const loginPage = getLoginPage()
         // Use replace instead of href to prevent back button issues
         window.location.replace(loginPage)
+    }
+}
+
+// Logout function - call backend to delete refresh token and clear cookies
+export const logout = async () => {
+    try {
+        // Set flag to indicate coming from logout (prevent auto-login)
+        if (typeof window !== 'undefined') {
+            sessionStorage.setItem("fromLogout", "true")
+        }
+
+        // Gọi endpoint logout để xóa refresh token trong database và xóa cookie
+        await apiClient.post('/auth/log-out', {}, { withCredentials: true })
+    } catch (error) {
+        // Ignore errors - we still want to clear local storage and redirect
+        console.error('Logout error:', error)
+    } finally {
+        // Xóa tất cả localStorage data
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem("accessToken")
+            localStorage.removeItem("refreshToken")
+            localStorage.removeItem("roleName")
+            localStorage.removeItem("auth")
+            localStorage.removeItem("email")
+            localStorage.removeItem("userEmail")
+            localStorage.removeItem("userName")
+            localStorage.removeItem("customerName")
+            localStorage.removeItem("userGender")
+            localStorage.removeItem("userDob")
+            localStorage.removeItem("userAddress")
+            localStorage.removeItem("userPhone")
+            localStorage.removeItem("userId")
+            
+            const loginPage = getLoginPage()
+            window.location.replace(loginPage)
+        }
     }
 }
 
