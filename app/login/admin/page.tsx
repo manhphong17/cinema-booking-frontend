@@ -41,7 +41,17 @@ export default function LoginPage() {
     const router = useRouter()
 
     // Check if user is already logged in - redirect to appropriate dashboard based on role
+    // BUT: Skip auto-redirect if coming from logout (to prevent auto-login after logout)
     useEffect(() => {
+        // Check if this is from logout action (set in logout function)
+        const fromLogout = sessionStorage.getItem("fromLogout")
+        if (fromLogout === "true") {
+            // Clear the flag
+            sessionStorage.removeItem("fromLogout")
+            // Don't auto-redirect after logout
+            return
+        }
+
         const token = localStorage.getItem("accessToken")
         const roleName = localStorage.getItem("roleName")
         
@@ -174,7 +184,7 @@ export default function LoginPage() {
     }
 
     const handleForgotPassword = () => {
-        router.push("/forgot-password")
+        router.push("/forgot_password")
     }
 
     const handleRegister = () => {

@@ -400,13 +400,13 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
             toast.error("Vui lòng chọn trạng thái")
             return false
         }
-        
+
         return true
     }
 
     const handleSave = async () => {
         if (!validateForm()) return
-        
+
         setIsSaving(true)
         try {
             console.log("Saving movie with ID:", movieId)
@@ -416,53 +416,53 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
 
             // If there's a poster or banner file, use FormData for file upload
 
-                const formDataToSend = new FormData()
+            const formDataToSend = new FormData()
 
-                // Add basic movie data (ID comes from URL path)
-                formDataToSend.append("name", formData.name)
-                formDataToSend.append("director", formData.director)
-                formDataToSend.append("actor", formData.actor)
-                formDataToSend.append("description", formData.description)
-                if (formData.trailerUrl && formData.trailerUrl.trim() !== "") {
-                    formDataToSend.append("trailerUrl", formData.trailerUrl)
-                }
-                formDataToSend.append("releaseDate", formData.releaseDate)
-                formDataToSend.append("status", formData.status)
-                if (formData.ageRating && formData.ageRating.trim() !== "") {
-                    formDataToSend.append("ageRating", formData.ageRating)
-                }
-                if (formData.duration && formData.duration.trim() !== "") {
-                    formDataToSend.append("duration", formData.duration)
-                }
+            // Add basic movie data (ID comes from URL path)
+            formDataToSend.append("name", formData.name)
+            formDataToSend.append("director", formData.director)
+            formDataToSend.append("actor", formData.actor)
+            formDataToSend.append("description", formData.description)
+            if (formData.trailerUrl && formData.trailerUrl.trim() !== "") {
+                formDataToSend.append("trailerUrl", formData.trailerUrl)
+            }
+            formDataToSend.append("releaseDate", formData.releaseDate)
+            formDataToSend.append("status", formData.status)
+            if (formData.ageRating && formData.ageRating.trim() !== "") {
+                formDataToSend.append("ageRating", formData.ageRating)
+            }
+            if (formData.duration && formData.duration.trim() !== "") {
+                formDataToSend.append("duration", formData.duration)
+            }
 
-                // Add IDs
-                if (formData.countryId) {
-                    formDataToSend.append("countryId", formData.countryId)
-                }
-                if (formData.languageId) {
-                    formDataToSend.append("languageId", formData.languageId)
-                }
+            // Add IDs
+            if (formData.countryId) {
+                formDataToSend.append("countryId", formData.countryId)
+            }
+            if (formData.languageId) {
+                formDataToSend.append("languageId", formData.languageId)
+            }
 
-                // Add genre IDs as Long values
-                formData.genreIds.forEach(genreId => {
-                    formDataToSend.append("genreIds", genreId.toString())
-                })
+            // Add genre IDs as Long values
+            formData.genreIds.forEach(genreId => {
+                formDataToSend.append("genreIds", genreId.toString())
+            })
 
-                // Add poster file with correct field name
-                if (posterFile) {
-                    formDataToSend.append("poster", posterFile)
-                }
+            // Add poster file with correct field name
+            if (posterFile) {
+                formDataToSend.append("poster", posterFile)
+            }
 
-                // Add banner file with correct field name
-                if (bannerFile) {
-                    formDataToSend.append("banner", bannerFile)
-                }
+            // Add banner file with correct field name
+            if (bannerFile) {
+                formDataToSend.append("banner", bannerFile)
+            }
 
-                console.log("Sending FormData update to:", `/movies/update-full/${movieId}`)
-                const response = await apiClient.put(`/movies/update-full/${movieId}`, formDataToSend, {
-                })
+            console.log("Sending FormData update to:", `/movies/update-full/${movieId}`)
+            const response = await apiClient.put(`/movies/update-full/${movieId}`, formDataToSend, {
+            })
 
-                console.log("FormData update response:", response.data)
+            console.log("FormData update response:", response.data)
 
             toast.success("Cập nhật phim thành công")
             setIsEditing(false)

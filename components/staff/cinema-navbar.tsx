@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Film, ShoppingCart, Ticket, TrendingUp, LogOut, User, CreditCard } from "lucide-react"
 import { jwtDecode } from "jwt-decode"
 import { apiClient } from "@/src/api/interceptor"
+import { logout } from "@/src/api/interceptor"
 
 interface CinemaNavbarProps {
   activeTab: string
@@ -49,10 +50,7 @@ export function CinemaNavbar({ activeTab, onTabChange }: CinemaNavbarProps) {
   }, [])
 
   const handleLogout = () => {
-    localStorage.removeItem("accessToken")
-    localStorage.removeItem("refreshToken")
-    localStorage.removeItem("roleName")
-    router.push("/login/admin")
+    logout()
   }
 
   return (

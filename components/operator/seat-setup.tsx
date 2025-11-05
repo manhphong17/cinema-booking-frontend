@@ -1,5 +1,11 @@
 "use client"
 
+// Overview
+// Function: Advanced seat setup/editor for a cinema room, supporting row/column add/remove, per-seat editing, bulk updates, and live preview.
+// Output: Interactive UI to configure a 2D seat matrix with legends, dialogs, and confirmations; final matrix emitted on save.
+// Input: room summary (rows/columns), initialMatrix, seatTypes, and callbacks (onBack, onSave).
+
+import type React from "react"
 import { useState, useEffect, useMemo, type CSSProperties } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -8,6 +14,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Plus, Trash2, Settings, Eye, Users, Monitor } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
+// ===== Types & Visual Configs =====
+// Function: Define visual semantics for seat types and statuses.
+// Output: Type unions and a small theming system for seat rendering.
+// Input: Consumed by rendering helpers and state.
 type SeatVisualType = "standard" | "vip" | "disabled"
 type SeatVisualStatus = "available" | "occupied" | "reserved" | "blocked"
 type SeatTypeId = number | -1
@@ -18,6 +28,9 @@ interface SeatVisualConfig {
     shadow: string
 }
 
+// Function: Visual presets and constants for seat coloring and distribution.
+// Output: Default gradients, text colors, and drop shadows.
+// Input: Used by getSeatVisual() and legend rendering.
 const GOLDEN_ANGLE = 137.508
 const DEFAULT_SEAT_VISUAL: SeatVisualConfig = {
     background: "linear-gradient(135deg, #0284c7, #0369a1)",
@@ -34,6 +47,9 @@ const DISABLED_SEAT_VISUAL: SeatVisualConfig = {
 const DISABLED_LABEL = "Vô hiệu hóa"
 const AUTO_SELECT_VALUE = "cycle"
 
+// Function: UI-facing seat cell model stored in the matrix.
+// Output: Typed structure for each cell in the grid.
+// Input: Mutated via handlers and persisted via onSave().
 interface SeatCell {
     id: string | null
     row: number
@@ -44,6 +60,9 @@ interface SeatCell {
     seatTypeName?: string
 }
 
+// Function: Summarized room metadata used by the editor.
+// Output: Displays title, controls grid default size.
+// Input: Provided by parent.
 interface RoomSummary {
     id: number
     name: string
@@ -54,6 +73,9 @@ interface RoomSummary {
     columns: number
 }
 
+// Function: Props contract for SeatSetup component.
+// Output: Ensures required inputs and callbacks.
+// Input: room, initialMatrix, seatTypes, onBack, onSave.
 interface SeatSetupProps {
     room: RoomSummary
     initialMatrix: SeatCell[][]
@@ -62,6 +84,9 @@ interface SeatSetupProps {
     onSave: (matrix: SeatCell[][]) => void
 }
 
+// Function: Utility to generate a blank matrix with given dimensions.
+// Output: SeatCell[][] with default type/status for each position.
+// Input: rows, columns (numbers).
 const createEmptyMatrix = (rows: number, columns: number): SeatCell[][] => {
     const matrix: SeatCell[][] = []
     for (let row = 0; row < rows; row++) {
@@ -79,12 +104,24 @@ const createEmptyMatrix = (rows: number, columns: number): SeatCell[][] => {
     return matrix
 }
 
+// ===== Component =====
+// Function: Main SeatSetup component.
+// Output: Full-featured seat layout editor with preview and dialogs.
+// Input: Props (room, initialMatrix, seatTypes, onBack, onSave).
 export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: SeatSetupProps) {
     const { toast } = useToast()
+
+    // Function: Matrix state holding current seat configuration.
+    // Output: Reactive SeatCell[][] used for all rendering and mutations.
+    // Input: Initialized from initialMatrix or createEmptyMatrix(room.rows, room.columns).
     const [seatMatrix, setSeatMatrix] = useState<SeatCell[][]>(
         initialMatrix.length ? initialMatrix : createEmptyMatrix(room.rows, room.columns)
     )
 
+    // ===== Derived maps & helpers from seatTypes =====
+    // Function: Map visual categories to a best-effort default seatTypeId (by naming heuristics).
+    // Output: mapping { standard|vip|disabled -> seatTypeId | undefined }.
+    // Input: seatTypes list; re-computed when it changes.
     const visualTypeToSeatTypeId = useMemo(() => {
         const mapping: Record<SeatVisualType, number | undefined> = { standard: undefined, vip: undefined, disabled: undefined }
         seatTypes.forEach((type) => {
@@ -96,6 +133,9 @@ export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: Se
         return mapping
     }, [seatTypes])
 
+    // Function: Fallback seat type id used when a specific mapping is not present.
+    // Output: A SeatTypeId (number or -1 for disabled).
+    // Input: Derived from visualTypeToSeatTypeId and seatTypes.
     const fallbackSeatTypeId: SeatTypeId =
         (visualTypeToSeatTypeId.standard ??
             visualTypeToSeatTypeId.vip ??
@@ -103,6 +143,9 @@ export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: Se
             seatTypes[0]?.id ??
             -1) as SeatTypeId
 
+    // Function: UI selections and dialog flags.
+    // Output: Controls for dropdown selection and modal visibility.
+    // Input: User interactions (clicks, selects).
     const [selectedSeatTypeId, setSelectedSeatTypeId] = useState<SeatTypeId | null>(null)
     const [selectedRow, setSelectedRow] = useState<number | null>(null)
     const [isRowTypeDialogOpen, setIsRowTypeDialogOpen] = useState(false)
@@ -114,12 +157,18 @@ export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: Se
     } | null>(null)
     const [selectedSeats, setSelectedSeats] = useState<Set<string>>(new Set())
 
+    // Function: Map of seatType id to name for O(1) lookups.
+    // Output: Map<number, string> used by resolveSeatTypeName and render labels.
+    // Input: seatTypes list.
     const seatTypeNameById = useMemo(() => {
         const m = new Map<number, string>()
         seatTypes.forEach((s) => m.set(s.id, s.name))
         return m
     }, [seatTypes])
 
+    // Function: Generated visual styles per seatType using golden-angle palette spacing.
+    // Output: Map<number, SeatVisualConfig> providing background/text/shadow for each type.
+    // Input: seatTypes (index used to compute hue).
     const seatTypeVisualById = useMemo(() => {
         const map = new Map<number, SeatVisualConfig>()
         seatTypes.forEach((seatType, index) => {
@@ -138,12 +187,18 @@ export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: Se
         return map
     }, [seatTypes])
 
+    // Function: Order of seatType ids used when cycling through types.
+    // Output: Array of SeatTypeId, including -1 (disabled) as last.
+    // Input: seatTypes list.
     const seatTypeCycleOrder = useMemo<SeatTypeId[]>(() => {
         const ids = seatTypes.map<SeatTypeId>((seatType) => seatType.id)
         if (!ids.includes(-1)) ids.push(-1)
         return ids.length ? ids : [-1]
     }, [seatTypes])
 
+    // Function: Infer visual type by seat type name.
+    // Output: "vip" | "disabled" | "standard" used for rendering.
+    // Input: Human-readable seat type name string.
     const detectVisualType = (name?: string): SeatVisualType => {
         const n = (name || "").toLowerCase()
         if (n.includes("vip")) return "vip"
@@ -151,6 +206,9 @@ export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: Se
         return "standard"
     }
 
+    // Function: Cycle helper — next type id after current.
+    // Output: Next SeatTypeId from seatTypeCycleOrder.
+    // Input: current seatTypeId.
     const getNextSeatTypeIdAfter = (seatTypeId: SeatTypeId): SeatTypeId => {
         if (!seatTypeCycleOrder.length) return -1
         const currentIndex = seatTypeCycleOrder.indexOf(seatTypeId)
@@ -158,17 +216,27 @@ export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: Se
         return seatTypeCycleOrder[nextIndex]
     }
 
+    // Function: Decide what type the seat should become when auto-cycling.
+    // Output: SeatTypeId to apply to a given seat.
+    // Input: current SeatCell (uses seat.status/type and seatTypeId).
     const getNextSeatTypeIdForSeat = (seat: SeatCell): SeatTypeId => {
         const currentId = seat.status === "blocked" || seat.type === "disabled" ? -1 : seat.seatTypeId ?? -1
         return getNextSeatTypeIdAfter(currentId)
     }
 
+    // Function: Resolve a friendly label for a seatTypeId (with disabled/unknown fallbacks).
+    // Output: String to display in titles/tooltips/legend.
+    // Input: seatTypeId possibly -1/null/undefined.
     const resolveSeatTypeName = (seatTypeId: SeatTypeId | null | undefined) => {
         if (seatTypeId === -1) return DISABLED_LABEL
         if (seatTypeId == null) return "Chưa thiết lập"
         return seatTypeNameById.get(seatTypeId) ?? "Chưa thiết lập"
     }
 
+    // ===== Effects =====
+    // Function: Initialize/reset matrix when inputs change.
+    // Output: Updates seatMatrix to initialMatrix or a new blank grid.
+    // Input: initialMatrix, room.rows, room.columns.
     useEffect(() => {
         if (initialMatrix.length) {
             setSeatMatrix(initialMatrix)
@@ -177,6 +245,9 @@ export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: Se
         }
     }, [initialMatrix, room.rows, room.columns])
 
+    // Function: Keep seatTypeName in matrix in sync with seatTypes list.
+    // Output: Updates seatTypeName for cells whose id is present in seatTypeNameById.
+    // Input: seatTypeNameById map.
     useEffect(() => {
         setSeatMatrix((prev) => {
             let changed = false
@@ -196,6 +267,9 @@ export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: Se
         })
     }, [seatTypeNameById])
 
+    // Function: Ensure selectedSeatTypeId stays valid when seatTypes change.
+    // Output: Resets or falls back to a valid id if needed.
+    // Input: seatTypes, seatTypeNameById, visualTypeToSeatTypeId, selectedSeatTypeId.
     useEffect(() => {
         if (!seatTypes.length) {
             if (selectedSeatTypeId !== null) setSelectedSeatTypeId(null)
@@ -212,6 +286,10 @@ export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: Se
         setSelectedSeatTypeId(fallbackId)
     }, [seatTypes, seatTypeNameById, visualTypeToSeatTypeId, selectedSeatTypeId])
 
+    // ===== Handlers: per-seat & bulk =====
+    // Function: Handle click on an individual seat (select multi with Ctrl/Cmd; otherwise apply chosen/next type).
+    // Output: Mutates seatMatrix cell; updates selectedSeats when Ctrl/Cmd; toast feedback.
+    // Input: row, col, mouse event (checks ctrl/meta), selectedSeatTypeId.
     const handleSeatClick = (row: number, col: number, event: React.MouseEvent) => {
         if (isPreviewMode) return
 
@@ -259,6 +337,9 @@ export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: Se
         toast({ title: "Thay đổi loại ghế", description: `Ghế ${label} đã chuyển sang ${targetLabel}` })
     }
 
+    // Function: Apply currently selectedSeatTypeId (or auto-cycle) to all multi-selected seats.
+    // Output: Updates many cells, clears selection, and shows a toast.
+    // Input: selectedSeats set; selectedSeatTypeId value.
     const applySelectedSeatType = () => {
         if (selectedSeats.size === 0) {
             toast({ title: "Chưa chọn ghế", description: "Hãy chọn ghế cần cập nhật" })
@@ -300,6 +381,9 @@ export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: Se
         toast({ title: "Cập nhật thành công", description: `Đã thay đổi ${changed} ghế` })
     }
 
+    // Function: Assign an entire row to a given seatTypeId (or disabled).
+    // Output: Mutates all seats in that row and closes dialog; toast confirmation.
+    // Input: rowIndex, seatTypeId (number or -1).
     const handleRowTypeChangeById = (rowIndex: number, seatTypeId: SeatTypeId) => {
         const newMatrix: SeatCell[][] = seatMatrix.map((row, rIdx) => {
             if (rIdx !== rowIndex) return [...row]
@@ -324,6 +408,9 @@ export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: Se
         toast({ title: "Cập nhật thành công", description: `Đã thay đổi loại ghế hàng ${rowIndex + 1}` })
     }
 
+    // Function: Execute a pending structural matrix action after confirmation.
+    // Output: Calls insert/remove helpers, then clears pending and closes dialog.
+    // Input: pendingAction describing the desired change.
     const confirmAction = (action: typeof pendingAction) => {
         if (!action) return
         switch (action.type) {
@@ -344,6 +431,10 @@ export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: Se
         setPendingAction(null)
     }
 
+    // ===== Structure mutations (rows/columns) =====
+    // Function: Insert a new row after a given index; reindex subsequent rows.
+    // Output: seatMatrix with a new row filled with selected/default type; toast on success.
+    // Input: afterRow index; selectedSeatTypeId + fallbacks to determine new row type.
     const insertRow = (afterRow: number) => {
         const newMatrix: SeatCell[][] = seatMatrix.map((row) => [...row])
         const columns = seatMatrix[0]?.length || room.columns
@@ -379,6 +470,9 @@ export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: Se
         toast({ title: "Thêm hàng thành công", description: `Đã thêm hàng mới sau hàng ${String.fromCharCode(65 + afterRow)}` })
     }
 
+    // Function: Insert a new column after a given index; reindex subsequent columns.
+    // Output: seatMatrix with a new column filled with selected/default type; toast on success.
+    // Input: afterCol index; selectedSeatTypeId + fallbacks to determine new column type.
     const insertColumn = (afterCol: number) => {
         const newMatrix: SeatCell[][] = seatMatrix.map((row) => [...row])
         const sid: SeatTypeId =
@@ -409,6 +503,9 @@ export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: Se
         toast({ title: "Thêm cột thành công", description: `Đã thêm cột mới sau cột ${afterCol + 1}` })
     }
 
+    // Function: Remove a row at index; ensure at least one remains; reindex afterward.
+    // Output: seatMatrix with that row removed; toast on success/failure.
+    // Input: rowIndex to delete.
     const removeRow = (rowIndex: number) => {
         if (seatMatrix.length <= 1) {
             toast({ title: "Không thể xóa", description: "Phải có ít nhất 1 hàng ghế" })
@@ -428,6 +525,9 @@ export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: Se
         toast({ title: "Xóa hàng thành công", description: `Đã xóa hàng ${String.fromCharCode(65 + rowIndex)}` })
     }
 
+    // Function: Remove a column at index; ensure at least one remains; reindex afterward.
+    // Output: seatMatrix with that column removed; toast on success/failure.
+    // Input: colIndex to delete.
     const removeColumn = (colIndex: number) => {
         if (seatMatrix[0]?.length <= 1) {
             toast({ title: "Không thể xóa", description: "Phải có ít nhất 1 cột ghế" })
@@ -448,12 +548,18 @@ export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: Se
         toast({ title: "Xóa cột thành công", description: `Đã xóa cột ${colIndex + 1}` })
     }
 
+    // Function: Persist current matrix via parent callback, with toast confirmation.
+    // Output: Calls onSave(seatMatrix) and shows success message.
+    // Input: Current seatMatrix state.
     const handleSave = () => {
         onSave(seatMatrix)
         toast({ title: "Lưu thành công", description: "Cấu hình ghế đã được lưu" })
     }
 
-    // CHANGED: Preview shows by seat type, hides disabled seats
+    // ===== Rendering helpers =====
+    // Function: Compute per-seat visual styles depending on preview mode and type/disabled status.
+    // Output: className/textClass/style applied to seat buttons.
+    // Input: seat cell; isPreviewMode flag; seatTypeVisualById map.
     const getSeatVisual = (seat: SeatCell): { className: string; textClass: string; style?: CSSProperties } => {
         if (isPreviewMode) {
             if (seat.status === "blocked" || seat.type === "disabled") {
@@ -483,7 +589,9 @@ export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: Se
         return { className: "", textClass: "", style: { background: visual.background, color: visual.text, boxShadow: visual.shadow } }
     }
 
-    // CHANGED: compute visible seat types for preview legend
+    // Function: Compute which seat type ids are visible in legend (hide disabled in preview).
+    // Output: Array of ids used to render legend items.
+    // Input: isPreviewMode flag; seatMatrix; seatTypes.
     const visibleSeatTypeIds = useMemo(() => {
         if (!isPreviewMode) return seatTypes.map((s) => s.id)
         const set = new Set<number>()
@@ -495,6 +603,10 @@ export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: Se
         return Array.from(set)
     }, [isPreviewMode, seatMatrix, seatTypes])
 
+    // ===== Render =====
+    // Function: Return full JSX layout for header, controls, matrix, legend, and dialogs.
+    // Output: Complete page UI including modals.
+    // Input: Current local state and helpers.
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -635,7 +747,7 @@ export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: Se
                             <div className="flex items-center justify-center gap-2 mb-4">
                                 <div className="w-8"></div>
 
-                                {/* CHANGED: mỗi cột là một group có nút xóa riêng */}
+                                {/* each column is a group with its own delete button */}
                                 <div className="flex gap-1">
                                     {seatMatrix[0]?.map((_, colIndex) => (
                                         <div key={colIndex} className="relative group">
@@ -643,7 +755,7 @@ export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: Se
                                                 {colIndex + 1}
                                             </div>
 
-                                            {/* ADDED: nút xóa cột hiện khi hover đúng cột */}
+                                            {/* show column delete on hover */}
                                             {!isPreviewMode && (
                                                 <Button
                                                     size="icon"
@@ -655,7 +767,7 @@ export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: Se
                                                             toast({ title: "Không thể xóa", description: "Phải có ít nhất 1 cột ghế" })
                                                             return
                                                         }
-                                                        setPendingAction({ type: "removeColumn", index: colIndex }) // ADDED: xóa đúng cột
+                                                        setPendingAction({ type: "removeColumn", index: colIndex }) // delete exact column
                                                         setIsConfirmDialogOpen(true)
                                                     }}
                                                 >
@@ -666,7 +778,7 @@ export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: Se
                                     ))}
                                 </div>
 
-                                {/* Giữ nút thêm cột tổng */}
+                                {/* global add column */}
                                 {!isPreviewMode && (
                                     <>
                                         <Button
@@ -684,8 +796,6 @@ export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: Se
                                     </>
                                 )}
                             </div>
-
-
 
                             {/* Seat Matrix Container */}
                             <div className="flex justify-center">
@@ -709,7 +819,7 @@ export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: Se
                                                         seat.status === "blocked" || seat.type === "disabled" ? -1 : seat.seatTypeId
                                                     )
 
-                                                    // CHANGED: in preview, hide disabled seats but keep grid spacing
+                                                    // in preview, hide disabled seats but keep grid spacing
                                                     if (isPreviewMode && seatVisual.className === "hidden") {
                                                         return <div key={seatKey} className="w-8 h-8" />
                                                     }
@@ -718,27 +828,13 @@ export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: Se
                                                         <div key={seatKey} className="relative group/seat">
                                                             <button
                                                                 onClick={(e) => handleSeatClick(rowIndex, colIndex, e)}
-                                                                className={`w-8 h-8 rounded text-xs font-medium transition-all duration-200 hover:scale-110 active:scale-95 ${seatVisual.className} ${
-                                                                    !isPreviewMode ? "cursor-pointer ring-2 ring-transparent hover:ring-primary/30" : "cursor-default"
-                                                                } ${isSelected ? "outline outline-2 outline-primary outline-offset-2" : ""}`}
+                                                                className={`w-8 h-8 rounded text-xs font-medium transition-all duration-200 hover:scale-110 active:scale-95 ${seatVisual.className} ${!isPreviewMode ? "cursor-pointer ring-2 ring-transparent hover:ring-primary/30" : "cursor-default"} ${isSelected ? "outline outline-2 outline-primary outline-offset-2" : ""}`}
                                                                 style={seatVisual.style}
                                                                 disabled={isPreviewMode}
                                                                 title={`Ghế ${seatLabel} - ${seatTypeLabel}${isSelected ? " (Đã chọn)" : ""}`}
                                                             >
                                                                 {colIndex + 1}
                                                             </button>
-
-                                                            {/*/!* Insert column indicator *!/*/}
-                                                            {/*{!isPreviewMode && (*/}
-                                                            {/*    <div*/}
-                                                            {/*        className="absolute top-1/2 -right-1 w-2 h-2 bg-primary opacity-0 group-hover/seat:opacity-100 transition-opacity cursor-pointer hover:bg-primary/80"*/}
-                                                            {/*        onClick={(e) => {*/}
-                                                            {/*            e.stopPropagation()*/}
-                                                            {/*            insertColumn(colIndex)*/}
-                                                            {/*        }}*/}
-                                                            {/*        title="Chèn cột"*/}
-                                                            {/*    />*/}
-                                                            {/*)}*/}
                                                         </div>
                                                     )
                                                 })}
