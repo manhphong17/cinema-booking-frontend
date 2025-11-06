@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation"
 import { useMemo, useState, useEffect, useCallback, useRef } from "react"
-import { useToast } from "@/hooks/use-toast"
 import CustomerInfoCard, { CustomerInfo } from "./customer-info-card"
 import PaymentMethodCard from "./payment-method-card"
 import BookingOrderSummary, { SeatInfo, ConcessionInfo, MovieInfo } from "./booking-order-summary"
@@ -10,27 +9,27 @@ import { apiClient } from "@/src/api/interceptor"
 import { Movie } from "@/type/movie"
 import { jwtDecode } from "jwt-decode"
 import { useSeatWebSocket } from "@/hooks/use-seat-websocket"
+import { toast } from "sonner"
+
 
 type TicketResponse = {
-  ticketId: number
-  rowIdx: number
-  columnInx: number
-  seatType: string
-  seatStatus: string
-  ticketPrice: number
+    ticketId: number;
+    seatCode: string;      // ← dùng để hiển thị “C7”, “C8”…
+    seatType: string;
+    ticketPrice: number;
+
+    roomName: string;
+    roomType: string;
+    hall: string;
+
+    showtimeId: number;
+    showDate: string;      // yyyy-MM-dd
+    showTime: string;      // HH:mm
+
+    movieName: string;
+    posterUrl: string;
 }
 
-type ShowtimeSeatData = {
-  showTimeId: number
-  roomId: number
-  ticketResponses: TicketResponse[]
-}
-
-type ShowtimeSeatResponse = {
-  status: number
-  message: string
-  data: ShowtimeSeatData[]
-}
 
 type PaymentPageProps = {
   movieId: string | null
@@ -44,11 +43,6 @@ type PaymentPageProps = {
 
 export default function PaymentPage({
   movieId,
-  date,
-  time,
-  hall,
-  seats,
-  combosParam,
   showtimeId
 }: PaymentPageProps) {
   const router = useRouter()
@@ -56,23 +50,20 @@ export default function PaymentPage({
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({
     name: "",
     email: "",
+    loyalPoint: 0,
   })
 
   const [selectedPayment, setSelectedPayment] = useState("cash")
   const [isProcessing, setIsProcessing] = useState(false)
   const [discountValue, setDiscountValue] = useState(0)
-  const [movie, setMovie] = useState<Movie | null>(null)
-  const [loadingMovie, setLoadingMovie] = useState(true)
   const [concessions, setConcessions] = useState<any[]>([])
-  const [loadingConcessions, setLoadingConcessions] = useState(false)
   const [userId, setUserId] = useState<number | null>(null)
   const [comboQty, setComboQty] = useState<Record<string, number>>({})
 
   // Seat data
   const [seatData, setSeatData] = useState<TicketResponse[]>([])
-  const [loadingSeats, setLoadingSeats] = useState(false)
 
-  const { toast } = useToast()
+
   const bookingExpiredHandlerRef = useRef<(() => void) | null>(null)
   
   // Get userId from token
@@ -94,11 +85,7 @@ export default function PaymentPage({
       console.log('[Payment] Seat hold expired via Redis notification')
       
       // Hiển thị toast thông báo cho user
-      toast({
-        title: "⏰ Hết thời gian giữ ghế",
-        description: "Thời gian giữ ghế đã hết hạn. Vui lòng chọn lại ghế.",
-        variant: "destructive",
-      })
+        toast.error( "Thời gian giữ ghế đã hết hạn. Vui lòng chọn lại ghế.");
       
       // Redirect về home sau khi hiển thị toast
       setTimeout(() => {
@@ -123,241 +110,149 @@ export default function PaymentPage({
     handleSeatHoldExpired
   )
 
-  // Fetch movie data
-  useEffect(() => {
-    const fetchMovieData = async () => {
-      if (!movieId) {
-        setLoadingMovie(false)
-        return
-      }
 
-      try {
-        setLoadingMovie(true)
-        const response = await apiClient.get(`/movies/${movieId}`)
-        if (response.data?.status === 200 && response.data?.data) {
-          setMovie(response.data.data)
+    useEffect(() => {
+        async function fetchOrderSession() {
+            if (!showtimeId || !userId) return;
+
+            try {
+                // Gọi API lấy OrderSession trong Redis
+                const res = await apiClient.get(`/bookings/order-session`, {
+                    params: { showtimeId, userId }
+                });
+                const session = res.data.data;
+                console.log(" Order session from Redis:", session);
+
+                //  Lưu ticketIds & concessionOrders
+                const ticketIds = session.ticketIds || [];
+                const concessionOrders = session.concessionOrders || [];
+
+                //  Fetch ticket theo ticketIds
+                if (ticketIds.length > 0) {
+                    const seatRes = await apiClient.get(`/bookings/tickets/details`, {
+                        params: { ids: ticketIds.join(",") }
+                    });
+                    setSeatData(seatRes.data.data || []);
+                }
+
+                //  Fetch concessions theo comboId
+                if (concessionOrders.length > 0) {
+                    const comboIds = concessionOrders.map((c: any) => c.comboId);
+                    const consRes = await apiClient.get(`/concession/list-by-ids`, {
+                        params: { ids: comboIds.join(",") }
+                    });
+                    setConcessions(consRes.data.data || []);
+
+                    // Gắn map {comboId: quantity} cho dễ xử lý
+                    setComboQty(() => {
+                        const map: Record<string, number> = {};
+                        concessionOrders.forEach((c: any) => {
+                            map[c.comboId] = c.quantity;
+                        });
+                        return map;
+                    });
+                }
+            } catch (err) {
+                console.error(" Failed to fetch order session:", err);
+                toast.error("Không thể tải thông tin đơn hàng");
+            }
         }
-      } catch (error) {
-        console.error("Error fetching movie details:", error)
-      } finally {
-        setLoadingMovie(false)
-      }
-    }
 
-    fetchMovieData()
-  }, [movieId])
+        fetchOrderSession();
+    }, [showtimeId, userId]);
 
-  // Fetch concessions data
-  useEffect(() => {
-    const fetchConcessions = async () => {
-      try {
-        setLoadingConcessions(true)
-        const res = await apiClient.get("/concession", {
-          params: {
-            page: 0,
-            size: 100,
-            stockStatus: "IN_STOCK",
-            concessionStatus: "ACTIVE",
-          },
-        })
-        const list = res.data?.data?.content || []
-        setConcessions(list)
-      } catch (error) {
-        console.error("Error fetching concessions:", error)
-      } finally {
-        setLoadingConcessions(false)
-      }
-    }
+//  Tính tổng tiền vé
+    const calculateTicketTotal = useCallback(() => {
+        return seatData.reduce((sum, seat) => sum + (seat.ticketPrice || 0), 0);
+    }, [seatData]);
 
-    fetchConcessions()
-  }, [])
+//  Map danh sách ghế cho OrderSummary
+    // seatsInfo
+    const seatsInfo: SeatInfo[] = useMemo(() => {
+        return seatData.map(seat => ({
+            id: seat.seatCode,
+            type: seat.seatType.toLowerCase() ,
+            price: seat.ticketPrice
+        }));
+    }, [seatData]);
 
-  // Fetch seat data
-  useEffect(() => {
-    const fetchSeatData = async () => {
-      if (!showtimeId) return
+// ⃣ Map concessions (combo đồ ăn)
+    const concessionsInfo: ConcessionInfo[] = useMemo(() => {
+        return concessions
+            .filter((item) => comboQty[item.concessionId] > 0)
+            .map((item) => ({
+                id: item.concessionId,
+                name: item.name,
+                quantity: comboQty[item.concessionId] || 0,
+                price: item.price,
+            }));
+    }, [concessions, comboQty]);
 
-      try {
-        setLoadingSeats(true)
-        const response = await apiClient.get<ShowtimeSeatResponse>(
-          `/bookings/show-times/${showtimeId}/seats`
-        )
+// ⃣ Tính tổng tiền đồ ăn
+    const combosTotal = useMemo(() => {
+        return concessionsInfo.reduce(
+            (sum, item) => sum + item.price * item.quantity,
+            0
+        );
+    }, [concessionsInfo]);
 
-        if (response.data?.status === 200 && response.data?.data?.length > 0) {
-          const data = response.data.data[0]
-          setSeatData(data.ticketResponses)
+// ⃣ Tính tổng cộng (sau khi trừ giảm giá)
+    const calculateTotal = useCallback(() => {
+        const subtotal = calculateTicketTotal() + combosTotal;
+        return Math.max(0, subtotal - discountValue);
+    }, [calculateTicketTotal, combosTotal, discountValue]);
+
+
+// 6️⃣ Movie info (từ ticketDetails đầu tiên)
+    const movieInfo: MovieInfo | undefined = useMemo(() => {
+        if (!seatData.length) return undefined;
+        const first = seatData[0];
+        return {
+            title: first.movieName,
+            poster: first.posterUrl,
+            date: first.showDate,
+            time: first.showTime,
+            hall: first.hall,
+        };
+    }, [seatData]);
+
+    const handlePayment = async () => {
+        if (!showtimeId || !userId) return;
+        setIsProcessing(true);
+
+        try {
+            // Chuẩn bị payload theo DTO ở backend
+            const payload = {
+                userId,
+                ticketIds: seatData.map((s) => s.ticketId),
+                concessions: concessionsInfo.map((c) => ({
+                    concessionId: c.id,
+                    quantity: c.quantity,
+                })),
+                totalPrice: calculateTicketTotal() + combosTotal,
+                discount: discountValue,
+                amount: calculateTotal(),
+                paymentMethod: selectedPayment,
+                showtimeId: showtimeId,
+            };
+
+            const res = await apiClient.post("/payment/checkout", payload);
+            const payUrl = res.data.data;
+
+            // Nếu thanh toán bằng VNPay thì redirect
+            if (selectedPayment === "vnpay") {
+                window.location.href = payUrl;
+            } else {
+                toast.success("Thanh toán thành công bằng tiền mặt!");
+                router.push("/home");
+            }
+        } catch (err) {
+            toast.error("Không thể tạo đơn thanh toán");
+        } finally {
+            setIsProcessing(false);
         }
-      } catch (error) {
-        console.error("Error fetching seat data:", error)
-      } finally {
-        setLoadingSeats(false)
-      }
-    }
+    };
 
-    fetchSeatData()
-  }, [showtimeId])
-
-  // Parse combo quantities from URL params
-  useEffect(() => {
-    if (combosParam) {
-      try {
-        const parsed = JSON.parse(combosParam)
-        const map: Record<string, number> = {}
-
-        parsed.forEach((c: any) => {
-          map[c.comboId] = c.quantity
-        })
-
-        setComboQty(map)
-      } catch (err) {
-        console.error("Combo parse error:", err)
-      }
-    }
-  }, [combosParam])
-
-  // Price calculations
-  const combosTotal = useMemo(() => {
-    return Object.entries(comboQty).reduce((sum, [comboId, quantity]) => {
-      const concession = concessions.find(c => c.concessionId.toString() === comboId)
-      if (!concession) return sum
-      return sum + (quantity * concession.price)
-    }, 0)
-  }, [comboQty, concessions])
-
-  const getSeatPrice = (seatId: string) => {
-    if (seatData.length === 0) {
-      // Fallback to hardcoded prices if seat data not loaded yet
-      const row = seatId[0]
-      if (row === "H") return 200000
-      if (["E", "F", "G"].includes(row)) return 150000
-      return 100000
-    }
-
-    const seat = seatData.find(ticket => {
-      const rowLabel = String.fromCharCode(65 + ticket.rowIdx)
-      const seatNumber = ticket.columnInx + 1
-      const expectedSeatId = `${rowLabel}${seatNumber}`
-      return expectedSeatId === seatId
-    })
-
-    return seat ? seat.ticketPrice : 100000
-  }
-
-  const getSeatType = (seatId: string): 'standard' | 'vip' | 'premium' => {
-    if (seatData.length === 0) {
-      // Fallback to hardcoded type if seat data not loaded yet
-      const row = seatId[0]
-      if (row === 'H') return 'premium'
-      if (['E', 'F', 'G'].includes(row)) return 'vip'
-      return 'standard'
-    }
-
-    const seat = seatData.find(ticket => {
-      const rowLabel = String.fromCharCode(65 + ticket.rowIdx)
-      const seatNumber = ticket.columnInx + 1
-      const expectedSeatId = `${rowLabel}${seatNumber}`
-      return expectedSeatId === seatId
-    })
-
-    if (!seat) return 'standard'
-    
-    const seatTypeLower = seat.seatType.toLowerCase()
-    if (seatTypeLower === 'vip') return 'vip'
-    if (seatTypeLower === 'premium') return 'premium'
-    return 'standard'
-  }
-
-  const calculateTicketTotal = () => {
-    if (!seats) return 0
-    return seats.split(',').reduce((total, seatId) => {
-      return total + getSeatPrice(seatId.trim())
-    }, 0)
-  }
-
-  const calculateTotal = () => {
-    return calculateTicketTotal() + combosTotal - discountValue
-  }
-
-  // Prepare data for BookingOrderSummary component
-  const seatsInfo: SeatInfo[] = useMemo(() => {
-    if (!seats) return []
-    return seats.split(',').map(seatId => {
-      const trimmedSeatId = seatId.trim()
-      return { 
-        id: trimmedSeatId, 
-        type: getSeatType(trimmedSeatId), 
-        price: getSeatPrice(trimmedSeatId) 
-      }
-    })
-  }, [seats, seatData])
-
-  const concessionsInfo: ConcessionInfo[] = useMemo(() => {
-    const result: ConcessionInfo[] = []
-    Object.entries(comboQty).forEach(([comboId, quantity]) => {
-      if (quantity > 0) {
-        const concession = concessions.find(c => c.concessionId.toString() === comboId)
-        if (concession) {
-          result.push({
-            id: String(comboId),
-            name: concession.name,
-            quantity,
-            price: concession.price
-          })
-        }
-      }
-    })
-    return result
-  }, [comboQty, concessions])
-
-  const movieInfo: MovieInfo | undefined = useMemo(() => {
-    if (!movie) return undefined
-    return {
-      title: movie.name,
-      poster: movie.posterUrl,
-      date: date || undefined,
-      time: time || undefined,
-      hall: hall || undefined
-    }
-  }, [movie, date, time, hall])
-
-  // Payment handler
-  const handlePayment = async () => {
-    if (!customerInfo.name || !customerInfo.email) {
-      alert("Vui lòng điền thông tin khách hàng")
-      return
-    }
-
-    // Prevent double submission
-    if (isProcessing) return
-
-    setIsProcessing(true)
-
-    try {
-      if (selectedPayment === "vnpay") {
-        // Call API createPayment
-        const res = await fetch("/api/payment/vnpay", {
-          method: "POST",
-          body: JSON.stringify({
-            total: calculateTotal(),
-          }),
-        })
-
-        const data = await res.json()
-        window.location.href = data.paymentUrl
-        return
-      }
-
-      // Cash mock
-      setTimeout(() => {
-        const bookingId = `BK${Date.now()}`
-        router.push(`/booking/confirmation?bookingId=${bookingId}`)
-      }, 1500)
-    } catch (error) {
-      console.error("Payment processing error:", error)
-      // Reset processing state on error
-      setIsProcessing(false)
-    }
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 py-8">
@@ -383,6 +278,7 @@ export default function PaymentPage({
             concessionsTotal={combosTotal}
             total={calculateTotal()}
             discount={discountValue}
+            earnedPoints={Math.floor(calculateTotal() / 10000)}
             showtimeId={showtimeId ? parseInt(showtimeId) : null}
             userId={userId}
             movieId={movieId}
@@ -395,12 +291,13 @@ export default function PaymentPage({
           <button
             disabled={isProcessing}
             onClick={handlePayment}
-            className="w-full py-4 rounded-xl bg-gradient-to-r from-black to-gray-900 hover:from-gray-900 hover:to-black text-white font-semibold text-lg shadow-2xl hover:shadow-gray-900/50 transition-all duration-300 hover:scale-105 border-2 border-gray-800 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-4 rounded-xl bg-orange-600 hover:bg-orange-700  text-white font-semibold text-lg shadow-lg hover:shadow-gray-900/50 transition-all duration-300 hover:scale-105 border-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isProcessing
               ? "Đang xử lý..."
               : `Thanh toán ${calculateTotal().toLocaleString()}đ`}
           </button>
+
         </div>
       </div>
     </div>

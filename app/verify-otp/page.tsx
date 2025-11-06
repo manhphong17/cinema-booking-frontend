@@ -22,6 +22,7 @@ export default function OTPVerifyPage() {
 
     // Lấy email từ sessionStorage
     const email = sessionStorage.getItem("registerEmail")
+    const name = sessionStorage.getItem("name");
 
 
     const handleVerifyOTP = async (e: React.FormEvent) => {
@@ -41,7 +42,7 @@ export default function OTPVerifyPage() {
         setIsLoading(true)
         try {
             const response = await fetch(
-                `${BACKEND_BASE_URL}/auth/verify-otp?email=${encodeURIComponent(email)}&otp=${otp}`,
+                `${BACKEND_BASE_URL}/auth/verify-otp?email=${encodeURIComponent(email)}&name=${name}`,
                 {method: "POST"}
             )
 
@@ -67,19 +68,19 @@ export default function OTPVerifyPage() {
         setError("")
 
         try {
-            // Tạm thời gọi lại verify-otp (theo yêu cầu)
+
             const response = await fetch(
-                `${BACKEND_BASE_URL}/auth/verify-otp?email=${encodeURIComponent(email || "")}&otp=${otp || "000000"}`,
+                `${BACKEND_BASE_URL}/auth/resend-otp?email=${encodeURIComponent(email || "")}&name=${name || ""}`,
                 {method: "POST"}
             )
 
             const data = await response.json()
 
             if (response.ok) {
-                toast.success("OTP mới đã được gửi lại (giả lập)")
+                toast.success("OTP mới đã được gửi lại ")
             } else {
-                setError(data.message || "Không thể gửi lại OTP")
-                toast.error(data.message || "Không thể gửi lại OTP")
+                setError( "Không thể gửi lại OTP")
+                toast.error( "Không thể gửi lại OTP")
             }
         } catch (err) {
             setError("Lỗi kết nối khi gửi lại OTP")

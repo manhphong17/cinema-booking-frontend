@@ -187,6 +187,12 @@ export default function ShowtimeSelectionPage({ movieId }: ShowtimeSelectionPage
       return
     }
     
+    // Check if room is sold out
+    if (selectedRoom.totalSeatAvailable === 0) {
+      alert('Phòng chiếu này đã hết vé. Vui lòng chọn phòng khác.')
+      return
+    }
+    
     setIsNavigating(true)
     
     const q = new URLSearchParams({
@@ -366,7 +372,6 @@ export default function ShowtimeSelectionPage({ movieId }: ShowtimeSelectionPage
                             }`}
                           >
                             <div className="text-base font-bold">{slot.time}</div>
-                            <div className="text-xs opacity-80">{slot.available ? "Còn chỗ" : "Hết chỗ"}</div>
                           </Button>
                         )
                       })}
@@ -444,13 +449,23 @@ export default function ShowtimeSelectionPage({ movieId }: ShowtimeSelectionPage
                           }
                         }
 
+                        const isSoldOut = room.totalSeatAvailable === 0
+                        
                         return (
                           <Card
                             key={room.roomId}
-                            className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${
-                              isSelected ? "ring-2 ring-primary shadow-lg" : "hover:shadow-md"
+                            className={`transition-all duration-200 ${
+                              isSoldOut 
+                                ? "opacity-60 cursor-not-allowed" 
+                                : isSelected 
+                                  ? "ring-2 ring-primary shadow-lg cursor-pointer hover:shadow-lg" 
+                                  : "cursor-pointer hover:shadow-lg hover:shadow-md"
                             } ${getRoomColor(room.roomType)}`}
-                            onClick={() => setSelectedHall(room.roomName)}
+                            onClick={() => {
+                              if (!isSoldOut) {
+                                setSelectedHall(room.roomName)
+                              }
+                            }}
                           >
                             <CardContent className="p-3">
                               <div className="flex items-center justify-between mb-2">
@@ -491,21 +506,32 @@ export default function ShowtimeSelectionPage({ movieId }: ShowtimeSelectionPage
                                 </div>
                                 <div className="flex items-center justify-between">
                                   <span className="text-xs text-muted-foreground">Ghế trống:</span>
-                                  <span className="font-bold text-base text-primary">{room.totalSeatAvailable}</span>
+                                  <span className={`font-bold text-base ${
+                                    isSoldOut ? "text-red-600" : "text-primary"
+                                  }`}>
+                                    {room.totalSeatAvailable}
+                                  </span>
                                 </div>
                                 <div className="flex items-center justify-between">
                                   <span className="text-xs text-muted-foreground">Trạng thái:</span>
                                   <span
                                     className={`text-xs font-medium ${
-                                      room.totalSeatAvailable > 0 ? "text-green-600" : "text-red-600"
+                                      isSoldOut ? "text-red-600 font-bold" : "text-green-600"
                                     }`}
                                   >
-                                    {room.totalSeatAvailable > 0 ? "Còn chỗ" : "Hết chỗ"}
+                                    {isSoldOut ? "Hết vé" : "Còn chỗ"}
                                   </span>
                                 </div>
                               </div>
 
-                              {isSelected && (
+                              {isSoldOut && (
+                                <div className="mt-3 pt-3 border-t border-red-200">
+                                  <div className="flex items-center gap-2 text-red-600 font-medium">
+                                    <span className="text-sm">⚠️ Không thể chọn - Đã hết vé</span>
+                                  </div>
+                                </div>
+                              )}
+                              {isSelected && !isSoldOut && (
                                 <div className="mt-3 pt-3 border-t border-primary/20">
                                   <div className="flex items-center gap-2 text-primary font-medium">
                                     <Play className="h-4 w-4" />
@@ -586,22 +612,32 @@ export default function ShowtimeSelectionPage({ movieId }: ShowtimeSelectionPage
             {selectedTime && (
               <Card className="shadow-lg border-0">
                 <CardContent className="p-4">
-                  <Button
-                    onClick={handleContinue}
-                    disabled={!selectedHall || isNavigating}
-                    className="w-full bg-gradient-to-r from-black to-gray-900 hover:from-gray-900 hover:to-black text-white font-semibold py-3 shadow-2xl hover:shadow-gray-900/50 transition-all duration-300 hover:scale-105 border-2 border-gray-800 active:scale-95 rounded-xl text-base"
-                  >
-                    {isNavigating ? (
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                        <span>Đang chuyển trang...</span>
-                      </div>
-                    ) : selectedHall ? (
-                      "Tiếp tục chọn ghế"
-                    ) : (
-                      "Vui lòng chọn phòng chiếu"
-                    )}
-                  </Button>
+                  {(() => {
+                    const selectedRoom = rooms.find((room) => room.roomName === selectedHall)
+                    const isSoldOut = selectedRoom?.totalSeatAvailable === 0
+                    const isDisabled = !selectedHall || isNavigating || isSoldOut
+                    
+                    return (
+                      <Button
+                        onClick={handleContinue}
+                        disabled={isDisabled}
+                        className="w-full bg-gradient-to-r from-black to-gray-900 hover:from-gray-900 hover:to-black text-white font-semibold py-3 shadow-2xl hover:shadow-gray-900/50 transition-all duration-300 hover:scale-105 border-2 border-gray-800 active:scale-95 rounded-xl text-base disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                      >
+                        {isNavigating ? (
+                          <div className="flex items-center gap-2">
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                            <span>Đang chuyển trang...</span>
+                          </div>
+                        ) : isSoldOut ? (
+                          "⚠️ Phòng này đã hết vé"
+                        ) : selectedHall ? (
+                          "Tiếp tục chọn ghế"
+                        ) : (
+                          "Vui lòng chọn phòng chiếu"
+                        )}
+                      </Button>
+                    )
+                  })()}
                 </CardContent>
               </Card>
             )}

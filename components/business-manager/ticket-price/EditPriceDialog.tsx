@@ -30,7 +30,6 @@ export function EditPriceDialog({ open, onOpenChange, currentPrice, onSave, pric
         }
     }, [currentPrice])
 
-    // ✅ HÀM NẰM Ở ĐÂY
     const handleSave = () => {
         const numPrice = Number(price)
         if (!isNaN(numPrice) && numPrice >= 0) {

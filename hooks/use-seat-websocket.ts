@@ -15,7 +15,8 @@ export function useSeatWebSocket(
   userId: number | null,
   enabled: boolean = true,
   onExpired?: (userId: number, showtimeId: number) => void,
-  onReleased?: (userId: number, ticketIds: number[]) => void
+  onReleased?: (userId: number, ticketIds: number[]) => void,
+  onBooked?: (ticketIds: number[]) => void
 ) {
   const clientRef = useRef<Client | null>(null)
   const [isConnected, setIsConnected] = useState(false)
@@ -75,8 +76,33 @@ export function useSeatWebSocket(
       if (onExpired) {
         onExpired(message.userId, message.showtimeId)
       }
+    } else if (message.status === 'BOOKED') {
+      // Seats were booked - remove from heldSeats and seatsByUser
+      console.log('[useSeatWebSocket] Seats booked for showtime', message.showtimeId, 'ticketIds:', ticketIds)
+      setHeldSeats(prev => {
+        const updated = new Set(prev)
+        ticketIds.forEach(id => updated.delete(id))
+        return updated
+      })
+      
+      setSeatsByUser(prev => {
+        const updated = new Map(prev)
+        // Remove from all users' held seats
+        updated.forEach((userSeats, userId) => {
+          ticketIds.forEach(id => userSeats.delete(id))
+          if (userSeats.size === 0) {
+            updated.delete(userId)
+          }
+        })
+        return updated
+      })
+      
+      // Notify callback when seats are booked
+      if (onBooked) {
+        onBooked(ticketIds)
+      }
     }
-  }, [onExpired, onReleased, userId])
+  }, [onExpired, onReleased, onBooked, userId])
 
   // Connect to WebSocket
   useEffect(() => {

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Film, LayoutDashboard, Package, Gift, DollarSign, LogOut, Menu, X } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { logout } from "@/src/api/interceptor"
 
 interface BusinessManagerLayoutProps {
     children: React.ReactNode
@@ -25,8 +26,7 @@ export function BusinessManagerLayout({ children, activeSection }: BusinessManag
     ]
 
     const handleLogout = () => {
-        localStorage.removeItem("auth")
-        router.push("/login")
+        logout()
     }
 
     const handleNavigation = (path: string) => {

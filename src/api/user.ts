@@ -9,6 +9,7 @@ export type UserProfile = {
     address?: string;
     phoneNumber?: string;
     loyaltyPoints?: number;
+    avatar?: string;
 };
 
 export type UpdateUserRequest = {
@@ -53,6 +54,7 @@ export async function getMe(email: string) {
         address: raw?.address ?? "",
         phoneNumber: raw?.phoneNumber ?? raw?.phone ?? "",
         loyaltyPoints: raw?.loyaltyPoints ?? raw?.loyalPoint ?? 0,
+        avatar: raw?.avatar ?? "",
         // gender and dateOfBirth are client-managed when backend lacks them
     };
     return normalized;
