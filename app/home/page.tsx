@@ -17,11 +17,22 @@ export default function HomePage() {
         if (token) {
             // Store access token in localStorage
             localStorage.setItem('accessToken', token)
-            // Decode token to get role information
+            // Decode token to get role information and email
             try {
                 const payload = JSON.parse(atob(token.split('.')[1]))
-                if (payload.authorities && Array.isArray(payload.authorities)) {
-                    localStorage.setItem('roleName', JSON.stringify(payload.authorities))
+                // Check for both 'roles' (backend) and 'authorities' (legacy)
+                const roles = payload.roles || payload.authorities
+                if (roles && Array.isArray(roles)) {
+                    localStorage.setItem('roleName', JSON.stringify(roles))
+                }
+                // Extract email from 'sub' field (subject) and store it
+                if (payload.sub) {
+                    localStorage.setItem('email', payload.sub)
+                    localStorage.setItem('userEmail', payload.sub)
+                }
+                // Store userId if available
+                if (payload.userId) {
+                    localStorage.setItem('userId', String(payload.userId))
                 }
             } catch (error) {
                 console.error('Error decoding token:', error)

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -99,6 +99,7 @@ export function CustomerProfile() {
     const [passwordLoading, setPasswordLoading] = useState({ change: false })
     const [showPasswordForm, setShowPasswordForm] = useState(false)
     const [avatarPreview, setAvatarPreview] = useState("")
+    const [hasFetched, setHasFetched] = useState(false)
     const router = useRouter()
     const resolvedEmail = useMemo(() => {
         const storedEmail = getStoredEmail()
@@ -107,23 +108,25 @@ export function CustomerProfile() {
         return storedEmail
     }, [])
 
-    useEffect(() => {
-        const stored = getStoredEmail()
-        const email = stored
-        // eslint-disable-next-line no-console
-        console.log("[CustomerProfile] useEffect mount, stored email:", stored, "resolved:", email)
+    // Function to fetch user profile
+    const fetchProfile = useCallback((email: string) => {
         if (!email) {
-            // eslint-disable-next-line no-console
-            console.warn("[CustomerProfile] No email found. Ask user to login.")
             return
         }
+        // eslint-disable-next-line no-console
+        console.log("[CustomerProfile] fetchProfile called with email:", email)
         setLoading(true)
+        setHasFetched(true)
+        // Also store in localStorage as a flag for polling check
+        if (typeof window !== "undefined") {
+            localStorage.setItem("_profileFetched", "true")
+        }
         getMe(email)
             .then((data) => {
                 // eslint-disable-next-line no-console
                 console.log("[CustomerProfile] getMe data:", data)
                 const gender = normalizeGender(
-                    localStorage.getItem("userGender") || data.gender || formData.gender
+                    localStorage.getItem("userGender") || data.gender || "MALE"
                 );
 
                 setFormData((prev) => ({
@@ -150,10 +153,69 @@ export function CustomerProfile() {
             .catch((err) => {
                 // eslint-disable-next-line no-console
                 console.error("[CustomerProfile] getMe error:", err)
+                setHasFetched(false) // Reset to allow retry
+                // Reset flag in localStorage to allow retry
+                if (typeof window !== "undefined") {
+                    localStorage.removeItem("_profileFetched")
+                }
                 showToast("Failed to load profile", "error")
             })
             .finally(() => setLoading(false))
     }, [])
+
+    // Try to fetch immediately if email is available
+    useEffect(() => {
+        const stored = getStoredEmail()
+        const email = stored
+        // eslint-disable-next-line no-console
+        console.log("[CustomerProfile] useEffect mount, stored email:", stored, "resolved:", email)
+        if (email) {
+            fetchProfile(email)
+        } else {
+            // eslint-disable-next-line no-console
+            console.warn("[CustomerProfile] No email found. Will retry...")
+        }
+    }, [fetchProfile])
+
+    // Poll for email if not available initially (for OAuth callback case)
+    useEffect(() => {
+        if (hasFetched) {
+            return // Already fetched, no need to poll
+        }
+
+        const stored = getStoredEmail()
+        if (stored) {
+            fetchProfile(stored)
+            return
+        }
+
+        // Poll for email for up to 5 seconds (for OAuth callback)
+        let attempts = 0
+        const maxAttempts = 10 // 10 attempts over 5 seconds
+        const pollInterval = setInterval(() => {
+            attempts++
+            // Check hasFetched from state to avoid stale closure
+            const currentHasFetched = localStorage.getItem("_profileFetched") === "true"
+            if (currentHasFetched) {
+                clearInterval(pollInterval)
+                return
+            }
+            
+            const email = getStoredEmail()
+            if (email) {
+                // eslint-disable-next-line no-console
+                console.log("[CustomerProfile] Email found after polling, fetching profile...")
+                fetchProfile(email)
+                clearInterval(pollInterval)
+            } else if (attempts >= maxAttempts) {
+                // eslint-disable-next-line no-console
+                console.warn("[CustomerProfile] Email not found after polling. User may need to login.")
+                clearInterval(pollInterval)
+            }
+        }, 500) // Check every 500ms
+
+        return () => clearInterval(pollInterval)
+    }, [hasFetched, fetchProfile])
 
     const handleSave = async () => {
         if (!formData.name.trim()) {
