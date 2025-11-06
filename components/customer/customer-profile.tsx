@@ -95,22 +95,32 @@ export function CustomerProfile() {
             .then((data) => {
                 // eslint-disable-next-line no-console
                 console.log("[CustomerProfile] getMe data:", data)
-                const gender = localStorage.getItem("userGender") || data.gender || formData.gender || "male"
-                const dateOfBirth = localStorage.getItem("userDob") || data.dateOfBirth || formData.dateOfBirth || ""
+                // Ưu tiên data từ API, sau đó localStorage, cuối cùng là default
+                const gender = data.gender || localStorage.getItem("userGender") || formData.gender || "MALE"
+                const dateOfBirth = data.dateOfBirth || localStorage.getItem("userDob") || formData.dateOfBirth || ""
                 setFormData((prev) => ({
                     ...prev,
                     name: data.name ?? prev.name ?? "",
-                    gender,
+                    gender: gender.toUpperCase(), // Đảm bảo format đúng (MALE, FEMALE, OTHER)
                     dateOfBirth,
                     email: data.email ?? email,
                     address: data.address ?? prev.address ?? "",
                     phoneNumber: data.phoneNumber ?? prev.phoneNumber ?? "",
                     loyaltyPoints: data.loyaltyPoints ?? prev.loyaltyPoints ?? 0,
                 }))
-                if (typeof window !== "undefined" && (data.email || email)) {
-                    const resolved = data.email ?? email
-                    localStorage.setItem("email", resolved)
-                    localStorage.setItem("userEmail", resolved)
+                // Lưu vào localStorage để dùng sau
+                if (typeof window !== "undefined") {
+                    if (data.email || email) {
+                        const resolved = data.email ?? email
+                        localStorage.setItem("email", resolved)
+                        localStorage.setItem("userEmail", resolved)
+                    }
+                    if (data.gender) {
+                        localStorage.setItem("userGender", data.gender)
+                    }
+                    if (data.dateOfBirth) {
+                        localStorage.setItem("userDob", data.dateOfBirth)
+                    }
                 }
             })
             .catch((err) => {
