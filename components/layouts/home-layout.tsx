@@ -27,6 +27,8 @@ export function HomeLayout({ children }: HomeLayoutProps) {
   const [mounted, setMounted] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [userAvatar, setUserAvatar] = useState<string>("/customer-avatar.jpg")
+  const [userName, setUserName] = useState<string>("KH")
   const router = useRouter()
 
   useEffect(() => {
@@ -65,11 +67,33 @@ export function HomeLayout({ children }: HomeLayoutProps) {
 
     checkAuth()
 
-    // Listen for storage changes (for logout from other tabs)
+    // Load user avatar and name from localStorage
+    const loadUserData = () => {
+      const storedAvatar = localStorage.getItem("userAvatar")
+      const storedName = localStorage.getItem("userName") || localStorage.getItem("customerName")
+      
+      if (storedAvatar) {
+        setUserAvatar(storedAvatar)
+      }
+      
+      if (storedName) {
+        setUserName(storedName)
+      }
+    }
+
+    loadUserData()
+
+    // Listen for storage changes (for logout from other tabs and avatar updates)
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'accessToken' && !e.newValue) {
         setIsAuthenticated(false)
         setDropdownOpen(false)
+      }
+      if (e.key === 'userAvatar' && e.newValue) {
+        setUserAvatar(e.newValue)
+      }
+      if ((e.key === 'userName' || e.key === 'customerName') && e.newValue) {
+        setUserName(e.newValue)
       }
     }
 
@@ -318,9 +342,9 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                                         onClick={handleDropdownClick}
                                     >
                                         <Avatar className="home-avatar">
-                                            <AvatarImage src="/customer-avatar.jpg" />
+                                            <AvatarImage src={userAvatar} alt="User avatar" />
                                             <AvatarFallback className="bg-primary text-primary-foreground font-bold">
-                                                KH
+                                                {userName.substring(0, 2).toUpperCase()}
                                             </AvatarFallback>
                                         </Avatar>
                                     </Button>
@@ -403,9 +427,9 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                                         onClick={handleDropdownClick}
                                     >
                                         <Avatar className="h-8 w-8">
-                                            <AvatarImage src="/customer-avatar.jpg" />
+                                            <AvatarImage src={userAvatar} alt="User avatar" />
                                             <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
-                                                KH
+                                                {userName.substring(0, 2).toUpperCase()}
                                             </AvatarFallback>
                                         </Avatar>
                                     </Button>
