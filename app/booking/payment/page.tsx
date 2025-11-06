@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation"
 import PaymentPage from "@/components/booking/payment-page"
 
 export default function PaymentPageRoute() {
-  const searchParams = useSearchParams()
+ const searchParams = useSearchParams()
 
   // Data từ trang trước
   const movieId = searchParams.get("movieId")
@@ -15,6 +15,7 @@ export default function PaymentPageRoute() {
   const seats = searchParams.get("seats")
   const combosParam = searchParams.get("combos")
   const showtimeId = searchParams.get("showtimeId")
+
 
   return (
     <HomeLayout>
