@@ -8,79 +8,61 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { Mail } from "lucide-react"
+import { friendlyFromPayload, type ApiEnvelope } from "../../src/utils/server-error"
 
 const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL
+const EMAIL_RE =
+    /^(?=.{1,64}@)[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$/;
 
 export default function VerifyMailPage() {
     const [email, setEmail] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const router = useRouter()
 
+    const postJson = async <T,>(url: string, body: any): Promise<ApiEnvelope<T>> => {
+        const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+        })
+        let data: ApiEnvelope<T>
+        try { data = (await res.json()) as ApiEnvelope<T> }
+        catch { data = { status: res.status, message: res.statusText } as ApiEnvelope<T> }
+
+        const ok = data?.status ? (data.status === 200 || data.status === 201) : res.ok
+        if (!ok) {
+            // ⬇️ đính kèm header để helper đọc code/message
+            ;(data as any).__headers = {
+                "x-error-code": res.headers.get("x-error-code"),
+                "x-app-error-code": res.headers.get("x-app-error-code"),
+                "x-error": res.headers.get("x-error"),
+                "x-error-message": res.headers.get("x-error-message"),
+                "x-app-error-message": res.headers.get("x-app-error-message"),
+            }
+            const err: any = new Error("Yêu cầu không thành công")
+            err.payload = data
+            err.httpStatus = res.status
+            throw err
+        }
+        return data
+    }
+
     const handleSendVerifyCode = async (e: React.FormEvent) => {
         e.preventDefault()
 
         const trimmed = email.trim()
-        if (!trimmed) {
-            toast.error("Vui lòng nhập email")
-            return
-        }
+        if (!trimmed) return toast.error("Vui lòng nhập email")
+        if (!EMAIL_RE.test(trimmed)) return toast.error("Email không hợp lệ")
 
         setIsLoading(true)
         try {
-            const res = await fetch(`${BACKEND_BASE_URL}/auth/forgot-password`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: trimmed }),
-            })
-
-            // Try parsing JSON body (either success or error shape).
-            // BE error shape: { timestamp, status, path, error }
-            // BE success shape (ResponseData): { status, message, data }
-            let payload: any = null
-            try {
-                payload = await res.json()
-            } catch {
-                payload = null
-            }
-
-            // 200 OK → proceed normally
-            if (res.ok) {
-                // Save email temporarily for the next step (Verify OTP)
-                if (typeof window !== "undefined") {
-                    sessionStorage.setItem("fp_email", trimmed)
-                }
-                toast.success("Mã xác nhận đã được gửi tới email của bạn")
-                router.push("/verify-otp-reset")
-                return
-            }
-
-            // Map server status codes to user-friendly toasts.
-            // Note: If you prefer neutral UX (avoid email enumeration),
-            // you can treat 404 like success (save email + redirect).
-            const errMsg = (payload?.error || payload?.message || "").toString() || undefined
-
-            switch (res.status) {
-                case 400:
-                    toast.error(errMsg ?? "Token không hợp lệ hoặc đã hết hạn")
-                    break
-                case 401:
-                    toast.error(errMsg ?? "Bạn chưa được xác thực")
-                    break
-                case 403:
-                    toast.error(errMsg ?? "Truy cập bị từ chối")
-                    break
-                case 404:
-                    toast.error(errMsg ?? "Không tìm thấy người dùng cho token này")
-                    break
-                case 500:
-                    toast.error(errMsg ?? "Lỗi máy chủ, vui lòng thử lại")
-                    break
-                default:
-                    toast.error(errMsg ?? `Lỗi không xác định (HTTP ${res.status})`)
-            }
-        } catch {
-            // Network/CORS failure (client-side)
-            toast.error("Không thể kết nối máy chủ. Kiểm tra mạng hoặc cấu hình CORS.")
+            const resp = await postJson<unknown>(`${BACKEND_BASE_URL}/auth/forgot-password`, { email: trimmed })
+            if (typeof window !== "undefined") sessionStorage.setItem("fp_email", trimmed)
+            toast.success( "Mã xác nhận đã được gửi tới email của bạn")
+            router.push("/verify-otp-reset")
+        } catch (err: any) {
+            const payload = err?.payload as ApiEnvelope | undefined
+            toast.error(friendlyFromPayload(payload, err?.message))
         } finally {
             setIsLoading(false)
         }
@@ -103,35 +85,21 @@ export default function VerifyMailPage() {
                 <CardContent>
                     <form onSubmit={handleSendVerifyCode} className="space-y-6">
                         <div className="space-y-2">
-                            <Label htmlFor="email" className="text-sm font-medium text-gray-700">
-                                Email
-                            </Label>
+                            <Label htmlFor="email" className="text-sm font-medium text-gray-700">Email</Label>
                             <Input
-                                id="email"
-                                type="email"
-                                placeholder="username@email.com"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                required
+                                id="email" type="email" placeholder="username@email.com"
+                                value={email} onChange={(e) => setEmail(e.target.value)} required
                                 className="border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/50"
                             />
                         </div>
 
-                        <Button
-                            type="submit"
-                            className="w-full bg-primary hover:bg-primary/90 text-white py-2 rounded-lg transition-all"
-                            disabled={isLoading}
-                        >
+                        <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-white py-2 rounded-lg transition-all" disabled={isLoading}>
                             {isLoading ? "Đang gửi..." : "Gửi mã xác nhận"}
                         </Button>
 
                         <div className="text-center">
-                            <button
-                                type="button"
-                                onClick={() => router.push("/")}
-                                className="text-sm text-gray-600 hover:text-primary underline transition-colors"
-                            >
-                                Quay lại đăng nhập
+                            <button type="button" onClick={() => router.push("/")} className="text-sm text-gray-600 hover:text-primary underline transition-colors">
+                                Quay lại trang chủ
                             </button>
                         </div>
                     </form>
