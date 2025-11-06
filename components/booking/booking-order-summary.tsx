@@ -2,7 +2,6 @@
 
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card"
 import {Badge} from "@/components/ui/badge"
-import {Button} from "@/components/ui/button"
 import {Calendar, Clock, CreditCard, Crown, MapPin, Sofa, Users} from "lucide-react"
 import {ReactNode, useEffect, useState, useRef, useCallback} from "react"
 import {useRouter} from "next/navigation"
@@ -370,13 +369,11 @@ export default function BookingOrderSummary({
 
   return (
     <Card className="shadow-2xl border-2 border-primary/40 bg-white hover:shadow-primary/20 transition-all duration-300">
-      <CardHeader className="bg-gradient-to-r from-primary/15 via-primary/10 to-primary/15 border-b-2 border-primary/40">
         <CardTitle className="flex items-center gap-2 text-primary">
           <CreditCard className="h-6 w-6" />
           <span className="text-xl font-semibold">{title}</span>
         </CardTitle>
-      </CardHeader>
-      <CardContent className="p-6 space-y-6">
+       <CardContent className="p-6 space-y-6">
         {/* Movie Info */}
         {movieInfo && (
           <div className="flex gap-3 bg-gray-50 rounded-lg p-3 border-2 border-gray-300">
@@ -540,12 +537,17 @@ export default function BookingOrderSummary({
             </div>
           )}
 
-          {discount > 0 && (
-            <div className="flex justify-between items-center text-sm bg-emerald-50 rounded-lg p-2 border-2 border-emerald-400">
-              <span className="font-medium text-emerald-700">Giảm giá:</span>
-              <span className="font-semibold text-emerald-700">-{discount.toLocaleString('vi-VN')} VNĐ</span>
-            </div>
-          )}
+            {discount > 0 && (
+                <>
+                    <div className="flex justify-between items-center text-sm bg-emerald-50 rounded-lg p-2 border-2 border-emerald-400">
+                        <span className="font-medium text-emerald-700">Giảm giá:</span>
+                        <span className="font-semibold text-emerald-700">-{discount.toLocaleString('vi-VN')} VNĐ</span>
+                    </div>
+                    <p className="text-xs text-gray-500 text-right italic">
+                        * Áp dụng từ điểm thành viên của bạn
+                    </p>
+                </>
+            )}
 
           <div className="flex justify-between items-center font-semibold text-lg border-t-2 border-gray-300 pt-3 mt-2">
             <span className="text-foreground font-medium">Tổng cộng:</span>

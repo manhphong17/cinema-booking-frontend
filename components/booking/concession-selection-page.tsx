@@ -176,13 +176,7 @@ export default function ConcessionSelectionPage({
   }
 
   const getSeatPrice = (seatId: string) => {
-    if (seatData.length === 0) {
-      // Fallback to hardcoded prices if seat data not loaded yet
-      const row = seatId[0]
-      if (row === 'H') return 200000
-      if (['E', 'F', 'G'].includes(row)) return 150000
-      return 100000
-    }
+
 
     const seat = seatData.find(ticket => {
       const rowLabel = String.fromCharCode(65 + ticket.rowIdx)
@@ -195,14 +189,6 @@ export default function ConcessionSelectionPage({
   }
 
   const getSeatType = (seatId: string): 'standard' | 'vip' | 'premium' => {
-    if (seatData.length === 0) {
-      // Fallback to hardcoded type if seat data not loaded yet
-      const row = seatId[0]
-      if (row === 'H') return 'premium'
-      if (['E', 'F', 'G'].includes(row)) return 'vip'
-      return 'standard'
-    }
-
     const seat = seatData.find(ticket => {
       const rowLabel = String.fromCharCode(65 + ticket.rowIdx)
       const seatNumber = ticket.columnInx + 1
@@ -280,7 +266,7 @@ export default function ConcessionSelectionPage({
   const handleContinue = async () => {
     if (!showtimeId || !userId) {
       toast({
-        title: "❌ Lỗi",
+        title: " Lỗi",
         description: "Thông tin đặt vé không hợp lệ",
         variant: "destructive",
       })
@@ -309,24 +295,10 @@ export default function ConcessionSelectionPage({
 
       if (response.data?.status === 200) {
         // Navigate to payment page
-        const comboData = Object.entries(selectedConcessions)
-          .map(([comboId, quantity]) => ({ comboId, quantity }))
-          .filter(item => item.quantity > 0)
-        
-        const params = new URLSearchParams({
-          movieId: movieId || '',
-          showtimeId: showtimeId || '',
-          seats: seats || '',
-          date: date || '',
-          time: time || '',
-          hall: hall || '',
-          combos: JSON.stringify(comboData)
-        })
-        
-        router.push(`/booking/payment?${params.toString()}`)
+          router.push(`/booking/payment?showtimeId=${showtimeId}`)
       } else {
         toast({
-          title: "❌ Lỗi",
+          title: " Lỗi",
           description: "Không thể thêm sản phẩm vào đơn hàng. Vui lòng thử lại.",
           variant: "destructive",
         })
@@ -334,7 +306,7 @@ export default function ConcessionSelectionPage({
     } catch (error) {
       console.error("Error adding concessions to order session:", error)
       toast({
-        title: "❌ Lỗi",
+        title: " Lỗi",
         description: "Không thể thêm sản phẩm vào đơn hàng. Vui lòng thử lại.",
         variant: "destructive",
       })
@@ -346,14 +318,9 @@ export default function ConcessionSelectionPage({
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-gray-50/50">
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <div className="w-20 h-1 bg-gradient-to-r from-primary to-primary/50 rounded-full"></div>
-        </div>
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
-          <div className="lg:col-span-3 mb-6">
-            <p className="text-muted-foreground">Thêm đồ ăn và thức uống cho buổi xem phim</p>
-          </div>
+
           <div className="lg:col-span-3">
             <Card className="shadow-2xl border-2 border-primary/30 bg-white hover:shadow-primary/20 transition-all duration-300">
               <CardHeader className="bg-gradient-to-r from-primary/15 via-primary/10 to-primary/15 border-b-2 border-primary/40">
