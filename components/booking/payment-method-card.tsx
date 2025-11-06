@@ -44,8 +44,8 @@ export default function PaymentMethodCard({ onSelect }: PaymentMethodCardProps) 
     }, [onSelect]);
 
     return (
-        <Card className="shadow-xl border-2 border-gray-200/80 rounded-xl bg-white hover:border-primary/30 transition-all duration-300">
-            <CardHeader className="border-b-2 border-gray-200/60 rounded-t-xl bg-gradient-to-r from-gray-50 via-white to-gray-50">
+        <Card className="shadow-xl border-2 border-gray-200/80 rounded-xl bg-white transition-all duration-300">
+            <CardHeader className="border-b-1 ">
                 <CardTitle className="text-xl font-bold text-gray-900">
                     Phương thức thanh toán
                 </CardTitle>
@@ -71,7 +71,7 @@ export default function PaymentMethodCard({ onSelect }: PaymentMethodCardProps) 
                                 className={`flex items-center justify-between p-4 rounded-xl cursor-pointer transition-all border
                                     ${
                                     selected === m.paymentCode
-                                        ? "border-primary ring-2 ring-primary/30 bg-primary/5"
+                                        ? "    bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg p-3 border border-indigo-200 "
                                         : "border-gray-200 hover:bg-gray-50"
                                     }   
                                             `}
