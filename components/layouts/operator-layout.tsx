@@ -7,6 +7,7 @@ import Link from "next/link"
 import {Button} from "@/components/ui/button"
 import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar"
 import {Calendar, DoorOpen, Film, LayoutDashboard, LogOut, Newspaper, ChevronLeft, ChevronRight} from "lucide-react"
+import { logout } from "@/src/api/interceptor"
 
 interface OperatorLayoutProps {
     children: ReactNode
@@ -196,9 +197,7 @@ export function OperatorLayout({children}: OperatorLayoutProps) {
                                 size="sm"
                                 className="w-full justify-start gap-2 text-sidebar-foreground hover:bg-sidebar-accent/50 operator-hover-lift transition-all duration-200"
                                 onClick={() => {
-                                    localStorage.removeItem("auth")
-                                    localStorage.removeItem("accessToken")
-                                    router.push("/login/admin")
+                                    logout()
                                 }}
                             >
                                 <LogOut className="w-4 h-4"/>
@@ -219,9 +218,7 @@ export function OperatorLayout({children}: OperatorLayoutProps) {
                                 size="sm"
                                 className="operator-tooltip w-10 h-10 p-0 rounded-full hover:bg-sidebar-accent/50 operator-hover-lift transition-all duration-200"
                                 onClick={() => {
-                                    localStorage.removeItem("auth")
-                                    localStorage.removeItem("accessToken")
-                                    router.push("/login/admin")
+                                    logout()
                                 }}
                                 data-tooltip="Logout"
                             >

@@ -1,21 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
 import { Plus, Minus, ShoppingCart } from "lucide-react"
-
-interface Product {
-  id: string
-  name: string
-  price: number
-  category: string
-  image: string
-  description: string
-  available: boolean
-}
+import { apiClient } from "@/src/api/interceptor"
 
 interface ConcessionsSelectionProps {
   onAddToCart: (item: {
@@ -25,267 +15,126 @@ interface ConcessionsSelectionProps {
     quantity: number
     details?: string
   }) => void
+  onSyncConcessionsToCart?: (selectedConcessions: Record<string, number>, concessions: any[]) => void
 }
 
-const products: Product[] = [
-  {
-    id: "1",
-    name: "Bắp rang bơ lớn",
-    price: 85000,
-    category: "Bắp rang",
-    image: "/images/concessions/large-popcorn.jpg",
-    description: "Bắp rang bơ thơm ngon, size lớn",
-    available: true,
-  },
-  {
-    id: "2",
-    name: "Bắp rang bơ vừa",
-    price: 65000,
-    category: "Bắp rang",
-    image: "/images/concessions/medium-popcorn.jpg",
-    description: "Bắp rang bơ thơm ngon, size vừa",
-    available: true,
-  },
-  {
-    id: "3",
-    name: "Bắp rang bơ nhỏ",
-    price: 45000,
-    category: "Bắp rang",
-    image: "/images/concessions/small-popcorn.jpg",
-    description: "Bắp rang bơ thơm ngon, size nhỏ",
-    available: true,
-  },
-  {
-    id: "4",
-    name: "Coca Cola lớn",
-    price: 55000,
-    category: "Nước uống",
-    image: "/images/concessions/large-coke.jpg",
-    description: "Coca Cola size lớn, 700ml",
-    available: true,
-  },
-  {
-    id: "5",
-    name: "Coca Cola vừa",
-    price: 45000,
-    category: "Nước uống",
-    image: "/images/concessions/medium-coke.jpg",
-    description: "Coca Cola size vừa, 500ml",
-    available: true,
-  },
-  {
-    id: "6",
-    name: "Pepsi lớn",
-    price: 55000,
-    category: "Nước uống",
-    image: "/images/concessions/large-pepsi.jpg",
-    description: "Pepsi size lớn, 700ml",
-    available: true,
-  },
-  {
-    id: "7",
-    name: "Nước suối",
-    price: 25000,
-    category: "Nước uống",
-    image: "/images/concessions/water-bottle.jpg",
-    description: "Nước suối tinh khiết 500ml",
-    available: true,
-  },
-  {
-    id: "8",
-    name: "Combo Couple",
-    price: 180000,
-    category: "Combo",
-    image: "/images/concessions/couple-combo.jpg",
-    description: "2 bắp lớn + 2 nước ngọt lớn",
-    available: true,
-  },
-  {
-    id: "9",
-    name: "Combo Family",
-    price: 320000,
-    category: "Combo",
-    image: "/images/concessions/family-combo.jpg",
-    description: "4 bắp vừa + 4 nước ngọt + kẹo",
-    available: true,
-  },
-  {
-    id: "10",
-    name: "Kẹo gấu Haribo",
-    price: 35000,
-    category: "Snack",
-    image: "/images/concessions/gummy-bears.jpg",
-    description: "Kẹo dẻo hình gấu nhiều vị",
-    available: true,
-  },
-  {
-    id: "11",
-    name: "Chocolate M&M's",
-    price: 40000,
-    category: "Snack",
-    image: "/images/concessions/mms-chocolate.jpg",
-    description: "Chocolate M&M's nhiều màu sắc",
-    available: true,
-  },
-  {
-    id: "12",
-    name: "Nachos phô mai",
-    price: 75000,
-    category: "Snack",
-    image: "/images/concessions/cheese-nachos.jpg",
-    description: "Bánh tortilla giòn với sốt phô mai",
-    available: false,
-  },
-]
+export function ConcessionsSelection({ onAddToCart, onSyncConcessionsToCart }: ConcessionsSelectionProps) {
+  const [concessions, setConcessions] = useState<any[]>([])
+  const [loadingConcessions, setLoadingConcessions] = useState(false)
+  const [selectedConcessions, setSelectedConcessions] = useState<Record<string, number>>({})
 
-const categories = ["Tất cả", "Bắp rang", "Nước uống", "Combo", "Snack"]
+  // Fetch concessions from API
+  useEffect(() => {
+    const fetchConcessions = async () => {
+      try {
+        setLoadingConcessions(true)
+        const res = await apiClient.get("/concession", {
+          params: {
+            page: 0,
+            size: 100,
+            stockStatus: "IN_STOCK",
+            concessionStatus: "ACTIVE",
+          },
+        })
+        const list = res.data?.data?.content || []
+        setConcessions(list)
+      } catch (error) {
+        console.error("Lỗi khi lấy concessions:", error)
+      } finally {
+        setLoadingConcessions(false)
+      }
+    }
 
-export function ConcessionsSelection({ onAddToCart }: ConcessionsSelectionProps) {
-  const [selectedCategory, setSelectedCategory] = useState("Tất cả")
-  const [quantities, setQuantities] = useState<Record<string, number>>({})
+    fetchConcessions()
+  }, [])
 
-  const filteredProducts = products.filter(
-    (product) => selectedCategory === "Tất cả" || product.category === selectedCategory,
-  )
+  // Auto-sync selected concessions to cart whenever selectedConcessions changes
+  useEffect(() => {
+    if (onSyncConcessionsToCart) {
+      onSyncConcessionsToCart(selectedConcessions, concessions)
+    }
+  }, [selectedConcessions, concessions, onSyncConcessionsToCart])
 
-  const updateQuantity = (productId: string, quantity: number) => {
-    setQuantities((prev) => ({
-      ...prev,
-      [productId]: Math.max(0, quantity),
-    }))
-  }
-
-  const addToCart = (product: Product) => {
-    const quantity = quantities[product.id] || 1
-    onAddToCart({
-      type: "concession",
-      name: product.name,
-      price: product.price,
-      quantity,
-      details: product.description,
-    })
-    // Reset quantity after adding to cart
-    setQuantities((prev) => ({ ...prev, [product.id]: 0 }))
+  const updateConcessionQuantity = (concessionId: string, quantity: number) => {
+    if (quantity <= 0) {
+      const newSelected = { ...selectedConcessions }
+      delete newSelected[concessionId]
+      setSelectedConcessions(newSelected)
+    } else {
+      setSelectedConcessions(prev => ({ ...prev, [concessionId]: quantity }))
+    }
   }
 
   return (
     <div className="space-y-6">
-      {/* Category Filter */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+      <Card className="shadow-2xl border-2 border-primary/30 bg-white hover:shadow-primary/20 transition-all duration-300">
+        <CardHeader className="bg-gradient-to-r from-primary/15 via-primary/10 to-primary/15 border-b-2 border-primary/40">
+          <CardTitle className="flex items-center gap-2 text-primary">
             <ShoppingCart className="h-5 w-5" />
-            Chọn bắp nước & combo
+            Chọn sản phẩm
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {categories.map((category) => (
-              <Button
-                key={category}
-                variant={selectedCategory === category ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedCategory(category)}
-              >
-                {category}
-              </Button>
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {loadingConcessions ? (
+              <p className="text-center text-muted-foreground col-span-full">Đang tải danh sách sản phẩm...</p>
+            ) : concessions.length === 0 ? (
+              <p className="text-center text-muted-foreground col-span-full">Không có sản phẩm khả dụng</p>
+            ) : (
+              concessions.map((item) => (
+                <Card key={item.concessionId} className="overflow-hidden hover:shadow-lg transition-all duration-300 group">
+                  <div className="relative aspect-[4/3] overflow-hidden bg-gray-50 flex items-center justify-center">
+                    <img
+                      src={item.urlImage || "/placeholder.svg"}
+                      alt={item.name}
+                      className="max-w-full max-h-full object-contain rounded-md transition-transform duration-300 group-hover:scale-110"
+                    />
+                    <div className="absolute top-2 right-2">
+                      <Badge className="bg-primary text-white">
+                        {item.price.toLocaleString('vi-VN')} VNĐ
+                      </Badge>
+                    </div>
+                  </div>
+                  <CardContent className="p-4">
+                    <h3 className="font-semibold text-lg mb-2">{item.name}</h3>
+                    <p className="text-sm text-muted-foreground mb-3">{item.description || "Không có mô tả"}</p>
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => updateConcessionQuantity(item.concessionId.toString(), (selectedConcessions[item.concessionId.toString()] || 0) - 1)}
+                          disabled={!selectedConcessions[item.concessionId.toString()]}
+                          className="w-8 h-8 p-0"
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <span className="w-8 text-center font-semibold">
+                          {selectedConcessions[item.concessionId.toString()] || 0}
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => updateConcessionQuantity(item.concessionId.toString(), (selectedConcessions[item.concessionId.toString()] || 0) + 1)}
+                          className="w-8 h-8 p-0"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm text-muted-foreground">Tổng</div>
+                        <div className="font-semibold">
+                          {((selectedConcessions[item.concessionId.toString()] || 0) * item.price).toLocaleString('vi-VN')} VNĐ
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </CardContent>
       </Card>
-
-      {/* Products Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {filteredProducts.map((product) => (
-          <Card key={product.id} className={`${!product.available ? "opacity-50" : ""}`}>
-            <CardContent className="p-4">
-              <div className="aspect-square mb-4 overflow-hidden rounded-lg bg-muted">
-                <img
-                  src={product.image || "/placeholder.svg"}
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-
-              <div className="space-y-3">
-                <div>
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="font-semibold text-sm line-clamp-2">{product.name}</h3>
-                    <Badge variant="secondary" className="text-xs ml-2">
-                      {product.category}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{product.description}</p>
-                  <p className="text-lg font-bold text-primary">{product.price.toLocaleString("vi-VN")}đ</p>
-                </div>
-
-                {product.available ? (
-                  <div className="space-y-3">
-                    {/* Quantity Controls */}
-                    <div className="flex items-center justify-center gap-3">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => updateQuantity(product.id, (quantities[product.id] || 0) - 1)}
-                        disabled={!quantities[product.id]}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-
-                      <Input
-                        type="number"
-                        min="0"
-                        value={quantities[product.id] || 0}
-                        onChange={(e) => updateQuantity(product.id, Number.parseInt(e.target.value) || 0)}
-                        className="w-16 h-8 text-center"
-                      />
-
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => updateQuantity(product.id, (quantities[product.id] || 0) + 1)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </div>
-
-                    {/* Add to Cart Button */}
-                    <Button
-                      onClick={() => addToCart(product)}
-                      disabled={!quantities[product.id]}
-                      className="w-full"
-                      size="sm"
-                    >
-                      Thêm vào giỏ
-                      {quantities[product.id] > 0 && (
-                        <span className="ml-2">
-                          ({(product.price * quantities[product.id]).toLocaleString("vi-VN")}đ)
-                        </span>
-                      )}
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="text-center">
-                    <Badge variant="destructive" className="text-xs">
-                      Hết hàng
-                    </Badge>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {filteredProducts.length === 0 && (
-        <Card>
-          <CardContent className="text-center py-12">
-            <p className="text-muted-foreground">Không có sản phẩm nào trong danh mục này</p>
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }

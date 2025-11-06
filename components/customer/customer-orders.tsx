@@ -1,82 +1,84 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-
-const mockOrders = [
-  {
-    id: "ORD-001",
-    date: "2024-01-15",
-    movie: "Avatar: The Way of Water",
-    showtime: "2024-01-15 19:30",
-    seats: "A12, A13",
-    total: 28.5,
-    status: "Completed",
-  },
-  {
-    id: "ORD-002",
-    date: "2024-01-20",
-    movie: "Top Gun: Maverick",
-    showtime: "2024-01-20 21:00",
-    seats: "B5, B6, B7",
-    total: 42.75,
-    status: "Completed",
-  },
-  {
-    id: "ORD-003",
-    date: "2024-01-25",
-    movie: "Black Panther: Wakanda Forever",
-    showtime: "2024-01-25 18:00",
-    seats: "C10",
-    total: 14.25,
-    status: "Upcoming",
-  },
-  {
-    id: "ORD-004",
-    date: "2024-01-28",
-    movie: "The Batman",
-    showtime: "2024-01-28 20:30",
-    seats: "D8, D9",
-    total: 29.0,
-    status: "Cancelled",
-  },
-  {
-    id: "ORD-005",
-    date: "2024-02-01",
-    movie: "Spider-Man: No Way Home",
-    showtime: "2024-02-01 16:00",
-    seats: "E15, E16",
-    total: 31.5,
-    status: "Completed",
-  },
-  {
-    id: "ORD-006",
-    date: "2024-02-05",
-    movie: "Dune: Part Two",
-    showtime: "2024-02-05 20:00",
-    seats: "F8",
-    total: 15.75,
-    status: "Upcoming",
-  },
-]
+import { searchOrdersByDate, getOrderDetail, type CustomerOrder, type OrderDetail } from "@/src/api/orders"
+import { Input } from "@/components/ui/input"
+import { OrderDetailModal } from "./order-detail-modal"
 
 export function CustomerOrders() {
+  const [orders, setOrders] = useState<CustomerOrder[]>([])
   const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 5
-  const totalPages = Math.ceil(mockOrders.length / itemsPerPage)
+  const [itemsPerPage, setItemsPerPage] = useState(5)
+  const [total, setTotal] = useState(0)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().slice(0,10))
+  const [selectedOrder, setSelectedOrder] = useState<OrderDetail | null>(null)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [detailLoading, setDetailLoading] = useState(false)
+
+  const totalPages = Math.max(1, Math.ceil(total / itemsPerPage))
   const startIndex = (currentPage - 1) * itemsPerPage
-  const paginatedOrders = mockOrders.slice(startIndex, startIndex + itemsPerPage)
+
+  useEffect(() => {
+    let cancelled = false
+    const fetchOrders = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const zeroBasedPage = Math.max(0, currentPage - 1)
+        const res = await searchOrdersByDate({ date: selectedDate, page: zeroBasedPage, size: itemsPerPage })
+        if (!cancelled) {
+          setOrders(res.items)
+          setTotal(res.total)
+        }
+      } catch (e: any) {
+        if (!cancelled) setError(e?.message || "Không thể tải đơn hàng")
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    fetchOrders()
+    return () => {
+      cancelled = true
+    }
+  }, [currentPage, itemsPerPage, selectedDate])
+
+  const handleViewDetail = async (orderId: string) => {
+    try {
+      setDetailLoading(true)
+      setModalOpen(true)
+      const detail = await getOrderDetail(Number(orderId))
+      setSelectedOrder(detail)
+    } catch (e: any) {
+      console.error("Failed to load order detail:", e)
+      setSelectedOrder(null)
+    } finally {
+      setDetailLoading(false)
+    }
+  }
+
+  const handleQRGenerated = (updatedOrder: OrderDetail) => {
+    setSelectedOrder(updatedOrder)
+  }
 
   const getStatusBadge = (status: string) => {
-    switch (status.toLowerCase()) {
+    switch (status?.toLowerCase()) {
       case "completed":
         return (
           <Badge variant="secondary" className="bg-green-100 text-green-800">
             Completed
+          </Badge>
+        )
+      case "pending":
+        return (
+          <Badge variant="outline" className="bg-yellow-50 text-yellow-800">
+            Pending
           </Badge>
         )
       case "upcoming":
@@ -102,49 +104,81 @@ export function CustomerOrders() {
         <h1 className="text-2xl font-bold text-gray-900">My Orders</h1>
       </div>
 
+      <div className="mb-6">
+        <div className="flex items-center gap-4 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg shadow-sm border border-gray-100">
+          <div className="flex items-center gap-3">
+            <span className="text-lg font-semibold text-blue-700">Chọn ngày</span>
+            <Input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => {
+                setCurrentPage(1)
+                setSelectedDate(e.target.value)
+              }}
+              className="w-[220px] h-10 text-base font-medium border-blue-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+            />
+          </div>
+        </div>
+      </div>
+
       {/* Orders Table */}
       <Card>
         <CardHeader>
           <CardTitle>Order History</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
+          {error && (
+            <div className="text-sm text-red-600 mb-4">{error}</div>
+          )}
+          {loading ? (
+            <div className="py-10 text-center text-gray-600">Đang tải đơn hàng...</div>
+          ) : orders.length === 0 ? (
+            <div className="py-10 text-center text-gray-600">Không có đơn hàng</div>
+          ) : (
+          <Table className="border-collapse">
             <TableHeader>
-              <TableRow>
-                <TableHead>Order ID</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Movie</TableHead>
-                <TableHead>Showtime</TableHead>
-                <TableHead>Seats</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
+              <TableRow className="bg-gray-50 hover:bg-gray-50">
+                <TableHead className="px-4 py-3 text-sm font-semibold text-gray-700 w-[15%]">Mã đơn</TableHead>
+                <TableHead className="px-4 py-3 text-sm font-semibold text-gray-700 w-[15%] text-right">Giá tiền</TableHead>
+                <TableHead className="px-4 py-3 text-sm font-semibold text-gray-700 w-[20%]">Trạng thái</TableHead>
+                <TableHead className="px-4 py-3 text-sm font-semibold text-gray-700 w-[30%]">Ngày tạo</TableHead>
+                <TableHead className="px-4 py-3 text-sm font-semibold text-gray-700 w-[20%] text-center">Thao tác</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedOrders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell className="font-medium">{order.id}</TableCell>
-                  <TableCell>{new Date(order.date).toLocaleDateString()}</TableCell>
-                  <TableCell>{order.movie}</TableCell>
-                  <TableCell>{new Date(order.showtime).toLocaleString()}</TableCell>
-                  <TableCell>{order.seats}</TableCell>
-                  <TableCell>${order.total.toFixed(2)}</TableCell>
-                  <TableCell>{getStatusBadge(order.status)}</TableCell>
-                  <TableCell>
-                    <Button variant="outline" size="sm">
-                      View
+              {orders.map((order) => (
+                <TableRow key={order.id} className="hover:bg-gray-50">
+                  <TableCell className="px-4 py-3 text-sm font-medium text-gray-900">{order.code || "-"}</TableCell>
+                  <TableCell className="px-4 py-3 text-sm text-gray-700 text-right">{order.total?.toLocaleString('vi-VN')} đ</TableCell>
+                  <TableCell className="px-4 py-3">{getStatusBadge(order.status)}</TableCell>
+                  <TableCell className="px-4 py-3 text-sm text-gray-600">
+                    {order.date ? new Date(order.date).toLocaleString('vi-VN', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    }) : "-"}
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-center">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 text-sm font-medium"
+                      onClick={() => handleViewDetail(order.id)}
+                    >
+                      Xem chi tiết
                     </Button>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+          )}
 
           <div className="flex items-center justify-between mt-4">
             <p className="text-sm text-gray-600">
-              Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, mockOrders.length)} of{" "}
-              {mockOrders.length} orders
+              Showing {total === 0 ? 0 : startIndex + 1} to {Math.min(startIndex + itemsPerPage, total)} of {total} orders
             </p>
             <div className="flex items-center gap-2">
               <Button
@@ -172,6 +206,15 @@ export function CustomerOrders() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Order Detail Modal */}
+      <OrderDetailModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        orderDetail={selectedOrder}
+        loading={detailLoading}
+        onQRGenerated={handleQRGenerated}
+      />
     </div>
   )
 }

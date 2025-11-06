@@ -66,7 +66,7 @@ export default function ResetPasswordPage() {
 
         setIsLoading(true)
         try {
-            const res = await fetch(`${BACKEND_BASE_URL}/accounts/reset-password`, {
+            const res = await fetch(`${BACKEND_BASE_URL}/auth/reset-password`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 // Send token + password in JSON body (not URL / not headers)

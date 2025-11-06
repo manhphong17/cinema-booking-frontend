@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation"
 import type { ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { logout } from "@/src/api/interceptor"
 import {
   Film,
   LogOut,
@@ -30,9 +31,7 @@ export function AdminLayout({ children, activeSection, onSectionChange }: AdminL
   ]
 
   const handleLogout = () => {
-    localStorage.removeItem("accessToken")
-    localStorage.removeItem("roleName")
-    window.location.href = "/login/admin"
+    logout()
   }
 
   return (
