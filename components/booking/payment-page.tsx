@@ -202,6 +202,7 @@ export default function PaymentPage({
         return Math.max(0, subtotal - discountValue);
     }, [calculateTicketTotal, combosTotal, discountValue]);
 
+
 // 6️⃣ Movie info (từ ticketDetails đầu tiên)
     const movieInfo: MovieInfo | undefined = useMemo(() => {
         if (!seatData.length) return undefined;
@@ -277,6 +278,7 @@ export default function PaymentPage({
             concessionsTotal={combosTotal}
             total={calculateTotal()}
             discount={discountValue}
+            earnedPoints={Math.floor(calculateTotal() / 10000)}
             showtimeId={showtimeId ? parseInt(showtimeId) : null}
             userId={userId}
             movieId={movieId}
@@ -289,12 +291,13 @@ export default function PaymentPage({
           <button
             disabled={isProcessing}
             onClick={handlePayment}
-            className="w-full py-4 rounded-xl bg-gradient-to-r from-black to-gray-900 hover:from-gray-900 hover:to-black text-white font-semibold text-lg shadow-2xl hover:shadow-gray-900/50 transition-all duration-300 hover:scale-105 border-2 border-gray-800 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-4 rounded-xl bg-orange-600 hover:bg-orange-700  text-white font-semibold text-lg shadow-lg hover:shadow-gray-900/50 transition-all duration-300 hover:scale-105 border-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isProcessing
               ? "Đang xử lý..."
               : `Thanh toán ${calculateTotal().toLocaleString()}đ`}
           </button>
+
         </div>
       </div>
     </div>
