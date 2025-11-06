@@ -129,42 +129,42 @@ export function CinemaInformation() {
         </CardContent>
       </Card>
 
-      {/* Media Upload Card */}
-      <Card className="bg-white border-blue-100 shadow-md">
-        <CardHeader>
-          <CardTitle className="text-gray-900">Tải lên hình ảnh</CardTitle>
-          <CardDescription>Cập nhật logo và banner của rạp</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Logo Upload */}
-            <div className="space-y-2">
-              <Label className="text-gray-900">Logo (Hình vuông)</Label>
-              <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:bg-accent/50 transition-colors cursor-pointer">
-                <ImageIcon className="w-8 h-8 text-gray-600 mx-auto mb-2" />
-                <p className="text-sm text-gray-600">Kéo thả hoặc nhấp để tải lên</p>
-                <p className="text-xs text-gray-600 mt-1">PNG, JPG (tối đa 5MB)</p>
-              </div>
-              <div className="w-24 h-24 bg-muted rounded-lg flex items-center justify-center">
-                <span className="text-xs text-gray-600">Logo preview</span>
-              </div>
-            </div>
+      {/*/!* Media Upload Card *!/*/}
+      {/*<Card className="bg-white border-blue-100 shadow-md">*/}
+      {/*  <CardHeader>*/}
+      {/*    <CardTitle className="text-gray-900">Tải lên hình ảnh</CardTitle>*/}
+      {/*    <CardDescription>Cập nhật logo và banner của rạp</CardDescription>*/}
+      {/*  </CardHeader>*/}
+      {/*  <CardContent className="space-y-6">*/}
+      {/*    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">*/}
+      {/*      /!* Logo Upload *!/*/}
+      {/*      <div className="space-y-2">*/}
+      {/*        <Label className="text-gray-900">Logo (Hình vuông)</Label>*/}
+      {/*        <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:bg-accent/50 transition-colors cursor-pointer">*/}
+      {/*          <ImageIcon className="w-8 h-8 text-gray-600 mx-auto mb-2" />*/}
+      {/*          <p className="text-sm text-gray-600">Kéo thả hoặc nhấp để tải lên</p>*/}
+      {/*          <p className="text-xs text-gray-600 mt-1">PNG, JPG (tối đa 5MB)</p>*/}
+      {/*        </div>*/}
+      {/*        <div className="w-24 h-24 bg-muted rounded-lg flex items-center justify-center">*/}
+      {/*          <span className="text-xs text-gray-600">Logo preview</span>*/}
+      {/*        </div>*/}
+      {/*      </div>*/}
 
-            {/* Banner Upload */}
-            <div className="space-y-2">
-              <Label className="text-gray-900">Banner (Hình ngang)</Label>
-              <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:bg-accent/50 transition-colors cursor-pointer">
-                <ImageIcon className="w-8 h-8 text-gray-600 mx-auto mb-2" />
-                <p className="text-sm text-gray-600">Kéo thả hoặc nhấp để tải lên</p>
-                <p className="text-xs text-gray-600 mt-1">PNG, JPG (tối đa 10MB)</p>
-              </div>
-              <div className="w-full h-24 bg-muted rounded-lg flex items-center justify-center">
-                <span className="text-xs text-gray-600">Banner preview</span>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/*      /!* Banner Upload *!/*/}
+      {/*      <div className="space-y-2">*/}
+      {/*        <Label className="text-gray-900">Banner (Hình ngang)</Label>*/}
+      {/*        <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:bg-accent/50 transition-colors cursor-pointer">*/}
+      {/*          <ImageIcon className="w-8 h-8 text-gray-600 mx-auto mb-2" />*/}
+      {/*          <p className="text-sm text-gray-600">Kéo thả hoặc nhấp để tải lên</p>*/}
+      {/*          <p className="text-xs text-gray-600 mt-1">PNG, JPG (tối đa 10MB)</p>*/}
+      {/*        </div>*/}
+      {/*        <div className="w-full h-24 bg-muted rounded-lg flex items-center justify-center">*/}
+      {/*          <span className="text-xs text-gray-600">Banner preview</span>*/}
+      {/*        </div>*/}
+      {/*      </div>*/}
+      {/*    </div>*/}
+      {/*  </CardContent>*/}
+      {/*</Card>*/}
 
       {/* Save Button */}
       <div className="flex justify-end gap-3">
