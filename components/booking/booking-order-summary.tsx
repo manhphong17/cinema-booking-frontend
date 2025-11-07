@@ -367,11 +367,15 @@ export default function BookingOrderSummary({
   }
 
   return (
-    <Card className="shadow-2xl border-2 border-primary/40 bg-white hover:shadow-primary/20 transition-all duration-300">
-        <CardTitle className="flex items-center gap-2 text-primary">
-          <CreditCard className="h-6 w-6" />
-          <span className="text-xl font-semibold">{title}</span>
+    <Card className="shadow-2xl border-2 border-blue-200 bg-white hover:shadow-2xl transition-all duration-300">
+      <CardHeader className="bg-gradient-to-r from-blue-50 via-white to-blue-50 border-b-2 border-blue-200 rounded-t-lg">
+        <CardTitle className="flex items-center gap-2 text-gray-900">
+          <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+            <CreditCard className="h-5 w-5" />
+          </div>
+          <span className="text-xl font-bold">{title}</span>
         </CardTitle>
+      </CardHeader>
        <CardContent className="p-6 space-y-6">
            {/* 🎬 Movie Info */}
            {movieInfo && (

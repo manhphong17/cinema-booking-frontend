@@ -48,11 +48,26 @@ export default function HomePage() {
                 {/* Hero Carousel */}
                 <HeroCarousel />
 
+                {/* Section Divider */}
+                <div className="relative h-2 bg-gradient-to-r from-transparent via-blue-300/50 to-transparent">
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500/30 via-blue-400/50 to-blue-500/30"></div>
+                </div>
+
                 {/* Now Showing Movies */}
                 <HomeNowShowingCarousel />
 
+                {/* Section Divider */}
+                <div className="relative h-2 bg-gradient-to-r from-transparent via-purple-300/50 to-transparent">
+                  <div className="absolute inset-0 bg-gradient-to-r from-purple-500/30 via-purple-400/50 to-purple-500/30"></div>
+                </div>
+
                 {/* Coming Soon Movies */}
                 <HomeComingSoonCarousel />
+
+                {/* Section Divider */}
+                <div className="relative h-2 bg-gradient-to-r from-transparent via-pink-300/50 to-transparent">
+                  <div className="absolute inset-0 bg-gradient-to-r from-pink-500/30 via-pink-400/50 to-pink-500/30"></div>
+                </div>
 
                 {/* About Us */}
                 <AboutUs />

@@ -80,10 +80,11 @@ export default function CustomerInfoCard({ onChange }: Props) {
     };
 
     return (
-        <Card className="shadow-lg border border-gray-200 rounded-xl bg-white">
-            <CardHeader className="0 border-b rounded-t-xl">
-                <CardTitle className="text-xl font-bold ">
-                    Thông tin khách hàng
+        <Card className="shadow-xl border-2 border-blue-200 rounded-xl bg-white hover:shadow-2xl transition-all duration-300">
+            <CardHeader className="bg-gradient-to-r from-blue-50 via-white to-blue-50 border-b-2 border-blue-200 rounded-t-xl">
+                <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <div className="w-1 h-6 bg-gradient-to-b from-blue-500 to-blue-300 rounded-full"></div>
+                  Thông tin khách hàng
                 </CardTitle>
             </CardHeader>
 

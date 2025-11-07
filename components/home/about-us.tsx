@@ -1,19 +1,35 @@
 export function AboutUs() {
   return (
-    <section id="about-us" className="py-24 relative overflow-hidden">
+    <section id="about-us" className="py-24 relative overflow-hidden bg-gradient-to-br from-gray-50 via-white to-slate-50">
       {/* Background decoration with modern gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20"></div>
-      <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent"></div>
+      <div className="absolute inset-0 opacity-5">
+        <div className="absolute inset-0" style={{
+          backgroundImage: 'radial-gradient(circle at 2px 2px, #ec4899 1px, transparent 0)',
+          backgroundSize: '40px 40px'
+        }}></div>
+      </div>
       
-      <div className="container mx-auto px-4 relative z-10">
+      {/* Decorative Border Top */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-pink-500 via-pink-400 to-pink-500"></div>
+      
+      <div className="container mx-auto px-4 relative z-10 max-w-7xl">
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-12 items-center">
           {/* Text Content - 60% */}
           <div className="lg:col-span-3">
-            <div className="mb-6">
-              <h2 className="text-3xl md:text-4xl font-extrabold text-foreground mb-3 text-balance">
-                Giới thiệu rạp của chúng tôi
+            <div className="mb-8 relative">
+              <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-pink-500 to-pink-300 rounded-full"></div>
+              <div className="text-[11px] font-bold text-pink-600 uppercase tracking-wider mb-3 px-2 py-1 bg-pink-50 rounded-md inline-block">
+                About Us
+              </div>
+              <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4 text-balance">
+                <span className="bg-gradient-to-r from-pink-600 to-rose-500 bg-clip-text text-transparent">
+                  Giới thiệu rạp của chúng tôi
+                </span>
               </h2>
-              <div className="w-16 h-1 bg-black/80 rounded-full"></div>
+              <div className="flex items-center gap-2">
+                <div className="h-1.5 w-20 rounded-full bg-gradient-to-r from-pink-500 to-rose-400"></div>
+                <div className="h-1.5 w-2 rounded-full bg-pink-400"></div>
+              </div>
             </div>
             
             <div className="space-y-4 text-foreground/80 leading-relaxed">
@@ -29,28 +45,28 @@ export function AboutUs() {
                 Với đội ngũ nhân viên chuyên nghiệp, nhiệt tình và cam kết về chất lượng dịch vụ, chúng tôi luôn đặt sự hài
                 lòng của khách hàng lên hàng đầu và không ngừng cải tiến để mang đến những trải nghiệm xem phim tuyệt vời nhất.
               </p>
-              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-lg">
-                <p className="font-semibold text-foreground text-lg">
+              <div className="bg-gradient-to-br from-pink-50 to-rose-50 p-6 rounded-xl border-2 border-pink-200 shadow-xl hover:shadow-2xl transition-all duration-300">
+                <p className="font-bold text-gray-900 text-lg">
                   Hãy đến với chúng tôi - nơi những câu chuyện điện ảnh trở nên sống động!
                 </p>
               </div>
 
               {/* Feature highlights */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
-                <div className="p-5 rounded-xl border bg-white hover:shadow-md transition">
-                  <div className="text-xl font-bold text-foreground mb-1">Dolby Atmos</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
+                <div className="p-6 rounded-xl border-2 border-gray-200 bg-white hover:border-pink-300 hover:shadow-lg transition-all duration-300 group">
+                  <div className="text-xl font-bold text-gray-900 mb-2 group-hover:text-pink-600 transition-colors">Dolby Atmos</div>
                   <div className="text-sm text-slate-600">Âm thanh đa chiều ấn tượng</div>
                 </div>
-                <div className="p-5 rounded-xl border bg-white hover:shadow-md transition">
-                  <div className="text-xl font-bold text-foreground mb-1">Màn hình 4K</div>
+                <div className="p-6 rounded-xl border-2 border-gray-200 bg-white hover:border-pink-300 hover:shadow-lg transition-all duration-300 group">
+                  <div className="text-xl font-bold text-gray-900 mb-2 group-hover:text-pink-600 transition-colors">Màn hình 4K</div>
                   <div className="text-sm text-slate-600">Hình ảnh sắc nét, chân thực</div>
                 </div>
-                <div className="p-5 rounded-xl border bg-white hover:shadow-md transition">
-                  <div className="text-xl font-bold text-foreground mb-1">Ghế VIP</div>
+                <div className="p-6 rounded-xl border-2 border-gray-200 bg-white hover:border-pink-300 hover:shadow-lg transition-all duration-300 group">
+                  <div className="text-xl font-bold text-gray-900 mb-2 group-hover:text-pink-600 transition-colors">Ghế VIP</div>
                   <div className="text-sm text-slate-600">Thoải mái, rộng rãi</div>
                 </div>
-                <div className="p-5 rounded-xl border bg-white hover:shadow-md transition">
-                  <div className="text-xl font-bold text-foreground mb-1">Combo hấp dẫn</div>
+                <div className="p-6 rounded-xl border-2 border-gray-200 bg-white hover:border-pink-300 hover:shadow-lg transition-all duration-300 group">
+                  <div className="text-xl font-bold text-gray-900 mb-2 group-hover:text-pink-600 transition-colors">Combo hấp dẫn</div>
                   <div className="text-sm text-slate-600">Bắp nước đa dạng, giá tốt</div>
                 </div>
               </div>
@@ -60,13 +76,14 @@ export function AboutUs() {
 
           {/* Image - 40% */}
           <div className="lg:col-span-2">
-            <div className="relative aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl group">
+            <div className="relative aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl group border-4 border-white">
+              <div className="absolute inset-0 bg-gradient-to-br from-pink-500/20 to-purple-500/20 rounded-2xl -z-10 blur-xl group-hover:blur-2xl transition-all duration-700"></div>
               <img
                 src="/modern-cinema-theater-interior-luxury.jpg"
                 alt="Cinema Interior"
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent pointer-events-none"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent pointer-events-none"></div>
             </div>
           </div>
         </div>

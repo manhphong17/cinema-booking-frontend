@@ -417,63 +417,68 @@ export default function ConcessionSelectionPage({
         }
       `}</style>
       
-      <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900">
-        {/* Animated Background Elements */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-purple-500/30 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
-          <div className="absolute top-40 right-10 w-72 h-72 bg-pink-500/30 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
-          <div className="absolute -bottom-32 left-1/2 w-72 h-72 bg-primary/30 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
+      <div className="min-h-screen relative overflow-hidden bg-white">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-5">
+          <div className="absolute inset-0" style={{
+            backgroundImage: 'radial-gradient(circle at 2px 2px, #3b82f6 1px, transparent 0)',
+            backgroundSize: '40px 40px'
+          }}></div>
         </div>
-
-        {/* Grid Pattern Overlay */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] opacity-40"></div>
+        
+        {/* Decorative Border Top */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-blue-400 to-blue-500"></div>
 
       <div className="container mx-auto px-4 py-8 max-w-7xl relative z-10">
         {/* Header Section */}
-        <div className="mb-12 space-y-6">
-          <div className="flex items-center gap-4 animate-fade-in">
-            <div className="relative">
-              <div className="w-2 h-16 bg-gradient-to-b from-primary via-purple-500 to-pink-500 rounded-full shadow-lg shadow-primary/50"></div>
-              <div className="absolute inset-0 w-2 h-16 bg-gradient-to-b from-primary via-purple-500 to-pink-500 rounded-full blur-md opacity-50 animate-pulse"></div>
+        <div className="mb-12 relative">
+          <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-blue-300 rounded-full"></div>
+          <div className="inline-block mb-4">
+            <div className="text-[11px] font-bold text-blue-600 uppercase tracking-wider mb-2 px-3 py-1 bg-blue-50 rounded-md">
+              Step 2.5
             </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold bg-gradient-to-r from-primary via-purple-400 via-pink-400 to-primary bg-clip-text text-transparent animate-gradient bg-[length:200%_auto]">
-                  Chọn Combo & Đồ Uống
-                </h1>
-                <div className="hidden md:flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-primary/20 to-purple-500/20 backdrop-blur-sm border border-primary/30">
-                  <Sparkles className="w-4 h-4 text-primary animate-pulse" />
-                  <span className="text-xs font-semibold text-primary">Premium</span>
-                </div>
-              </div>
-              <p className="text-slate-300 mt-3 text-lg md:text-xl font-medium">
-                Thêm đồ ăn và thức uống cho buổi xem phim của bạn ✨
-              </p>
+          </div>
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tight">
+              <span className="bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
+                Chọn Combo & Đồ Uống
+              </span>
+            </h1>
+            <div className="hidden md:flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-blue-100 to-blue-50 border border-blue-300">
+              <Sparkles className="w-4 h-4 text-blue-600 animate-pulse" />
+              <span className="text-xs font-semibold text-blue-700">Premium</span>
             </div>
+          </div>
+          <p className="text-lg text-gray-600 font-medium mt-3">
+            Thêm đồ ăn và thức uống cho buổi xem phim của bạn ✨
+          </p>
+          <div className="flex items-center gap-2 mt-4">
+            <div className="h-1.5 w-24 rounded-full bg-gradient-to-r from-blue-500 to-blue-300"></div>
+            <div className="h-1.5 w-2 rounded-full bg-blue-400"></div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
           {/* Main Content - Combo Selection */}
           <div className="lg:col-span-3">
-            <Card className="relative shadow-2xl border-0 bg-white/10 backdrop-blur-xl hover:bg-white/15 transition-all duration-500 overflow-hidden group">
+            <Card className="relative shadow-2xl border-2 border-blue-200 bg-white hover:border-blue-400 hover:shadow-2xl transition-all duration-500 overflow-hidden group">
               {/* Glow Effect */}
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-purple-500/20 to-pink-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-blue-500/20 to-blue-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl"></div>
               
               {/* Border Glow */}
-              <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-primary/50 via-purple-500/50 to-pink-500/50 opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10 blur-xl"></div>
+              <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-blue-500/50 via-blue-500/50 to-blue-400/50 opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10 blur-xl"></div>
 
-              <CardHeader className="relative bg-gradient-to-r from-primary/10 via-purple-500/10 to-pink-500/10 backdrop-blur-sm border-b border-white/20 pb-5">
+              <CardHeader className="relative bg-gradient-to-r from-blue-50 via-white to-blue-50 border-b-2 border-blue-200 pb-5">
                 <CardTitle className="flex items-center gap-4 text-2xl font-bold">
-                  <div className="relative p-3 rounded-xl bg-gradient-to-br from-primary via-purple-600 to-pink-600 text-white shadow-2xl shadow-primary/50 group-hover:scale-110 transition-transform duration-300">
+                  <div className="relative p-3 rounded-xl bg-gradient-to-br from-blue-500 via-blue-600 to-blue-600 text-white shadow-2xl shadow-blue-500/50 group-hover:scale-110 transition-transform duration-300">
                     <ShoppingCart className="h-7 w-7" />
-                    <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary via-purple-600 to-pink-600 opacity-50 blur-lg"></div>
+                    <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-blue-500 via-blue-600 to-blue-600 opacity-50 blur-lg"></div>
                   </div>
-                  <span className="bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent drop-shadow-lg">
+                  <span className="bg-gradient-to-r from-gray-900 via-blue-700 to-blue-700 bg-clip-text text-transparent">
                     Danh sách sản phẩm
                   </span>
                   {concessions.length > 0 && (
-                    <Badge variant="secondary" className="ml-auto bg-white/20 backdrop-blur-sm text-white border-white/30 shadow-lg px-4 py-1.5">
+                    <Badge variant="secondary" className="ml-auto bg-blue-100 text-blue-700 border-blue-300 shadow-lg px-4 py-1.5">
                       <Sparkles className="w-3 h-3 mr-1.5 inline" />
                       {concessions.length} sản phẩm
                     </Badge>
@@ -484,24 +489,23 @@ export default function ConcessionSelectionPage({
                 {loadingConcessions ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {[...Array(6)].map((_, i) => (
-                      <Card key={i} className="overflow-hidden animate-pulse bg-white/5 backdrop-blur-sm border border-white/10">
-                        <div className="aspect-[4/3] bg-gradient-to-br from-white/10 to-white/5"></div>
-                        <CardContent className="p-4 space-y-3">
-                          <div className="h-4 bg-white/10 rounded w-3/4"></div>
-                          <div className="h-3 bg-white/10 rounded w-full"></div>
-                          <div className="h-3 bg-white/10 rounded w-2/3"></div>
+                      <Card key={i} className="overflow-hidden animate-pulse bg-white border-2 border-gray-200">
+                        <div className="aspect-[4/3] bg-gradient-to-br from-gray-200 to-gray-100"></div>
+                        <CardContent className="p-6 space-y-3">
+                          <div className="h-5 bg-gray-200 rounded w-3/4"></div>
+                          <div className="h-4 bg-gray-200 rounded w-full"></div>
+                          <div className="h-4 bg-gray-200 rounded w-2/3"></div>
                         </CardContent>
                       </Card>
                     ))}
                   </div>
                 ) : concessions.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-20 text-center">
-                    <div className="relative w-32 h-32 rounded-full bg-gradient-to-br from-primary/20 to-purple-500/20 flex items-center justify-center mb-6 animate-pulse">
-                      <ImageIcon className="w-16 h-16 text-white/60" />
-                      <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary/20 to-purple-500/20 blur-2xl"></div>
+                  <div className="flex flex-col items-center justify-center py-20 text-center bg-blue-50 rounded-xl border-2 border-blue-200">
+                    <div className="relative w-32 h-32 rounded-full bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center mb-6 border-4 border-blue-300 shadow-lg">
+                      <ImageIcon className="w-16 h-16 text-blue-600" />
                     </div>
-                    <h3 className="text-2xl font-bold text-white mb-3">Không có sản phẩm</h3>
-                    <p className="text-white/70 max-w-md text-lg">
+                    <h3 className="text-2xl font-bold text-gray-900 mb-3">Không có sản phẩm</h3>
+                    <p className="text-gray-600 max-w-md text-lg font-medium">
                       Hiện tại không có sản phẩm khả dụng. Vui lòng thử lại sau.
                     </p>
                   </div>
@@ -514,23 +518,23 @@ export default function ConcessionSelectionPage({
                       return (
                         <Card 
                           key={item.concessionId} 
-                          className={`relative overflow-hidden transition-all duration-500 group cursor-pointer border-2 backdrop-blur-xl ${
+                          className={`relative overflow-hidden transition-all duration-500 group cursor-pointer border-2 ${
                             isSelected 
-                              ? 'border-primary/80 shadow-2xl shadow-primary/50 scale-[1.02] ring-4 ring-primary/30 bg-white/20' 
-                              : 'border-white/20 hover:border-primary/60 hover:shadow-2xl hover:shadow-primary/30 bg-white/10 hover:bg-white/15'
+                              ? 'border-blue-500 shadow-2xl shadow-blue-500/50 scale-[1.02] ring-4 ring-blue-300 bg-blue-50' 
+                              : 'border-gray-200 hover:border-blue-400 hover:shadow-2xl hover:shadow-blue-300/30 bg-white hover:bg-blue-50/30'
                           } animate-fade-in-up`}
-                          style={{ 
+                          style={{
                             animationDelay: `${index * 100}ms`,
                             animationFillMode: 'both'
                           }}
                         >
                           {/* Glow Effect */}
                           {isSelected && (
-                            <div className="absolute inset-0 bg-gradient-to-r from-primary/30 via-purple-500/30 to-pink-500/30 blur-2xl opacity-50 -z-10"></div>
+                            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/30 via-blue-500/30 to-blue-400/30 blur-2xl opacity-50 -z-10"></div>
                           )}
 
                           {/* Image Section */}
-                          <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-white/10 to-white/5 flex items-center justify-center">
+                          <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center border-b-2 border-gray-200">
                             {item.urlImage ? (
                               <>
                                 <Image
@@ -543,14 +547,14 @@ export default function ConcessionSelectionPage({
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                               </>
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-purple-500/20">
-                                <ImageIcon className="w-16 h-16 text-white/50" />
+                              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-100 to-blue-50">
+                                <ImageIcon className="w-16 h-16 text-blue-400" />
                               </div>
                             )}
                             
                             {/* Price Badge */}
                             <div className="absolute top-4 right-4 z-10 transform transition-all duration-300 group-hover:scale-110">
-                              <Badge className="bg-gradient-to-r from-primary via-purple-600 to-pink-600 text-white shadow-2xl shadow-primary/50 border-0 text-sm font-bold px-4 py-1.5 backdrop-blur-sm">
+                              <Badge className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 text-white shadow-2xl shadow-blue-500/50 border-2 border-blue-400 text-sm font-bold px-4 py-2">
                                 {item.price.toLocaleString('vi-VN')} ₫
                               </Badge>
                             </div>
@@ -558,9 +562,9 @@ export default function ConcessionSelectionPage({
                             {/* Selected Indicator */}
                             {isSelected && (
                               <div className="absolute top-4 left-4 z-10 animate-bounce-subtle">
-                                <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-2xl border-0 flex items-center gap-1.5 px-3 py-1.5 backdrop-blur-sm">
-                                  <Sparkles className="w-3.5 h-3.5 animate-spin-slow" />
-                                  Đã chọn
+                                <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-2xl border-2 border-emerald-400 flex items-center gap-1.5 px-3 py-2">
+                                  <Sparkles className="w-4 h-4 animate-spin-slow" />
+                                  <span className="font-bold">Đã chọn</span>
                                 </Badge>
                               </div>
                             )}
@@ -569,17 +573,17 @@ export default function ConcessionSelectionPage({
                             <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
                           </div>
 
-                          <CardContent className="p-6 bg-white/10 backdrop-blur-sm border-t border-white/20">
-                            <h3 className="font-bold text-xl mb-3 text-white group-hover:text-primary transition-colors line-clamp-2 drop-shadow-lg">
+                          <CardContent className="p-6 bg-white border-t-2 border-gray-200">
+                            <h3 className="font-bold text-xl mb-3 text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2">
                               {item.name}
                             </h3>
-                            <p className="text-sm text-white/70 mb-5 line-clamp-2 min-h-[2.5rem]">
+                            <p className="text-sm text-gray-600 mb-6 line-clamp-2 min-h-[2.5rem]">
                               {item.description || "Sản phẩm chất lượng cao"}
                             </p>
                             
                             {/* Quantity Selector */}
-                            <div className="flex items-center justify-between gap-4 pt-5 border-t border-white/20">
-                              <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-xl p-1.5 border border-white/20">
+                            <div className="flex items-center justify-between gap-4 pt-5 border-t-2 border-gray-200">
+                              <div className="flex items-center gap-2 bg-gradient-to-br from-blue-50 to-blue-50 rounded-xl p-2 border-2 border-blue-200 shadow-md">
                                 <Button
                                   size="sm"
                                   variant="ghost"
@@ -588,11 +592,11 @@ export default function ConcessionSelectionPage({
                                     updateConcessionQuantity(item.concessionId.toString(), quantity - 1)
                                   }}
                                   disabled={quantity === 0}
-                                  className="h-9 w-9 p-0 rounded-lg hover:bg-primary hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:scale-110 active:scale-95"
+                                  className="h-10 w-10 p-0 rounded-lg bg-white hover:bg-blue-600 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:scale-110 active:scale-95 border-2 border-blue-300 shadow-sm"
                                 >
-                                  <Minus className="h-4 w-4" />
+                                  <Minus className="h-5 w-5" />
                                 </Button>
-                                <span className="w-12 text-center font-bold text-xl text-white drop-shadow-lg">
+                                <span className="w-14 text-center font-bold text-2xl text-blue-700 bg-white rounded-lg py-1 border-2 border-blue-300 shadow-sm">
                                   {quantity}
                                 </span>
                                 <Button
@@ -602,17 +606,17 @@ export default function ConcessionSelectionPage({
                                     e.stopPropagation()
                                     updateConcessionQuantity(item.concessionId.toString(), quantity + 1)
                                   }}
-                                  className="h-9 w-9 p-0 rounded-lg hover:bg-primary hover:text-white transition-all hover:scale-110 active:scale-95"
+                                  className="h-10 w-10 p-0 rounded-lg bg-white hover:bg-blue-600 hover:text-white transition-all hover:scale-110 active:scale-95 border-2 border-blue-300 shadow-sm"
                                 >
-                                  <Plus className="h-4 w-4" />
+                                  <Plus className="h-5 w-5" />
                                 </Button>
                               </div>
                               
                               {/* Total Price */}
                               {quantity > 0 && (
-                                <div className="text-right">
-                                  <div className="text-xs text-white/60 mb-1 uppercase tracking-wide">Tổng</div>
-                                  <div className="font-bold text-xl text-primary drop-shadow-lg">
+                                <div className="text-right bg-gradient-to-br from-blue-50 to-blue-50 rounded-xl p-3 border-2 border-blue-200 shadow-md">
+                                  <div className="text-xs text-gray-600 mb-1 uppercase tracking-wide font-semibold">Tổng</div>
+                                  <div className="font-bold text-2xl text-blue-600">
                                     {(quantity * item.price).toLocaleString('vi-VN')} ₫
                                   </div>
                                 </div>
@@ -647,14 +651,14 @@ export default function ConcessionSelectionPage({
                   onClick={handleContinue}
                   disabled={isSubmitting}
                   size="lg"
-                  className="relative w-full bg-gradient-to-r from-primary via-purple-600 to-pink-600 hover:from-primary/90 hover:via-purple-500 hover:to-pink-500 text-white font-bold px-8 py-7 shadow-2xl shadow-primary/50 hover:shadow-primary/70 transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed text-lg overflow-hidden group"
+                  className="relative w-full bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 hover:from-blue-700 hover:via-blue-600 hover:to-blue-700 text-white font-bold px-8 py-7 shadow-2xl shadow-blue-500/50 hover:shadow-blue-600/70 transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed text-lg overflow-hidden group"
                 >
                   {/* Shimmer Effect */}
                   <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
-                  
+
                   {/* Glow Effect */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-primary via-purple-600 to-pink-600 opacity-0 group-hover:opacity-100 blur-xl transition-opacity duration-300"></div>
-                  
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 opacity-0 group-hover:opacity-100 blur-xl transition-opacity duration-300"></div>
+
                   <span className="relative z-10 flex items-center justify-center">
                     {isSubmitting ? (
                       <>
@@ -664,7 +668,7 @@ export default function ConcessionSelectionPage({
                     ) : (
                       <>
                         <Sparkles className="w-5 h-5 mr-2 animate-pulse" />
-                        Tiếp tục thanh toán
+                        Tiếp tục thanh toán →
                       </>
                     )}
                   </span>

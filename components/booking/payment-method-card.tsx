@@ -17,9 +17,10 @@ export default function PaymentMethodCard({ onSelect }: PaymentMethodCardProps) 
   const [selected, setSelected] = useState("cash")
 
   return (
-    <Card className="shadow-xl border-2 border-gray-200/80 rounded-xl bg-white hover:border-primary/30 transition-all duration-300">
-      <CardHeader className="border-b-2 border-gray-200/60 rounded-t-xl bg-gradient-to-r from-gray-50 via-white to-gray-50">
-        <CardTitle className="text-xl font-bold text-gray-900">
+    <Card className="shadow-xl border-2 border-blue-200 rounded-xl bg-white hover:border-blue-400 hover:shadow-2xl transition-all duration-300">
+      <CardHeader className="border-b-2 border-blue-200 rounded-t-xl bg-gradient-to-r from-blue-50 via-white to-blue-50">
+        <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-2">
+          <div className="w-1 h-6 bg-gradient-to-b from-blue-500 to-blue-300 rounded-full"></div>
           Phương thức thanh toán
         </CardTitle>
       </CardHeader>

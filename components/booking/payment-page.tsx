@@ -63,7 +63,6 @@ export default function PaymentPage({
   // Seat data
   const [seatData, setSeatData] = useState<TicketResponse[]>([])
 
-
   const bookingExpiredHandlerRef = useRef<(() => void) | null>(null)
   
   // Get userId from token
@@ -255,8 +254,42 @@ export default function PaymentPage({
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 py-8">
-      <div className="container mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8 px-4">
+    <div className="min-h-screen bg-white relative overflow-hidden">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-5">
+        <div className="absolute inset-0" style={{
+          backgroundImage: 'radial-gradient(circle at 2px 2px, #3b82f6 1px, transparent 0)',
+          backgroundSize: '40px 40px'
+        }}></div>
+      </div>
+      
+      {/* Decorative Border Top */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-blue-400 to-blue-500"></div>
+      
+      <div className="container mx-auto px-4 py-8 relative z-10">
+        {/* Header Section */}
+        <div className="mb-12 relative">
+          <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-blue-300 rounded-full"></div>
+          <div className="inline-block mb-4">
+            <div className="text-[11px] font-bold text-blue-600 uppercase tracking-wider mb-2 px-3 py-1 bg-blue-50 rounded-md">
+              Step 3
+            </div>
+          </div>
+          <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-3 tracking-tight">
+            <span className="bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
+              Thanh Toán
+            </span>
+          </h1>
+          <p className="text-lg text-gray-600 font-medium">
+            Hoàn tất thông tin và thanh toán đơn hàng
+          </p>
+          <div className="flex items-center gap-2 mt-4">
+            <div className="h-1.5 w-24 rounded-full bg-gradient-to-r from-blue-500 to-blue-300"></div>
+            <div className="h-1.5 w-2 rounded-full bg-blue-400"></div>
+          </div>
+        </div>
+        
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* LEFT */}
         <div className="lg:col-span-3 space-y-6">
           <CustomerInfoCard
@@ -291,14 +324,18 @@ export default function PaymentPage({
           <button
             disabled={isProcessing}
             onClick={handlePayment}
-            className="w-full py-4 rounded-xl bg-orange-600 hover:bg-orange-700  text-white font-semibold text-lg shadow-lg hover:shadow-gray-900/50 transition-all duration-300 hover:scale-105 border-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 hover:from-blue-700 hover:via-blue-600 hover:to-blue-700 text-white font-bold text-lg shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 border-2 border-blue-400 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group"
           >
-            {isProcessing
-              ? "Đang xử lý..."
-              : `Thanh toán ${calculateTotal().toLocaleString()}đ`}
+            <div className="absolute inset-0 bg-gradient-to-r from-white/20 via-transparent to-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+            <span className="relative z-10">
+              {isProcessing
+                ? "Đang xử lý..."
+                : `Thanh toán ${calculateTotal().toLocaleString()}đ`}
+            </span>
           </button>
 
         </div>
+      </div>
       </div>
     </div>
   )

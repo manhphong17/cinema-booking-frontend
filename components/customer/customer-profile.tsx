@@ -414,63 +414,94 @@ export function CustomerProfile() {
     }
 
     return (
-        <div id="view-profile" className="p-6">
+        <div id="view-profile" className="min-h-screen bg-white relative overflow-hidden">
+            {/* Background Pattern */}
+            <div className="absolute inset-0 opacity-5">
+                <div className="absolute inset-0" style={{
+                    backgroundImage: 'radial-gradient(circle at 2px 2px, #3b82f6 1px, transparent 0)',
+                    backgroundSize: '40px 40px'
+                }}></div>
+            </div>
+            
+            {/* Decorative Border Top */}
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-blue-400 to-blue-500"></div>
+            
+            <div className="container mx-auto px-4 py-8 max-w-7xl relative z-10">
 
-            {/* Action Buttons */}
-            <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-4">
-                    {/* TIÊU ĐỀ TO + GẠCH CHÂN */}
-                    <h2
-                        className="text-2xl md:text-3xl font-extrabold text-gray-900
-                 underline underline-offset-8 decoration-blue-600 decoration-2"
-                    >
-                        Thông tin cá nhân
-                    </h2>
-
-                    {/* BADGE XANH LÁ NỀN ĐẶC */}
-                    {!isEditing && (
-                        <Badge className="bg-green-600 text-white border border-green-600 hover:bg-green-700">
-                            <Shield className="h-3 w-3 mr-1 text-white" />
-                            Đã xác thực
-                        </Badge>
+            {/* Header Section */}
+            <div className="mb-12 relative">
+                <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-blue-300 rounded-full"></div>
+                <div className="inline-block mb-4">
+                    <div className="text-[11px] font-bold text-blue-600 uppercase tracking-wider mb-2 px-3 py-1 bg-blue-50 rounded-md">
+                        Profile
+                    </div>
+                </div>
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                    <div className="flex items-center gap-4">
+                        <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tight">
+                            <span className="bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
+                                Thông tin cá nhân
+                            </span>
+                        </h1>
+                        {!isEditing && (
+                            <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-2 border-emerald-400 shadow-lg">
+                                <Shield className="h-3 w-3 mr-1 text-white" />
+                                Đã xác thực
+                            </Badge>
+                        )}
+                    </div>
+                    {!isEditing ? (
+                        <Button 
+                            onClick={() => setIsEditing(true)} 
+                            className="flex items-center gap-2 bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 hover:from-blue-700 hover:via-blue-600 hover:to-blue-700 text-white font-bold shadow-xl hover:shadow-blue-500/50 transition-all duration-300 hover:scale-105 border-2 border-blue-400"
+                        >
+                            <Edit className="h-4 w-4" />
+                            Chỉnh sửa
+                        </Button>
+                    ) : (
+                        <div className="flex gap-2">
+                            <Button
+                                id="btnSaveProfile"
+                                disabled={loading}
+                                onClick={handleSave}
+                                className="flex items-center gap-2 bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-600 hover:from-emerald-700 hover:via-emerald-600 hover:to-emerald-700 text-white font-bold shadow-xl hover:shadow-emerald-500/50 transition-all duration-300 hover:scale-105 border-2 border-emerald-400"
+                            >
+                                {loading ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Save className="h-4 w-4" />
+                                )}
+                                Lưu thay đổi
+                            </Button>
+                            <Button
+                                id="btnCancelProfile"
+                                variant="outline"
+                                onClick={() => setIsEditing(false)}
+                                className="flex items-center gap-2 border-2 hover:bg-gray-50"
+                            >
+                                <X className="h-4 w-4" />
+                                Hủy
+                            </Button>
+                        </div>
                     )}
                 </div>
-                {!isEditing ? (
-                    <Button onClick={() => setIsEditing(true)} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700">
-                        <Edit className="h-4 w-4" />
-                        Chỉnh sửa
-                    </Button>
-                ) : (
-                    <div className="flex gap-2">
-                        <Button
-                            id="btnSaveProfile"
-                            disabled={loading}
-                            onClick={handleSave}
-                            className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-                        >
-                            {loading ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <Save className="h-4 w-4" />
-                            )}
-                            Lưu thay đổi
-                        </Button>
-                        <Button
-                            id="btnCancelProfile"
-                            variant="outline"
-                            onClick={() => setIsEditing(false)}
-                            className="flex items-center gap-2"
-                        >
-                            <X className="h-4 w-4" />
-                            Hủy
-                        </Button>
-                    </div>
-                )}
+                <div className="flex items-center gap-2 mt-4">
+                    <div className="h-1.5 w-24 rounded-full bg-gradient-to-r from-blue-500 to-blue-300"></div>
+                    <div className="h-1.5 w-2 rounded-full bg-blue-400"></div>
+                </div>
             </div>
 
             {/* Profile Information */}
-            <Card className="mb-8 shadow-lg">
-                <CardContent className="">
+            <Card className="mb-8 shadow-2xl border-2 border-blue-200 bg-white hover:border-blue-400 hover:shadow-2xl transition-all duration-300">
+                <CardHeader className="bg-gradient-to-r from-blue-50 via-white to-blue-50 border-b-2 border-blue-200">
+                    <CardTitle className="flex items-center gap-3 text-gray-900">
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
+                            <User className="h-5 w-5" />
+                        </div>
+                        <span className="text-xl font-bold">Thông tin cá nhân</span>
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6">
                     <div className="flex flex-col md:flex-row gap-8">
                         {/* Avatar */}
                         <div className="md:w-1/3 space-y-4">
@@ -482,7 +513,7 @@ export function CustomerProfile() {
                             <div className="flex flex-col items-center md:items-start gap-4">
                                 {/* Khung tròn + to + luôn đầy khung */}
                                 <div className="relative w-36 h-36 sm:w-40 sm:h-40 md:w-48 md:h-48 lg:w-56 lg:h-56 
-                    rounded-full overflow-hidden ring-2 ring-white shadow">
+                    rounded-full overflow-hidden ring-4 ring-blue-200 border-4 border-white shadow-2xl">
                                     <img
                                         src={avatarPreview || formData.avatar || "/placeholder-avatar.png"}
                                         alt="Avatar"
@@ -503,7 +534,7 @@ export function CustomerProfile() {
                                             type="button"
                                             variant="outline"
                                             onClick={() => document.getElementById('avatar-upload')?.click()}
-                                            className="text-sm w-full md:w-auto"
+                                            className="text-sm w-full md:w-auto border-2 border-blue-300 hover:bg-blue-50 hover:border-blue-400"
                                         >
                                             Chọn ảnh
                                         </Button>
@@ -527,11 +558,11 @@ export function CustomerProfile() {
                                             id="name"
                                             value={formData.name}
                                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                            className="mt-1"
+                                            className="mt-1 border-2 border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
                                             placeholder="Nhập họ và tên"
                                         />
                                     ) : (
-                                        <p className="text-gray-900 font-medium text-lg">{formData.name || "Chưa cập nhật"}</p>
+                                        <p className="text-gray-900 font-medium text-lg bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">{formData.name || "Chưa cập nhật"}</p>
                                     )}
                                 </div>
 
@@ -548,7 +579,7 @@ export function CustomerProfile() {
                                         id="email"
                                         value={formData.email}
                                         disabled
-                                        className="mt-1 bg-gray-100 text-base md:text-lg h-12 px-4
+                                        className="mt-1 bg-blue-50 border-2 border-blue-200 text-base md:text-lg h-12 px-4
                disabled:opacity-100 placeholder:text-base md:placeholder:text-lg"
                                     />
                                 </div>
@@ -586,12 +617,12 @@ export function CustomerProfile() {
                                                         {/* Ô vuông icon */}
                                                         <div
                                                             className={[
-                                                                "relative rounded-xl border transition-all",
+                                                                "relative rounded-xl border-2 transition-all",
                                                                 "w-full aspect-square flex items-center justify-center",
                                                                 "bg-[linear-gradient(180deg,#0f172a_0%,#1f2937_100%)]",
                                                                 selected
-                                                                    ? "border-blue-500 ring-2 ring-blue-300 shadow-lg"
-                                                                    : "border-gray-200 hover:border-blue-300 hover:shadow"
+                                                                    ? "border-blue-500 ring-4 ring-blue-300 shadow-xl scale-105"
+                                                                    : "border-gray-200 hover:border-blue-400 hover:shadow-lg hover:scale-105"
                                                             ].join(" ")}
                                                         >
                                                             <img
@@ -656,10 +687,10 @@ export function CustomerProfile() {
                                             value={formData.address}
                                             onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                                             placeholder="Nhập địa chỉ"
-                                            className="mt-1"
+                                            className="mt-1 border-2 border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
                                         />
                                     ) : (
-                                        <p id="address" className="text-gray-600 text-lg">
+                                        <p id="address" className="text-gray-600 text-lg bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
                                             {formData.address || "Chưa cập nhật"}
                                         </p>
                                     )}
@@ -671,18 +702,19 @@ export function CustomerProfile() {
                     <Separator className="my-6" />
 
                     {/* Loyalty Points Section */}
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4">
+                    <div className="bg-gradient-to-r from-blue-50 via-blue-50 to-indigo-50 rounded-xl p-6 border-2 border-blue-200 shadow-lg">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 bg-blue-100 rounded-full">
-                                    <Star className="h-6 w-6 text-blue-600" />
+                                <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full shadow-lg">
+                                    <Star className="h-6 w-6 text-white" />
                                 </div>
                                 <div>
-                                    <h3 className="font-semibold text-gray-900">Điểm tích lũy</h3>
+                                    <h3 className="font-bold text-lg text-gray-900">Điểm tích lũy</h3>
+                                    <p className="text-sm text-gray-600">Tích lũy điểm khi đặt vé</p>
                                 </div>
                             </div>
                             <div className="text-right">
-                                <Badge id="loyaltyPoints" className="text-lg px-4 py-2 bg-blue-500 text-white">
+                                <Badge id="loyaltyPoints" className="text-lg px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 text-white border-2 border-blue-400 shadow-xl">
                                     {formData.loyaltyPoints.toLocaleString()} điểm
                                 </Badge>
                             </div>
@@ -692,26 +724,28 @@ export function CustomerProfile() {
             </Card>
 
             {/* Password Change Section */}
-            <Card className="shadow-lg">
-                <CardHeader className="bg-gradient-to-r from-red-50 to-pink-50">
-                    <CardTitle className="flex items-center gap-2">
-                        <Shield className="h-5 w-5 text-red-600" />
-                        Bảo mật tài khoản
+            <Card className="shadow-2xl border-2 border-blue-200 bg-white hover:border-blue-400 hover:shadow-2xl transition-all duration-300">
+                <CardHeader className="bg-gradient-to-r from-blue-50 via-white to-blue-50 border-b-2 border-blue-200">
+                    <CardTitle className="flex items-center gap-3 text-gray-900">
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
+                            <Shield className="h-5 w-5" />
+                        </div>
+                        <span className="text-xl font-bold">Bảo mật tài khoản</span>
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6">
                     {!showPasswordForm ? (
                         <div className="text-center py-8">
-                            <div className="p-4 bg-red-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                                <Shield className="h-8 w-8 text-red-600" />
+                            <div className="p-4 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full w-20 h-20 mx-auto mb-4 flex items-center justify-center border-4 border-blue-300 shadow-lg">
+                                <Shield className="h-10 w-10 text-blue-600" />
                             </div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">Đổi mật khẩu</h3>
-                            <p className="text-gray-600 mb-4">
+                            <h3 className="text-xl font-bold text-gray-900 mb-2">Đổi mật khẩu</h3>
+                            <p className="text-gray-600 mb-6 font-medium">
                                 Để bảo mật tài khoản, hãy thường xuyên thay đổi mật khẩu
                             </p>
                             <Button
                                 onClick={() => setShowPasswordForm(true)}
-                                className="bg-red-600 hover:bg-red-700"
+                                className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 hover:from-blue-700 hover:via-blue-600 hover:to-blue-700 text-white font-bold shadow-xl hover:shadow-blue-500/50 transition-all duration-300 hover:scale-105 border-2 border-blue-400"
                             >
                                 Đổi mật khẩu
                             </Button>
@@ -749,7 +783,7 @@ export function CustomerProfile() {
                                         onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
                                         placeholder="Nhập mật khẩu hiện tại"
                                         autoComplete="current-password"
-                                        className="mt-1"
+                                        className="mt-1 border-2 border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -763,7 +797,7 @@ export function CustomerProfile() {
                                         onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
                                         placeholder="Mật khẩu mới (tối thiểu 6 ký tự)"
                                         autoComplete="new-password"
-                                        className="mt-1"
+                                        className="mt-1 border-2 border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
                                     />
                                 </div>
                                 <div className="space-y-2 md:col-span-2">
@@ -777,7 +811,7 @@ export function CustomerProfile() {
                                         onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
                                         placeholder="Xác nhận mật khẩu mới"
                                         autoComplete="new-password"
-                                        className="mt-1"
+                                        className="mt-1 border-2 border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
                                     />
                                 </div>
                             </div>
@@ -787,7 +821,7 @@ export function CustomerProfile() {
                                     id="btnChangePassword"
                                     disabled={passwordLoading.change}
                                     onClick={handleChangePassword}
-                                    className="bg-red-600 hover:bg-red-700"
+                                    className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 hover:from-blue-700 hover:via-blue-600 hover:to-blue-700 text-white font-bold shadow-xl hover:shadow-blue-500/50 transition-all duration-300 hover:scale-105 border-2 border-blue-400"
                                 >
                                     {passwordLoading.change ? (
                                         <>
@@ -801,6 +835,7 @@ export function CustomerProfile() {
                                 <Button
                                     variant="outline"
                                     onClick={() => setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" })}
+                                    className="border-2 hover:bg-gray-50"
                                 >
                                     Xóa thông tin
                                 </Button>
@@ -809,6 +844,7 @@ export function CustomerProfile() {
                     )}
                 </CardContent>
             </Card>
+            </div>
         </div>
     )
 }
