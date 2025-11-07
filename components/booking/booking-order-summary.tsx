@@ -2,7 +2,6 @@
 
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card"
 import {Badge} from "@/components/ui/badge"
-import {Button} from "@/components/ui/button"
 import {Calendar, Clock, CreditCard, Crown, MapPin, Sofa, Users} from "lucide-react"
 import {ReactNode, useEffect, useState, useRef, useCallback} from "react"
 import {useRouter} from "next/navigation"
@@ -32,39 +31,40 @@ export type MovieInfo = {
 type BookingOrderSummaryProps = {
   // Movie info
   movieInfo?: MovieInfo
-  
+
   // Seats
   seats?: SeatInfo[]
   seatsTotal?: number
-  
+
   // Concessions (optional)
   concessions?: ConcessionInfo[]
   concessionsTotal?: number
-  
+
   // Pricing
   total: number
   discount?: number
-  
+  earnedPoints?: number
+
   // Countdown - có thể truyền trực tiếp hoặc để component tự quản lý
   countdown?: number // Nếu truyền, sẽ dùng giá trị này (manual mode)
-  
+
   // Props để component tự quản lý countdown (auto mode)
   showtimeId?: number | null
   userId?: number | null
   movieId?: string | null
   onCountdownExpire?: () => void
-  
+
   // Trigger để sync TTL ngay khi user chọn ghế (từ component cha)
   triggerSync?: number | null
-  
+
   // Callback để component cha register handler khi nhận EXPIRED message từ WebSocket
   // Component cha sẽ truyền function này: (handler) => { ref.current = handler }
   // Sau đó khi nhận EXPIRED message, component cha sẽ gọi handler()
   onSeatHoldExpired?: (handler: () => void) => void
-  
+
   // Action button (optional)
   actionButton?: ReactNode
-  
+
   // Custom title
   title?: string
   showSeatTypeStats?: boolean // Hiển thị thống kê ghế thường/VIP (chỉ dùng ở seat selection)
@@ -78,6 +78,7 @@ export default function BookingOrderSummary({
   concessionsTotal = 0,
   total,
   discount = 0,
+  earnedPoints =0,
   countdown: externalCountdown,
   showtimeId,
   userId,
@@ -94,7 +95,7 @@ export default function BookingOrderSummary({
   const [internalCountdown, setInternalCountdown] = useState(0)
   const [hasTTLFromBackend, setHasTTLFromBackend] = useState(false) // Flag để biết đã có TTL từ backend chưa
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null) // Ref để lưu timeout cho retry
-  
+
   // Function để xử lý khi seat hold hết hạn (được gọi từ component cha khi nhận EXPIRED message)
   // Component cha đã xử lý redirect, chỉ cần reset state ở đây
   const handleSeatHoldExpired = useCallback(() => {
@@ -103,14 +104,14 @@ export default function BookingOrderSummary({
     sessionStorage.removeItem(storageKey)
     setInternalCountdown(0)
     setHasTTLFromBackend(false)
-    
+
     // Gọi callback nếu có, component cha sẽ xử lý redirect
     if (onCountdownExpire) {
       onCountdownExpire()
     }
     // KHÔNG redirect ở đây - component cha đã xử lý redirect trong handleSeatHoldExpired của nó
   }, [movieId, showtimeId, onCountdownExpire])
-  
+
   // Expose handleSeatHoldExpired qua onSeatHoldExpired callback
   useEffect(() => {
     if (onSeatHoldExpired) {
@@ -123,25 +124,25 @@ export default function BookingOrderSummary({
   // Determine if we're in auto mode (manage countdown internally) or manual mode (use external countdown)
   // Auto mode: tự động lấy TTL từ backend khi có đủ showtimeId, userId, movieId
   const isAutoMode = externalCountdown === undefined && showtimeId && userId && movieId
-  
+
   // Debug log
   useEffect(() => {
     if (isAutoMode) {
       console.log('[BookingOrderSummary] Auto mode enabled:', { showtimeId, userId, movieId })
     } else {
-      console.log('[BookingOrderSummary] Auto mode disabled:', { 
-        externalCountdown, 
-        showtimeId, 
-        userId, 
-        movieId 
+      console.log('[BookingOrderSummary] Auto mode disabled:', {
+        externalCountdown,
+        showtimeId,
+        userId,
+        movieId
       })
     }
   }, [isAutoMode, showtimeId, userId, movieId, externalCountdown])
-  
+
   // Countdown chỉ hiển thị khi:
   // - Manual mode: có externalCountdown
   // - Auto mode: đã có TTL từ backend (hasTTLFromBackend = true và internalCountdown > 0)
-  const countdown = isAutoMode 
+  const countdown = isAutoMode
     ? (hasTTLFromBackend && internalCountdown > 0 ? internalCountdown : undefined)
     : (externalCountdown ?? undefined)
 
@@ -157,14 +158,14 @@ export default function BookingOrderSummary({
       if (isSyncInProgress) {
         return
       }
-      
+
       // Nếu đã có TTL từ backend rồi (đã gọi lần đầu), không cần gọi lại
       // Vì countdown sẽ tự giảm dần, và Redis expiration notification sẽ thông báo khi hết hạn
       if (hasTTLFromBackend) {
         console.log('[BookingOrderSummary] Already have TTL, skipping sync (will use Redis expiration notification)')
         return
       }
-      
+
       isSyncInProgress = true
       try {
         const response = await apiClient.get(
@@ -174,13 +175,13 @@ export default function BookingOrderSummary({
         if (response.data?.status === 200 && response.data?.data !== undefined) {
           const backendTTL = Math.max(0, response.data.data as number)
           console.log('[BookingOrderSummary] Backend TTL:', backendTTL)
-          
+
           if (backendTTL > 0) {
             // Trực tiếp sử dụng TTL từ backend làm countdown
             // TTL chỉ tồn tại khi user đã chọn ghế (seatHold được tạo trong Redis)
             setInternalCountdown(backendTTL)
             setHasTTLFromBackend(true) // Đánh dấu đã có TTL từ backend
-            
+
             // Lưu expireTime (thời điểm hết hạn) vào sessionStorage để dùng làm fallback
             // khi backend không trả về TTL (ví dụ: mạng lỗi, refresh trang)
             const currentTime = Date.now()
@@ -191,22 +192,22 @@ export default function BookingOrderSummary({
             // Có 2 trường hợp:
             // 1. User chưa chọn ghế lần nào -> chưa có seatHold -> TTL = 0 (bình thường, không redirect)
             // 2. User đã chọn ghế nhưng key bị xóa/hết hạn -> TTL = 0 (cần redirect)
-            
+
             const savedExpireTime = sessionStorage.getItem(storageKey)
-            
+
             if (savedExpireTime) {
               // Có data trong sessionStorage -> đã từng có seatHold
               // Nghĩa là user đã chọn ghế nhưng backend đã xóa key hoặc hết hạn
               // KHÔNG redirect ở đây - Redis expiration notification sẽ xử lý redirect qua WebSocket
               console.log('[BookingOrderSummary] Backend TTL = 0 và có sessionStorage -> đã hết hạn. Redis notification sẽ xử lý redirect.')
-              
+
               // Xóa sessionStorage vì đã không còn hợp lệ
               sessionStorage.removeItem(storageKey)
-              
+
               // Dừng countdown ngay (set về 0) và reset flag
               setInternalCountdown(0)
               setHasTTLFromBackend(false)
-              
+
               // KHÔNG redirect - đợi Redis expiration notification qua WebSocket
             } else {
               // Không có data trong sessionStorage -> user chưa chọn ghế lần nào
@@ -220,7 +221,7 @@ export default function BookingOrderSummary({
         }
       } catch (error) {
         console.error('[BookingOrderSummary] Error fetching TTL from backend:', error)
-        
+
         // Nếu lỗi API, chỉ dùng sessionStorage làm fallback tạm thời
         // (có thể do mạng lỗi, không phải do backend xóa key)
         const savedExpireTime = sessionStorage.getItem(storageKey)
@@ -262,21 +263,21 @@ export default function BookingOrderSummary({
       isSyncInProgress = false
     }
   }, [isAutoMode, showtimeId, userId, movieId, triggerSync, hasTTLFromBackend])
-  
+
   // Trigger sync ngay khi user chọn ghế (triggerSync thay đổi)
   useEffect(() => {
     if (!isAutoMode || !triggerSync) return
-    
+
     // Clear timeout cũ nếu có
     if (retryTimeoutRef.current) {
       clearTimeout(retryTimeoutRef.current)
       retryTimeoutRef.current = null
     }
-    
+
     const storageKey = `booking_timer_${movieId}_${showtimeId}`
     let retryCount = 0
     const maxRetries = 5 // Giảm xuống 5 lần retry (tối đa 1.5 giây)
-    
+
     // Polling để lấy TTL ngay khi backend tạo seatHold
     // Delay nhỏ để backend kịp xử lý WebSocket selectSeats
     const syncTTL = async () => {
@@ -285,7 +286,7 @@ export default function BookingOrderSummary({
         const response = await apiClient.get(
           `/bookings/show-times/${showtimeId}/users/${userId}/seat-hold/ttl`
         )
-        
+
         if (response.data?.status === 200 && response.data?.data !== undefined) {
           const backendTTL = Math.max(0, response.data.data as number)
           if (backendTTL > 0) {
@@ -318,10 +319,10 @@ export default function BookingOrderSummary({
         }
       }
     }
-    
+
     // Delay nhỏ (300ms) để backend kịp xử lý WebSocket selectSeats trước khi fetch TTL
     retryTimeoutRef.current = setTimeout(() => syncTTL(), 300)
-    
+
     // Cleanup: clear timeout khi component unmount hoặc dependencies thay đổi
     return () => {
       if (retryTimeoutRef.current) {
@@ -362,132 +363,123 @@ export default function BookingOrderSummary({
   }
 
   const getSeatIcon = (type: string) => {
-    switch (type) {
-      case 'vip': return <Crown className="h-4 w-4 text-purple-600" />
-      default: return <Sofa className="h-4 w-4 text-blue-600" />
-    }
+  return <Sofa className="h-4 w-4 text-blue-600" />
   }
 
   return (
     <Card className="shadow-2xl border-2 border-primary/40 bg-white hover:shadow-primary/20 transition-all duration-300">
-      <CardHeader className="bg-gradient-to-r from-primary/15 via-primary/10 to-primary/15 border-b-2 border-primary/40">
-        <CardTitle className="flex items-center gap-2 text-primary">
-          <CreditCard className="h-6 w-6" />
-          <span className="text-xl font-semibold">{title}</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-6 space-y-6">
-        {/* Movie Info */}
-        {movieInfo && (
-          <div className="flex gap-3 bg-gray-50 rounded-lg p-3 border-2 border-gray-300">
-            <img
-              src={movieInfo.poster || "/placeholder.svg"}
-              alt={movieInfo.title || "Movie"}
-              className="w-16 h-20 object-cover rounded-lg shadow-sm border-2 border-gray-300"
-            />
-            <div className="flex-1">
-              <h3 className="font-semibold text-sm text-foreground">{movieInfo.title}</h3>
-              <div className="space-y-1 text-xs text-muted-foreground mt-1">
-                {movieInfo.date && (
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    {movieInfo.date}
-                  </div>
-                )}
-                {movieInfo.time && (
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {movieInfo.time}
-                  </div>
-                )}
-                {movieInfo.hall && (
-                  <div className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3" />
-                    {movieInfo.hall}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+        <CardHeader className="pb-2 px-6 pt-4">
+            <CardTitle className="flex items-center gap-2 text-primary">
+                <CreditCard className="h-6 w-6" />
+                <span className="text-xl font-semibold">{title}</span>
+            </CardTitle>
+        </CardHeader>
 
-        {/* Selected Seats */}
-        {seats.length > 0 && (
-          <div>
-            <h4 className="font-semibold text-foreground mb-4 flex items-center gap-2 text-base">
-              <Users className="h-5 w-5 text-primary" />
-              Ghế đã chọn ({seats.length})
-            </h4>
+        <CardContent className="p-6 space-y-4">
 
-            {/* Seat type summary - chỉ hiển thị ở seat selection */}
-            {showSeatTypeStats && (
-              <div className="mb-4 space-y-2 bg-gray-50 rounded-lg p-3 border-2 border-gray-300">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-foreground font-medium">Ghế thường:</span>
-                  <span className={`font-semibold ${
-                    getSeatTypeCount('standard') > 0 ? 'text-emerald-600' : 'text-muted-foreground'
-                  }`}>
-                    {getSeatTypeCount('standard')}/8
-                  </span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-foreground font-medium">Ghế VIP:</span>
-                  <span className={`font-semibold ${
-                    getSeatTypeCount('vip') > 0 ? 'text-violet-600' : 'text-muted-foreground'
-                  }`}>
-                    {getSeatTypeCount('vip')}/8
-                  </span>
-                </div>
-              </div>
-            )}
+           {/* 🎬 Movie Info */}
+           {movieInfo && (
+               <div
+                   className="
+      flex items-center
+      gap-4         /* tăng khoảng cách giữa ảnh và text */
+      scale-[1.1]   /* phóng to toàn bộ khối/
+        -mt-10          /* gần tiêu đề hơn */
+      mb-5             /* cách khối ghế ra thêm 2~4px */
+      origin-top-left /* để phóng to theo góc trái */
+      transition-transform duration-300
+    "
+               >
+                   <img
+                       src={movieInfo.poster || "/placeholder.svg"}
+                       alt={movieInfo.title || "Movie"}
+                       className="w-20 h-24 object-cover rounded-md border border-gray-200 shadow-md"
+                   />
+                   <div className="flex-1">
+                       <h3 className="font-semibold text-lg text-gray-900">{movieInfo.title}</h3>
+                       <div className="space-y-1 text-base text-gray-600 mt-1">
+                           {movieInfo.date && (
+                               <div className="flex items-center gap-1">
+                                   <Calendar className="h-4 w-4 text-blue-500" />
+                                   {movieInfo.date}
+                               </div>
+                           )}
+                           {movieInfo.time && (
+                               <div className="flex items-center gap-1">
+                                   <Clock className="h-4 w-4 text-blue-500" />
+                                   {movieInfo.time}
+                               </div>
+                           )}
+                           {movieInfo.hall && (
+                               <div className="flex items-center gap-1">
+                                   <MapPin className="h-4 w-4 text-blue-500" />
+                                   {movieInfo.hall}
+                               </div>
+                           )}
+                       </div>
+                   </div>
+               </div>
+           )}
 
-            <div className="space-y-3">
-              {seats.map((seat) => (
-                <div key={seat.id} className="flex justify-between items-center bg-gray-50 rounded-lg p-3 border-2 border-gray-300">
-                  <div className="flex items-center gap-2">
-                    {getSeatIcon(seat.type)}
-                    <span className="font-medium text-foreground">Ghế {seat.id}</span>
-                    <Badge variant="outline" className="text-xs border-2 border-gray-400 bg-white text-foreground">
-                      {seat.type === 'vip' ? 'VIP' : seat.type === 'premium' ? 'Premium' : 'Thường'}
-                    </Badge>
-                  </div>
-                  <span className="font-semibold text-foreground">{seat.price.toLocaleString()}đ</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+           {/* 🪑 Seats */}
+           {seats.length > 0 && (
+               <div>
+                   <h4 className="font-semibold mb-4 flex items-center gap-2 text-gray-800">
+                       <Users className="h-5 w-5 text-indigo-500" />
+                       Ghế đã chọn ({seats.length})
+                   </h4>
+                   <div className="space-y-3">
+                       {seats.map((seat) => (
+                           <div
+                               key={seat.id}
+                               className="flex justify-between items-center bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg p-3 border border-indigo-200 hover:shadow-sm transition"
+                           >
+                               <div className="flex items-center gap-2">
+                                   {getSeatIcon(seat.type)}
+                                   <span className="font-medium text-gray-800">Ghế {seat.id}</span>
+                                   <Badge
+                                       variant="outline"
+                                       className="text-xs border border-indigo-300 bg-white text-indigo-700 capitalize"
+                                   >
+                                       {seat.type}
+                                   </Badge>
+                               </div>
+                               <span className="font-semibold text-gray-900">
+            {seat.price.toLocaleString()}đ
+          </span>
+                           </div>
+                       ))}
+                   </div>
+               </div>
+           )}
 
-        {/* No seats selected */}
-        {seats.length === 0 && (
-          <div className="text-center py-8 text-muted-foreground">
-            <Sofa className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p>Chưa chọn ghế nào</p>
-            <p className="text-sm">Hãy chọn ghế từ sơ đồ bên trái</p>
-          </div>
-        )}
+           {/* 🍿 Concessions */}
+           {concessions.length > 0 && (
+               <div>
+                   <h4 className="font-semibold mb-3 flex items-center gap-2 text-gray-800">
+                       <Users className="h-5 w-5 text-indigo-500" />
+                       Sản phẩm đã chọn ({concessions.length})
+                   </h4>
+                   <div className="space-y-2">
+                       {concessions.map((item) => (
+                           <div
+                               key={item.id}
+                               className="flex justify-between items-center bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg p-3 border border-indigo-200 hover:shadow-sm transition"
+                           >
+          <span className="font-medium text-gray-800">
+            {item.name} x{item.quantity}
+          </span>
+                               <span className="font-semibold text-gray-900">
+            {(item.price * item.quantity).toLocaleString("vi-VN")} VNĐ
+          </span>
+                           </div>
+                       ))}
+                   </div>
+               </div>
+           )}
 
-        {/* Selected Concessions */}
-        {concessions.length > 0 && (
-          <div>
-            <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2 text-base">
-              <Users className="h-5 w-5 text-primary" />
-              Sản phẩm đã chọn ({concessions.length})
-            </h4>
-            <div className="space-y-2">
-              {concessions.map((item) => (
-                <div key={item.id} className="flex justify-between items-center text-sm bg-gray-50 rounded-lg p-2 border-2 border-gray-300">
-                  <span className="font-medium text-foreground">{item.name} x{item.quantity}</span>
-                  <span className="font-semibold text-foreground">
-                    {(item.price * item.quantity).toLocaleString('vi-VN')} VNĐ
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
-        {/* Countdown Timer - chỉ hiển thị khi có countdown */}
+           {/* Countdown Timer - chỉ hiển thị khi có countdown */}
         {countdown !== undefined && (
           <div className={`rounded-lg p-4 border-2 shadow-lg ${
             countdown <= 300 
@@ -532,7 +524,7 @@ export default function BookingOrderSummary({
               <span className="font-semibold text-foreground">{seatsTotal.toLocaleString('vi-VN')} VNĐ</span>
             </div>
           )}
-          
+
           {concessionsTotal > 0 && (
             <div className="flex justify-between items-center text-sm">
               <span className="text-foreground font-medium">Đồ ăn kèm:</span>
@@ -540,16 +532,29 @@ export default function BookingOrderSummary({
             </div>
           )}
 
-          {discount > 0 && (
-            <div className="flex justify-between items-center text-sm bg-emerald-50 rounded-lg p-2 border-2 border-emerald-400">
-              <span className="font-medium text-emerald-700">Giảm giá:</span>
-              <span className="font-semibold text-emerald-700">-{discount.toLocaleString('vi-VN')} VNĐ</span>
-            </div>
-          )}
+            {discount > 0 && (
+                <>
+                    <div className="flex justify-between items-center text-sm">
+                        <span className="font-medium text-red-600">Giảm giá:</span>
+                        <span className="font-semibold text-red-600">-{discount.toLocaleString('vi-VN')} VNĐ</span>
+                    </div>
+                    <p className="text-xs text-gray-500 text-right italic">
+                        * Áp dụng từ điểm thành viên của bạn
+                    </p>
+                </>
+            )}
 
-          <div className="flex justify-between items-center font-semibold text-lg border-t-2 border-gray-300 pt-3 mt-2">
-            <span className="text-foreground font-medium">Tổng cộng:</span>
-            <span className="text-primary font-bold text-xl">{total.toLocaleString('vi-VN')} VNĐ</span>
+            { earnedPoints > 0 && (
+                <div className="flex justify-between items-center text-sm">
+                    <span className="font-medium ">Điểm thành viên nhận được:</span>
+                    <span className="font-semibold ">+{earnedPoints} điểm</span>
+                </div>
+            )}
+
+
+            <div className="flex justify-between items-center text-sm bg-emerald-50 rounded-lg p-2 border-2 border-emerald-400">
+            <span className=" font-medium text-emerald-700">Tổng cộng:</span>
+            <span className="font-bold text-xl text-emerald-700">{total.toLocaleString('vi-VN')} VNĐ</span>
           </div>
         </div>
 

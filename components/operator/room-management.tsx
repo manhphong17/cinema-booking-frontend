@@ -1,5 +1,10 @@
 "use client"
 
+// Overview
+// Function: Room management UI for cinema operator dashboard.
+// Input: API clients (rooms, seats), user interactions (filters, forms), initial state.
+// Output: Interactive CRUD for rooms, seat-map editor entry, and type managers via dialogs.
+
 import { useCallback, useEffect, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
@@ -21,6 +26,9 @@ import {
 import { fetchSeatMatrix, saveSeatMatrix, type SeatCellDto } from "@/app/api/room/seats"
 
 
+// Function: Lazy-load management submodules for RoomType & SeatType.
+// Input: None at call-time (dynamic import handles code-splitting).
+// Output: Components loaded client-side only with loading placeholders.
 const RoomTypeManager = dynamic(
     () => import("@/components/operator/roomType-managerment").then((m) => m.default),
     { ssr: false, loading: () => <div className="p-6 text-muted-foreground">Đang tải Loại phòng…</div> },
@@ -30,9 +38,16 @@ const SeatTypeManager = dynamic(
     { ssr: false, loading: () => <div className="p-6 text-muted-foreground">Đang tải Loại ghế…</div> },
 )
 
+// ===== Types =====
+// Function: Define UI-only seat visualization enums.
+// Input: N/A (type-level only).
+// Output: SeatVisualType & SeatVisualStatus discriminated unions used across the UI.
 type SeatVisualType = "standard" | "vip" | "disabled"
 type SeatVisualStatus = "available" | "reserved" | "occupied" | "blocked"
 
+// Function: Local seat cell view model.
+// Input: N/A.
+// Output: Runtime shape for seat grid cells consumed by SeatSetup.
 interface SeatCell {
     id: string | null
     row: number
@@ -43,6 +58,9 @@ interface SeatCell {
     seatTypeName?: string
 }
 
+// Function: Local room item view model for listing table.
+// Input: N/A.
+// Output: Transformed shape mapped from RoomDto for table rendering.
 interface RoomItem {
     id: number
     name: string
@@ -56,15 +74,24 @@ interface RoomItem {
     screenType?: string | null
 }
 
+// Function: Parent callback prop contract.
+// Input: roomId to select.
+// Output: Notifies parent about room selection.
 interface RoomManagementProps {
     onSelectRoom: (roomId: number) => void
 }
 
+// Function: Composite data used when entering seat setup.
+// Input: Selected room & its current matrix.
+// Output: Props for <SeatSetup/>.
 interface SelectedRoomData {
     room: RoomItem
     matrix: SeatCell[][]
 }
 
+// Function: Form state shape for Create/Edit room dialog.
+// Input: N/A.
+// Output: Controlled form fields.
 interface FormState {
     name: string
     roomTypeId: string
@@ -73,21 +100,42 @@ interface FormState {
     status: "ACTIVE" | "INACTIVE"
 }
 
+// ===== Component =====
+// Function: RoomManagement component (default exportable named export).
+// Input: onSelectRoom callback from parent.
+// Output: Full management UI and nested dialogs.
 export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
     const { toast } = useToast()
 
+    // ---- State buckets ----
+    // Function: Hold server data collections.
+    // Input: Results from fetchRoomMeta & fetchRooms.
+    // Output: roomTypes, seatTypes, rooms arrays for rendering and filtering.
     const [rooms, setRooms] = useState<RoomItem[]>([])
     const [roomTypes, setRoomTypes] = useState<RoomTypeDto[]>([])
     const [seatTypes, setSeatTypes] = useState<SeatTypeDto[]>([])
+
+    // Function: Global loading flag for async actions.
+    // Input: Async operations toggling setLoading.
+    // Output: Disables buttons/spinners where needed.
     const [loading, setLoading] = useState(false)
 
+    // Function: Dialog open flags.
+    // Input: Clicks on buttons.
+    // Output: Open/close Room/RoomType/SeatType dialogs.
     const [isCreateOpen, setCreateOpen] = useState(false)
     const [isRoomTypeOpen, setRoomTypeOpen] = useState(false)
     const [isSeatTypeOpen, setSeatTypeOpen] = useState(false)
 
+    // Function: Track which room is being edited or configured.
+    // Input: User action on table row buttons.
+    // Output: Pre-fills form & enables seat setup mode.
     const [editingRoom, setEditingRoom] = useState<RoomItem | null>(null)
     const [selectedRoom, setSelectedRoom] = useState<SelectedRoomData | null>(null)
 
+    // Function: Filters and pagination controls.
+    // Input: User text/select changes.
+    // Output: Derive filtered + paginated room list.
     const [searchTerm, setSearchTerm] = useState("")
     const [typeFilter, setTypeFilter] = useState<string>("all")
     const [statusFilter, setStatusFilter] = useState<string>("all")
@@ -96,6 +144,9 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
     const [currentPage, setCurrentPage] = useState(1)
     const [itemsPerPage] = useState(10)
 
+    // Function: Controlled form state for Create/Edit dialog.
+    // Input: OnChange handlers.
+    // Output: Payload for create/update APIs.
     const [formData, setFormData] = useState<FormState>({
         name: "",
         roomTypeId: "",
@@ -104,6 +155,10 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         status: "ACTIVE",
     })
 
+    // ===== Utilities =====
+    // Function: Map seat type name to visual bucket (UI colors/legend).
+    // Input: seatTypeName (string or null/undefined).
+    // Output: SeatVisualType discriminant.
     const detectVisualType = useCallback((seatTypeName?: string | null): SeatVisualType => {
         const normalized = (seatTypeName ?? "").toLowerCase()
         if (normalized.includes("vip")) return "vip"
@@ -111,6 +166,9 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         return "standard"
     }, [])
 
+    // Function: Convert API seat matrix (SeatCellDto[][]) to UI matrix (SeatCell[][]).
+    // Input: matrixData from fetchSeatMatrix.
+    // Output: UI-friendly matrix for SeatSetup with derived 'type' & 'status'.
     const transformSeatMatrix = useCallback(
         (matrixData: (SeatCellDto | null)[][]): SeatCell[][] => {
             return (matrixData ?? []).map((row, rIndex) =>
@@ -129,10 +187,10 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                         cell.isBlocked === true
                             ? "blocked"
                             : cell.status === "RESERVED"
-                            ? "reserved"
-                            : cell.status === "OCCUPIED"
-                            ? "occupied"
-                            : "available"
+                                ? "reserved"
+                                : cell.status === "OCCUPIED"
+                                    ? "occupied"
+                                    : "available"
 
                     return {
                         id: cell.id !== null && cell.id !== undefined ? String(cell.id) : null,
@@ -149,6 +207,9 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         [detectVisualType],
     )
 
+    // Function: Build payload to persist seat matrix changes.
+    // Input: matrix (SeatCell[][]) from SeatSetup save handler.
+    // Output: { matrix: ... } payload matching saveSeatMatrix API.
     const buildMatrixPayload = useCallback(
         (matrix: SeatCell[][]) => {
             const typeToId: Record<SeatVisualType, number | undefined> = {
@@ -185,6 +246,10 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         [detectVisualType, seatTypes],
     )
 
+    // ===== Data fetching =====
+    // Function: Load and cache room & seat type metadata.
+    // Input: None (calls fetchRoomMeta()).
+    // Output: Populates roomTypes and seatTypes or shows toast error.
     const loadMeta = useCallback(async () => {
         try {
             const res = await fetchRoomMeta()
@@ -200,6 +265,9 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         }
     }, [toast])
 
+    // Function: Load rooms for list view.
+    // Input: Pagination params (fixed: page 0, size 500).
+    // Output: rooms[] state mapped to RoomItem shape, with toasts on failure.
     const loadRooms = useCallback(async () => {
         setLoading(true)
         try {
@@ -229,11 +297,18 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         }
     }, [toast])
 
+    // Function: Bootstrap data on mount.
+    // Input: None (effects call loadMeta & loadRooms).
+    // Output: Populates state for initial render.
     useEffect(() => {
         loadMeta()
         loadRooms()
     }, [loadMeta, loadRooms])
 
+    // ===== Derivations =====
+    // Function: Compute filtered list based on search & filters.
+    // Input: rooms, searchTerm, typeFilter, statusFilter, capacityFilter.
+    // Output: Filtered array for pagination.
     const filteredRooms = useMemo(() => {
         return rooms.filter((room) => {
             const matchesSearch = room.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -249,17 +324,27 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         })
     }, [rooms, searchTerm, typeFilter, statusFilter, capacityFilter])
 
+    // Function: Pagination helpers.
+    // Input: filteredRooms.length, itemsPerPage, currentPage.
+    // Output: totalPages, indices, and current page slice.
     const totalPages = Math.max(1, Math.ceil(filteredRooms.length / itemsPerPage))
     const startIndex = (currentPage - 1) * itemsPerPage
     const endIndex = startIndex + itemsPerPage
     const paginatedRooms = filteredRooms.slice(startIndex, endIndex)
 
+    // ===== Helpers =====
+    // Function: Reset create/edit form.
+    // Input: None.
+    // Output: Clears formData & editingRoom.
     const resetForm = () => {
         setFormData({ name: "", roomTypeId: "", rows: "", columns: "", status: "ACTIVE" })
         setEditingRoom(null)
     }
 
-
+    // ===== Actions: Create/Update =====
+    // Function: Validate & submit create/update room.
+    // Input: formData state; editingRoom presence.
+    // Output: Calls createRoomApi/updateRoomApi, shows toasts, refreshes list.
     const handleSubmit = async () => {
         const rows = Number(formData.rows)
         const columns = Number(formData.columns)
@@ -299,11 +384,14 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         }
     }
 
+    // Function: Update room status while preserving other fields.
+    // Input: room (RoomItem), desired status.
+    // Output: updateRoomApi call to persist status change.
     const updateRoomStatus = async (room: RoomItem, status: "ACTIVE" | "INACTIVE") => {
         // build đủ RoomPayload theo type của updateRoomApi
         const payload = {
             name: room.name,
-            roomTypeId: room.roomTypeId ?? 0, // hoặc bắt buộc chọn loại phòng nếu API không cho 0
+            roomTypeId: room.roomTypeId ?? 0, // or enforce selection if API disallows 0
             rows: room.rows,
             columns: room.columns,
             status,
@@ -311,6 +399,9 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         await updateRoomApi(room.id, payload)
     }
 
+    // Function: Deactivate a room.
+    // Input: room to deactivate.
+    // Output: Persists status, shows toast, refreshes list.
     const deactivateRoom = async (room: RoomItem) => {
         try {
             setLoading(true)
@@ -322,6 +413,9 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         }
     }
 
+    // Function: Activate a room.
+    // Input: room to activate.
+    // Output: Persists status, shows toast, refreshes list.
     const activateRoom = async (room: RoomItem) => {
         try {
             setLoading(true)
@@ -333,7 +427,9 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         }
     }
 
-
+    // Function: Open edit dialog and preload form values.
+    // Input: room selected from table.
+    // Output: Shows dialog with formData set.
     const openEditDialog = (room: RoomItem) => {
         setEditingRoom(room)
         setFormData({
@@ -346,6 +442,10 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         setCreateOpen(true)
     }
 
+    // ===== Seat setup navigation =====
+    // Function: Fetch seat matrix and enter seat setup screen.
+    // Input: room selected.
+    // Output: Sets selectedRoom with transformed matrix for <SeatSetup/>.
     const handleSelectRoom = async (room: RoomItem) => {
         onSelectRoom(room.id)
         try {
@@ -362,10 +462,16 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         }
     }
 
+    // Function: Leave seat setup and return to list view.
+    // Input: None.
+    // Output: Clears selectedRoom to render main list UI.
     const handleBackFromSeatSetup = () => {
         setSelectedRoom(null)
     }
 
+    // Function: Persist seat grid changes.
+    // Input: matrix from SeatSetup onSave.
+    // Output: Calls saveSeatMatrix, shows toast, refreshes rooms, exits setup.
     const handleSaveSeatConfig = async (matrix: SeatCell[][]) => {
         if (!selectedRoom) return
         try {
@@ -384,6 +490,10 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         }
     }
 
+    // ===== Filters =====
+    // Function: Centralized filter changes, resets pagination to page 1.
+    // Input: type (which filter) and new value.
+    // Output: Updates corresponding state and triggers re-compute.
     const handleFilterChange = (type: string, value: string) => {
         setCurrentPage(1)
         if (type === "search") setSearchTerm(value)
@@ -392,6 +502,9 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         else if (type === "capacity") setCapacityFilter(value)
     }
 
+    // Function: Clear all filters.
+    // Input: None.
+    // Output: Resets filters and pagination.
     const clearFilters = () => {
         setSearchTerm("")
         setTypeFilter("all")
@@ -400,6 +513,10 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         setCurrentPage(1)
     }
 
+    // ===== Conditional Rendering =====
+    // Function: Render seat setup view when a room is selected.
+    // Input: selectedRoom presence.
+    // Output: Delegates to <SeatSetup/> with proper props.
     if (selectedRoom) {
         return (
             <SeatSetup
@@ -412,8 +529,15 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         )
     }
 
+    // Function: Render main management UI when not in seat setup.
+    // Input: Current state (filters, lists, dialog flags, etc.).
+    // Output: Full page with toolbars, filters, table, pagination, and dialogs.
     return (
         <div className="space-y-6">
+            {/* Header & actions */}
+            {/* Function: Top toolbar */}
+            {/* Input: Click interactions */}
+            {/* Output: Opens Type/Ghế managers or Create dialog */}
             <div className="flex items-start justify-between gap-4">
                 <div className="space-y-1.5">
                     <h1 className="text-3xl font-bold text-foreground">Quản lý phòng chiếu</h1>
@@ -433,6 +557,10 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                 </div>
             </div>
 
+            {/* Filters card */}
+            {/* Function: Let users search/filter rooms */}
+            {/* Input: searchTerm, type/status/capacity filters */}
+            {/* Output: Updates filteredRooms via useMemo */}
             <Card className="bg-card border-border">
                 <CardHeader>
                     <div className="flex items-center gap-2 text-muted-foreground">
@@ -514,6 +642,10 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                 </CardContent>
             </Card>
 
+            {/* Rooms table card */}
+            {/* Function: Display paginated rooms */}
+            {/* Input: paginatedRooms */}
+            {/* Output: Rows with action buttons */}
             <Card className="bg-card border-border">
                 <CardHeader>
                     <div className="flex items-center justify-between">
@@ -568,12 +700,14 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                                                 <Pencil className="w-4 h-4" />
                                             </Button>
 
-
+                                            {/* Function: Toggle status */}
+                                            {/* Input: room.status */}
+                                            {/* Output: activate/deactivate effects */}
                                             {room.status === "active" ? (
                                                 <Button
                                                     size="sm"
                                                     variant="ghost"
-                                                    onClick={() => deactivateRoom(room)}   // đổi: truyền cả room
+                                                    onClick={() => deactivateRoom(room)}
                                                     className="text-destructive hover:bg-destructive/10"
                                                     type="button"
                                                     title="Vô hiệu hóa"
@@ -584,7 +718,7 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                                                 <Button
                                                     size="sm"
                                                     variant="ghost"
-                                                    onClick={() => activateRoom(room)}     // đổi: truyền cả room
+                                                    onClick={() => activateRoom(room)}
                                                     className="text-primary hover:bg-primary/10"
                                                     type="button"
                                                     title="Bật lại"
@@ -593,7 +727,9 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                                                 </Button>
                                             )}
 
-
+                                            {/* Function: Open seat setup */}
+                                            {/* Input: room */}
+                                            {/* Output: Navigate to SeatSetup view */}
                                             <Button
                                                 size="sm"
                                                 variant="ghost"
@@ -610,6 +746,10 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                         </TableBody>
                     </Table>
 
+                    {/* Pagination */}
+                    {/* Function: Navigate pages */}
+                    {/* Input: currentPage, totalPages */}
+                    {/* Output: Updates currentPage and visible rows */}
                     <div className="flex items-center justify-between">
                         <p className="text-sm text-muted-foreground">
                             Trang {currentPage} / {totalPages} — Tổng {filteredRooms.length} phòng
@@ -641,6 +781,10 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                 </CardContent>
             </Card>
 
+            {/* Create/Edit Room dialog */}
+            {/* Function: Create or update a room */}
+            {/* Input: formData; editingRoom flag */}
+            {/* Output: API calls via handleSubmit */}
             <Dialog open={isCreateOpen} onOpenChange={setCreateOpen}>
                 <DialogContent className="bg-card text-card-foreground border border-border/60 sm:max-w-lg">
                     <DialogHeader>
@@ -746,6 +890,10 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                 </DialogContent>
             </Dialog>
 
+            {/* RoomType manager dialog */}
+            {/* Function: Manage room type taxonomy */}
+            {/* Input: None (internal to RoomTypeManager) */}
+            {/* Output: CRUD for room types (side-effect: affects filters & form options) */}
             <Dialog open={isRoomTypeOpen} onOpenChange={setRoomTypeOpen}>
                 <DialogContent className="bg-card text-card-foreground border border-border/60 w-[85vw] max-w-[85vw] h-[92vh] p-0 rounded-lg shadow-xl sm:max-w-none">
                     <DialogHeader className="sticky top-0 z-10 bg-card px-5 py-3 border-b border-border/60 rounded-t-lg">
@@ -757,6 +905,10 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                 </DialogContent>
             </Dialog>
 
+            {/* SeatType manager dialog */}
+            {/* Function: Manage seat type taxonomy */}
+            {/* Input: None (internal to SeatTypeManager) */}
+            {/* Output: CRUD for seat types (side-effect: affects buildMatrixPayload mapping) */}
             <Dialog open={isSeatTypeOpen} onOpenChange={setSeatTypeOpen}>
                 <DialogContent className="bg-card text-card-foreground border border-border/60 w-[85vw] max-w-[85vw] h-[92vh] p-0 rounded-lg shadow-xl sm:max-w-none">
                     <DialogHeader className="sticky top-0 z-10 bg-card px-5 py-3 border-b border-border/60 rounded-t-lg">

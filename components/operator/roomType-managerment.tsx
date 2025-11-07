@@ -1,5 +1,10 @@
 "use client"
 
+// Overview
+// Function: Manage cinema room types (create, update, toggle active, delete, filter, search).
+// Output: A full-featured UI with form + table for RoomType items.
+// Input: roomTypesApi (CRUD methods), user interactions (form fields, buttons, filters).
+
 import { useEffect, useMemo, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -15,25 +20,46 @@ import type { RoomTypeDto } from "@/app/api/room/rooms"
 
 type Status = "active" | "inactive"
 
-// CHANGED: helpers to convert between FE Status and BE boolean
+// Function: Convert UI status union to backend boolean.
+// Output: boolean representing active flag for BE.
+// Input: s (Status) from UI state/controls.
 const toBool = (s: Status): boolean => s === "active" // CHANGED
+
+// Function: Convert backend boolean to UI status union.
+// Output: "active" | "inactive" for display and state.
+// Input: b (boolean) typically from API payloads.
 const toStatus = (b: boolean): Status => (b ? "active" : "inactive") // CHANGED
 
+// Function: Main component for managing room types.
+// Output: JSX UI that handles CRUD, filtering, and state transitions.
+// Input: None (relies on imported APIs and internal state).
 export default function RoomTypesManager() {
     const { toast } = useToast()
+
+    // Function: Global loading flag for asynchronous actions.
+    // Output: Disables buttons/indicates loading across the view.
+    // Input: Set to true/false around API calls.
     const [loading, setLoading] = useState(false)
 
+    // Function: Data sources and filter/search state.
+    // Output: items (list for table), search text, selected status filter.
+    // Input: Populated by fetchList and user inputs.
     const [items, setItems] = useState<RoomTypeDto[]>([])
     const [search, setSearch] = useState("")
     const [statusFilter, setStatusFilter] = useState<"all" | Status>("all")
 
+    // Function: Controlled form state for create/update.
+    // Output: Form values used to build API payloads.
+    // Input: User edits through inputs; onEdit() loads existing item.
     const [form, setForm] = useState<{ id?: number; name: string; description: string; status: Status }>({
         name: "",
         description: "",
         status: "active",
     })
 
-    // load list
+    // Function: Load list of room types from API with optional active filter.
+    // Output: Updates items[] with fetched data; toggles loading; shows toast on error.
+    // Input: statusFilter ("all" | Status) to derive onlyActive boolean for API.
     const fetchList = async () => {
         setLoading(true)
         try {
@@ -48,12 +74,22 @@ export default function RoomTypesManager() {
             setLoading(false)
         }
     }
+
+    // Function: Re-fetch whenever the filter changes; initial mount also triggers it.
+    // Output: Refreshes items[] to reflect new filter.
+    // Input: statusFilter dependency.
     useEffect(() => {
         fetchList()
     }, [statusFilter]) // CHANGED
 
+    // Function: Reset form fields to default (create mode).
+    // Output: form becomes pristine; id cleared.
+    // Input: None.
     const resetForm = () => setForm({ id: undefined, name: "", description: "", status: "active" })
 
+    // Function: Create or update a room type based on presence of form.id.
+    // Output: Persists changes via API, shows toast, refreshes list, then resets form.
+    // Input: form state (name, description, status, optional id).
     const onSubmit = async () => {
         if (!form.name.trim()) {
             toast({ title: "Thiếu tên", description: "Vui lòng nhập tên loại phòng" })
@@ -82,6 +118,9 @@ export default function RoomTypesManager() {
         }
     }
 
+    // Function: Load an existing item into the form for editing.
+    // Output: Pre-fills form state with item data, mapping BE flags to UI Status.
+    // Input: it (RoomTypeDto) clicked from table.
     const onEdit = (it: RoomTypeDto) =>
         setForm({
             id: it.id,
@@ -90,6 +129,9 @@ export default function RoomTypesManager() {
             status: toStatus((it as any).active ?? (it as any).status === "active"), // CHANGED: tolerate both shapes
         })
 
+    // Function: Permanently delete a room type by id.
+    // Output: Removes item in BE, shows toast, refreshes list.
+    // Input: id (number) of the row to delete.
     const onDelete = async (id: number) => {
         try {
             await roomTypesApi.delete(id)
@@ -100,6 +142,9 @@ export default function RoomTypesManager() {
         }
     }
 
+    // Function: Toggle active flag using dedicated activate/deactivate endpoints.
+    // Output: Updates item active state in BE, then refreshes list.
+    // Input: id (number) and currentActive (boolean) of the row.
     const onToggle = async (id: number, currentActive: boolean) => { // CHANGED
         try {
             if (currentActive) await roomTypesApi.deactivate(id)
@@ -110,6 +155,9 @@ export default function RoomTypesManager() {
         }
     }
 
+    // Function: Derive filtered list based on search text and status filter.
+    // Output: filtered array for rendering in the table.
+    // Input: items[], search string, statusFilter.
     const filtered = useMemo(() => {
         return items.filter(it => {
             const q = search.toLowerCase()
@@ -120,8 +168,15 @@ export default function RoomTypesManager() {
         })
     }, [items, search, statusFilter])
 
+    // Function: Render the manager UI (form, filters, table).
+    // Output: Complete page layout.
+    // Input: Current component state and handlers above.
     return (
         <div className="space-y-6 overflow-x-hidden">
+            {/* ---- Form Card: Create/Update ---- */}
+            {/* Function: Gather name/description, submit to create or update. */}
+            {/* Output: Calls onSubmit(); may also reset to cancel edit. */}
+            {/* Input: form.name, form.description, form.id; loading state. */}
             <Card className="bg-card border border-border/60 rounded-md shadow-sm p-4">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
                     <div className="lg:col-span-4 space-y-2 min-w-0">
@@ -156,6 +211,10 @@ export default function RoomTypesManager() {
                 </div>
             </Card>
 
+            {/* ---- Filters Card ---- */}
+            {/* Function: Search & narrow list by active status. */}
+            {/* Output: Updates search, statusFilter; triggers useMemo & useEffect. */}
+            {/* Input: search text, statusFilter selection; loading display. */}
             <Card className="bg-card border border-border/60 rounded-md shadow-sm p-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2 min-w-0">
@@ -190,6 +249,10 @@ export default function RoomTypesManager() {
                 </div>
             </Card>
 
+            {/* ---- Table Card ---- */}
+            {/* Function: Display filtered room types with actions (edit/toggle/delete). */}
+            {/* Output: Rows reflect current filter; buttons call handlers. */}
+            {/* Input: filtered list; handler functions; loading state for empty message. */}
             <Card className="bg-card border border-border/60 rounded-md shadow-sm p-4">
                 <Table>
                     <TableHeader>
@@ -224,9 +287,15 @@ export default function RoomTypesManager() {
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex flex-wrap gap-2">
+                                                {/* Function: Enter edit mode for the selected item. */}
+                                                {/* Output: Pre-fills form via onEdit. */}
+                                                {/* Input: it (current row). */}
                                                 <Button type="button" size="sm" variant="ghost" onClick={() => onEdit(it)} className="hover:bg-muted">
                                                     <Pencil className="w-4 h-4" />
                                                 </Button>
+                                                {/* Function: Toggle active flag for selected item. */}
+                                                {/* Output: Calls activate/deactivate then refresh list. */}
+                                                {/* Input: it.id and active flag. */}
                                                 <Button
                                                     type="button"
                                                     size="sm"
@@ -236,6 +305,9 @@ export default function RoomTypesManager() {
                                                 >
                                                     {active ? "Tắt" : "Bật"} {/* CHANGED */}
                                                 </Button>
+                                                {/* Function: Delete selected item. */}
+                                                {/* Output: Removes item and refreshes list. */}
+                                                {/* Input: it.id. */}
                                                 <Button
                                                     type="button"
                                                     size="sm"
