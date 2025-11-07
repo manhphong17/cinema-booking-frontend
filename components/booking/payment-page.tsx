@@ -53,7 +53,7 @@ export default function PaymentPage({
     loyalPoint: 0,
   })
 
-  const [selectedPayment, setSelectedPayment] = useState("cash")
+  const [selectedPaymentCode, setSelectedPaymentCode] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false)
   const [discountValue, setDiscountValue] = useState(0)
   const [concessions, setConcessions] = useState<any[]>([])
@@ -232,7 +232,7 @@ export default function PaymentPage({
                 totalPrice: calculateTicketTotal() + combosTotal,
                 discount: discountValue,
                 amount: calculateTotal(),
-                paymentMethod: selectedPayment,
+                paymentCode: selectedPaymentCode,
                 showtimeId: showtimeId,
             };
 
@@ -240,11 +240,9 @@ export default function PaymentPage({
             const payUrl = res.data.data;
 
             // Nếu thanh toán bằng VNPay thì redirect
-            if (selectedPayment === "vnpay") {
+            if (selectedPaymentCode  !== "CASH") {
                 window.location.href = payUrl;
             } else {
-                toast.success("Thanh toán thành công bằng tiền mặt!");
-                router.push("/home");
             }
         } catch (err) {
             toast.error("Không thể tạo đơn thanh toán");
@@ -265,7 +263,7 @@ export default function PaymentPage({
               setDiscountValue(discount)
             }}
           />
-          <PaymentMethodCard onSelect={setSelectedPayment} />
+          <PaymentMethodCard onSelect={setSelectedPaymentCode} />
         </div>
 
         {/* RIGHT - Order Summary */}
@@ -291,7 +289,7 @@ export default function PaymentPage({
           <button
             disabled={isProcessing}
             onClick={handlePayment}
-            className="w-full py-4 rounded-xl bg-orange-600 hover:bg-orange-700  text-white font-semibold text-lg shadow-lg hover:shadow-gray-900/50 transition-all duration-300 hover:scale-105 border-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="-mt-3 w-full py-4 rounded-xl bg-orange-600 hover:bg-orange-700  text-white font-semibold text-lg shadow-lg hover:shadow-gray-900/50 transition-all duration-300 hover:scale-105 border-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isProcessing
               ? "Đang xử lý..."

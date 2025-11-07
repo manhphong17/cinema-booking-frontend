@@ -13,7 +13,6 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/c
 import {toast} from "sonner"
 
 const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL
-console.log("API base:", BACKEND_BASE_URL)
 
 
 export default function RegisterPage() {
