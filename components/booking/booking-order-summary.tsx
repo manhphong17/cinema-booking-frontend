@@ -367,37 +367,37 @@ export default function BookingOrderSummary({
   }
 
   return (
-    <Card className="shadow-2xl border-2 border-blue-200 bg-white hover:shadow-2xl transition-all duration-300">
-      <CardHeader className="bg-gradient-to-r from-blue-50 via-white to-blue-50 border-b-2 border-blue-200 rounded-t-lg">
-        <CardTitle className="flex items-center gap-2 text-gray-900">
-          <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white">
-            <CreditCard className="h-5 w-5" />
-          </div>
-          <span className="text-xl font-bold">{title}</span>
-        </CardTitle>
-      </CardHeader>
-       <CardContent className="p-6 space-y-6">
+    <Card className="shadow-2xl border-2 border-primary/40 bg-white hover:shadow-primary/20 transition-all duration-300">
+        <CardHeader className="pb-2 px-6 pt-4">
+            <CardTitle className="flex items-center gap-2 text-primary">
+                <CreditCard className="h-6 w-6" />
+                <span className="text-xl font-semibold">{title}</span>
+            </CardTitle>
+        </CardHeader>
+
+        <CardContent className="p-6 space-y-4">
+
            {/* 🎬 Movie Info */}
            {movieInfo && (
-               <div className="
-      flex gap-3 items-center
-      bg-white
-      rounded-lg p-3
-      border border-gray-200
-      hover:shadow-md
-      transition-all duration-300
+               <div
+                   className="
+      flex items-center
+      gap-4         /* tăng khoảng cách giữa ảnh và text */
+      scale-[1.1]   /* phóng to toàn bộ khối/
+        -mt-10          /* gần tiêu đề hơn */
+      mb-5             /* cách khối ghế ra thêm 2~4px */
+      origin-top-left /* để phóng to theo góc trái */
+      transition-transform duration-300
     "
                >
                    <img
                        src={movieInfo.poster || "/placeholder.svg"}
                        alt={movieInfo.title || "Movie"}
-                       className="w-16 h-20 object-cover rounded-md border border-gray-200"
+                       className="w-20 h-24 object-cover rounded-md border border-gray-200 shadow-md"
                    />
                    <div className="flex-1">
-                       <h3 className="font-semibold text-base text-gray-900">
-                           {movieInfo.title}
-                       </h3>
-                       <div className="space-y-1 text-sm text-gray-600 mt-1">
+                       <h3 className="font-semibold text-lg text-gray-900">{movieInfo.title}</h3>
+                       <div className="space-y-1 text-base text-gray-600 mt-1">
                            {movieInfo.date && (
                                <div className="flex items-center gap-1">
                                    <Calendar className="h-4 w-4 text-blue-500" />
@@ -424,7 +424,7 @@ export default function BookingOrderSummary({
            {/* 🪑 Seats */}
            {seats.length > 0 && (
                <div>
-                   <h4 className="font-semibold mb-3 flex items-center gap-2 text-gray-800">
+                   <h4 className="font-semibold mb-4 flex items-center gap-2 text-gray-800">
                        <Users className="h-5 w-5 text-indigo-500" />
                        Ghế đã chọn ({seats.length})
                    </h4>

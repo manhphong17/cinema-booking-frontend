@@ -42,18 +42,18 @@ export default function OTPVerifyPage() {
         setIsLoading(true)
         try {
             const response = await fetch(
-                `${BACKEND_BASE_URL}/auth/verify-otp?email=${encodeURIComponent(email)}&name=${name}`,
+                `${BACKEND_BASE_URL}/auth/verify-otp?email=${encodeURIComponent(email)}&name=${name}&otp=${otp}`,
                 {method: "POST"}
             )
 
             const data = await response.json()
 
             if (response.ok) {
-                toast.success(data.message || "Xác minh thành công!")
+                toast.success( "Xác minh thành công!")
                 router.push("/login")
             } else {
-                setError(data.message || "OTP không hợp lệ")
-                toast.error(data.message || "OTP không hợp lệ")
+                setError("OTP không hợp lệ")
+                toast.error( "OTP không hợp lệ")
             }
         } catch (err) {
             setError("Không thể kết nối tới server")
