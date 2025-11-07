@@ -1,6 +1,6 @@
 // app/api/room/room-types.ts
 import { GET, POST, PUT, PATCH, DEL } from "@/app/api/http";
-import type { RoomTypeDto } from "./rooms"; // đã có trong rooms.ts
+import type { RoomTypeDto } from "./rooms";
 
 export interface RoomTypeCreateRequest {
     name: string;
