@@ -7,17 +7,17 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Filter, Pencil, Plus, Search, Trash2 } from "lucide-react"
+import { Filter, Pencil, Plus, Search } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { seatTypesApi } from "@/app/api/room/seat-types"
 import type { SeatTypeDto } from "@/app/api/room/rooms"
+import { generateColorFromString } from "@/lib/color"
 
 type Status = "active" | "inactive"
 
-// CHANGED: helpers map FE status <-> BE boolean
-const toBool = (s: Status): boolean => s === "active" // CHANGED
-const toStatus = (b: boolean): Status => (b ? "active" : "inactive") // CHANGED
+const toBool = (s: Status): boolean => s === "active"
+const toStatus = (b: boolean): Status => (b ? "active" : "inactive")
 
 export default function SeatTypesManager() {
     const { toast } = useToast()
@@ -33,13 +33,11 @@ export default function SeatTypesManager() {
         status: "active",
     })
 
-    // load list
     const fetchList = async () => {
         setLoading(true)
         try {
-            // CHANGED: list expects boolean | undefined (onlyActive)
-            const onlyActive = statusFilter === "all" ? undefined : statusFilter === "active" // CHANGED
-            const data = await seatTypesApi.list(onlyActive) // CHANGED
+            const onlyActive = statusFilter === "all" ? undefined : statusFilter === "active"
+            const data = await seatTypesApi.list(onlyActive)
             setItems(data)
         } catch (e: any) {
             toast({ title: "Lỗi tải dữ liệu", description: e.message })
@@ -49,7 +47,7 @@ export default function SeatTypesManager() {
     }
     useEffect(() => {
         fetchList()
-    }, [statusFilter]) // CHANGED: refetch when filter changes
+    }, [statusFilter])
 
     const resetForm = () => setForm({ id: undefined, name: "", description: "", status: "active" })
 
@@ -60,18 +58,17 @@ export default function SeatTypesManager() {
         }
         try {
             if (form.id != null) {
-                // CHANGED: update payload uses active:boolean
                 await seatTypesApi.update(form.id, {
                     name: form.name.trim(),
                     description: form.description.trim(),
-                    active: toBool(form.status), // CHANGED
+                    active: toBool(form.status),
                 } as any)
                 toast({ title: "Đã cập nhật", description: "Loại ghế đã được cập nhật" })
             } else {
                 await seatTypesApi.create({
                     name: form.name.trim(),
                     description: form.description.trim() || undefined,
-                    active: toBool(form.status), // CHANGED
+                    active: toBool(form.status),
                 } as any)
                 toast({ title: "Đã thêm", description: "Loại ghế mới đã được thêm" })
             }
@@ -87,8 +84,7 @@ export default function SeatTypesManager() {
             id: it.id,
             name: it.name,
             description: it.description || "",
-            // CHANGED: tolerate both shapes from BE
-            status: toStatus((it as any).active ?? ((it as any).status === "active")), // CHANGED
+            status: toStatus((it as any).active ?? ((it as any).status === "active")),
         })
 
     const onDelete = async (id: number) => {
@@ -103,8 +99,7 @@ export default function SeatTypesManager() {
 
     const onToggle = async (id: number, current: Status) => {
         try {
-            // CHANGED: evaluate current as boolean, call activate/deactivate
-            const isActive = toBool(current) // CHANGED
+            const isActive = toBool(current)
             if (isActive) await seatTypesApi.deactivate(id)
             else await seatTypesApi.activate(id)
             fetchList()
@@ -117,8 +112,8 @@ export default function SeatTypesManager() {
         return items.filter(it => {
             const q = search.toLowerCase()
             const matchText = it.name.toLowerCase().includes(q) || (it.description || "").toLowerCase().includes(q)
-            const active = (it as any).active ?? ((it as any).status === "active") // CHANGED
-            const matchStatus = statusFilter === "all" || toStatus(active) === statusFilter // CHANGED
+            const active = (it as any).active ?? ((it as any).status === "active")
+            const matchStatus = statusFilter === "all" || toStatus(active) === statusFilter
             return matchText && matchStatus
         })
     }, [items, search, statusFilter])
@@ -197,6 +192,7 @@ export default function SeatTypesManager() {
                 <Table>
                     <TableHeader>
                         <TableRow className="border-border">
+                            <TableHead className="text-muted-foreground">Màu</TableHead>
                             <TableHead className="text-muted-foreground">Tên</TableHead>
                             <TableHead className="text-muted-foreground">Mô tả</TableHead>
                             <TableHead className="text-muted-foreground">Trạng thái</TableHead>
@@ -206,23 +202,30 @@ export default function SeatTypesManager() {
                     <TableBody>
                         {filtered.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={4} className="text-center text-muted-foreground">
+                                <TableCell colSpan={5} className="text-center text-muted-foreground">
                                     {loading ? "Đang tải..." : "Không có dữ liệu"}
                                 </TableCell>
                             </TableRow>
                         ) : (
                             filtered.map(it => {
-                                const active = (it as any).active ?? ((it as any).status === "active") // CHANGED
+                                const active = (it as any).active ?? ((it as any).status === "active")
+                                const color = generateColorFromString(it.name)
                                 return (
                                     <TableRow key={it.id} className="border-border">
+                                        <TableCell>
+                                            <div
+                                                className="w-6 h-6 rounded-full border border-border"
+                                                style={{ backgroundColor: color }}
+                                            />
+                                        </TableCell>
                                         <TableCell className="text-foreground break-words">{it.name}</TableCell>
                                         <TableCell className="text-foreground break-words">{it.description || "-"}</TableCell>
                                         <TableCell>
                                             <Badge
-                                                variant={active ? "default" : "secondary"} // CHANGED
-                                                className={active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"} // CHANGED
+                                                variant={active ? "default" : "secondary"}
+                                                className={active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}
                                             >
-                                                {active ? "Hoạt động" : "Không hoạt động"} {/* CHANGED */}
+                                                {active ? "Hoạt động" : "Không hoạt động"}
                                             </Badge>
                                         </TableCell>
                                         <TableCell>
@@ -234,19 +237,10 @@ export default function SeatTypesManager() {
                                                     type="button"
                                                     size="sm"
                                                     variant="ghost"
-                                                    onClick={() => onToggle(it.id, toStatus(active))} // CHANGED
+                                                    onClick={() => onToggle(it.id, toStatus(active))}
                                                     className="hover:bg-muted"
                                                 >
-                                                    {active ? "Tắt" : "Bật"} {/* CHANGED */}
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() => onDelete(it.id)}
-                                                    className="text-destructive hover:bg-destructive/10"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
+                                                    {active ? "Tắt" : "Bật"}
                                                 </Button>
                                             </div>
                                         </TableCell>

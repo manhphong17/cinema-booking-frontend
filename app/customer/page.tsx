@@ -5,10 +5,9 @@ import {useRouter, useSearchParams} from "next/navigation"
 import {HomeLayout} from "@/components/layouts/home-layout"
 import {CustomerProfile} from "@/components/customer/customer-profile"
 import {CustomerOrders} from "@/components/customer/customer-orders"
-import {CustomerVouchers} from "@/components/customer/customer-vouchers"
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card"
 import {Button} from "@/components/ui/button"
-import {User, ShoppingBag, Gift} from "lucide-react"
+import {User, ShoppingBag} from "lucide-react"
 
 export default function CustomerPage() {
     const router = useRouter()
@@ -21,6 +20,26 @@ export default function CustomerPage() {
         if (token) {
             // Store access token in localStorage
             localStorage.setItem('accessToken', token)
+            // Decode token to get role information and email
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]))
+                // Check for both 'roles' (backend) and 'authorities' (legacy)
+                const roles = payload.roles || payload.authorities
+                if (roles && Array.isArray(roles)) {
+                    localStorage.setItem('roleName', JSON.stringify(roles))
+                }
+                // Extract email from 'sub' field (subject) and store it
+                if (payload.sub) {
+                    localStorage.setItem('email', payload.sub)
+                    localStorage.setItem('userEmail', payload.sub)
+                }
+                // Store userId if available
+                if (payload.userId) {
+                    localStorage.setItem('userId', String(payload.userId))
+                }
+            } catch (error) {
+                console.error('Error decoding token:', error)
+            }
             // Remove token from URL for security
             router.replace('/customer', { scroll: false })
         }
@@ -29,7 +48,7 @@ export default function CustomerPage() {
     // Get section from URL params
     useEffect(() => {
         const section = searchParams.get('section')
-        if (section && ['profile', 'orders', 'vouchers'].includes(section)) {
+        if (section && ['profile', 'orders'].includes(section)) {
             setActiveSection(section)
         }
     }, [searchParams])
@@ -40,8 +59,6 @@ export default function CustomerPage() {
                 return <CustomerProfile/>
             case "orders":
                 return <CustomerOrders/>
-            case "vouchers":
-                return <CustomerVouchers/>
             default:
                 return <CustomerProfile/>
         }
@@ -50,7 +67,6 @@ export default function CustomerPage() {
     const menuItems = [
         { id: "profile", label: "Hồ sơ", icon: User, description: "Quản lý thông tin cá nhân", color: "blue" },
         { id: "orders", label: "Đơn hàng", icon: ShoppingBag, description: "Xem lịch sử đặt vé", color: "green" },
-        { id: "vouchers", label: "Voucher", icon: Gift, description: "Quản lý voucher của bạn", color: "purple" },
     ]
 
 
@@ -67,7 +83,7 @@ export default function CustomerPage() {
                     {/* Mobile Navigation */}
                     <div className="lg:hidden mb-8">
                         <div className="bg-white rounded-xl shadow-lg p-2">
-                            <div className="grid grid-cols-3 gap-2">
+                            <div className="grid grid-cols-2 gap-2">
                                 {menuItems.map((item) => {
                                     const Icon = item.icon
                                     const isActive = activeSection === item.id

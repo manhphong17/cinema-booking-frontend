@@ -231,10 +231,34 @@ export default function ShowtimeSelectionPage({ movieId }: ShowtimeSelectionPage
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-gray-50/50">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <div className="w-20 h-1 bg-gradient-to-r from-primary to-primary/50 rounded-full"></div>
+    <div className="min-h-screen bg-white relative overflow-hidden">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-5">
+        <div className="absolute inset-0" style={{
+          backgroundImage: 'radial-gradient(circle at 2px 2px, #3b82f6 1px, transparent 0)',
+          backgroundSize: '40px 40px'
+        }}></div>
+      </div>
+      
+      {/* Decorative Border Top */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-blue-400 to-blue-500"></div>
+      
+      <div className="container mx-auto px-4 py-8 relative z-10">
+        {/* Header Section */}
+        <div className="mb-12 relative">
+          <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-blue-300 rounded-full"></div>
+          <div className="inline-block mb-4">
+            <div className="text-[11px] font-bold text-blue-600 uppercase tracking-wider mb-2 px-3 py-1 bg-blue-50 rounded-md">
+              Step 1
+            </div>
+          </div>
+          <p className="text-lg text-gray-600 font-medium">
+            Chọn ngày, giờ và phòng chiếu phù hợp với bạn
+          </p>
+          <div className="flex items-center gap-2 mt-4">
+            <div className="h-1.5 w-24 rounded-full bg-gradient-to-r from-blue-500 to-blue-300"></div>
+            <div className="h-1.5 w-2 rounded-full bg-blue-400"></div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
@@ -285,18 +309,23 @@ export default function ShowtimeSelectionPage({ movieId }: ShowtimeSelectionPage
           {/* Right: showtime selections */}
           <div className="lg:col-span-2 space-y-6">
             {/* Date + time */}
-            <Card className="shadow-2xl border-2 border-primary/30 bg-white hover:shadow-primary/20 transition-all duration-300">
-              <CardHeader className="bg-gradient-to-r from-primary/15 via-primary/10 to-primary/15 border-b-2 border-primary/40">
-                <CardTitle className="flex items-center gap-2 text-primary">
-                  <Calendar className="h-5 w-5" />
-                  Chọn ngày và giờ chiếu
+            <Card className="shadow-2xl border-2 border-blue-200 bg-white hover:border-blue-400 hover:shadow-2xl transition-all duration-300">
+              <CardHeader className="bg-gradient-to-r from-blue-50 via-white to-blue-50 border-b-2 border-blue-200">
+                <CardTitle className="flex items-center gap-3 text-gray-900">
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
+                    <Calendar className="h-5 w-5" />
+                  </div>
+                  <span className="text-xl font-bold">Chọn ngày và giờ chiếu</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-8 p-6">
                 {/* Dates */}
                 <div>
-                  <h3 className="font-semibold mb-3">Chọn ngày</h3>
-                  <div className="flex gap-3 overflow-x-auto no-scrollbar py-1 pr-1">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-1 h-6 bg-gradient-to-b from-blue-500 to-blue-300 rounded-full"></div>
+                    <h3 className="font-bold text-lg text-gray-900">Chọn ngày</h3>
+                  </div>
+                  <div className="flex gap-3 overflow-x-auto no-scrollbar py-2 pr-2">
                     {days.map((d) => (
                       <button
                         key={d.date}
@@ -307,14 +336,14 @@ export default function ShowtimeSelectionPage({ movieId }: ShowtimeSelectionPage
                           setRooms([])
                           setRoomError(null)
                         }}
-                        className={`shrink-0 px-4 py-2 rounded-lg border transition-all ${
+                        className={`shrink-0 px-5 py-3 rounded-xl border-2 transition-all duration-300 min-w-[100px] ${
                           selectedDate === d.date
-                            ? "bg-primary text-primary-foreground border-primary shadow"
-                            : "bg-white hover:bg-gray-50 text-foreground border-gray-200"
+                            ? "bg-gradient-to-br from-blue-600 to-blue-500 text-white border-blue-600 shadow-xl shadow-blue-500/50 scale-105 ring-4 ring-blue-200"
+                            : "bg-white hover:bg-blue-50 text-gray-700 border-gray-200 hover:border-blue-300 hover:shadow-md"
                         }`}
                       >
-                        <div className="text-sm font-semibold">{d.label}</div>
-                        <div className="text-xs opacity-80">{d.date}</div>
+                        <div className="text-sm font-bold mb-1">{d.label}</div>
+                        <div className={`text-xs ${selectedDate === d.date ? "text-blue-100" : "text-gray-500"}`}>{d.date}</div>
                       </button>
                     ))}
                   </div>
@@ -322,32 +351,39 @@ export default function ShowtimeSelectionPage({ movieId }: ShowtimeSelectionPage
 
                 {/* Times */}
                 <div>
-                  <h3 className="font-semibold mb-4 text-lg">Chọn khung giờ chiếu</h3>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-1 h-6 bg-gradient-to-b from-blue-500 to-blue-300 rounded-full"></div>
+                    <h3 className="font-bold text-lg text-gray-900">Chọn khung giờ chiếu</h3>
+                  </div>
 
                   {loadingShowtimes ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                      <span>Đang tải suất chiếu...</span>
+                    <div className="flex items-center justify-center py-12 bg-blue-50 rounded-xl border-2 border-blue-200">
+                      <Loader2 className="h-8 w-8 animate-spin mr-3 text-blue-600" />
+                      <span className="text-gray-700 font-medium">Đang tải suất chiếu...</span>
                     </div>
                   ) : showtimeError ? (
-                    <div className="text-center py-8">
-                      <p className="text-red-600 mb-2">{showtimeError}</p>
-                      <Button variant="outline" size="sm" onClick={() => movieId && fetchShowtimes(movieId, selectedDate)}>
+                    <div className="text-center py-12 bg-red-50 rounded-xl border-2 border-red-200">
+                      <p className="text-red-600 mb-4 font-semibold">{showtimeError}</p>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => movieId && fetchShowtimes(movieId, selectedDate)}
+                        className="border-red-300 text-red-600 hover:bg-red-50"
+                      >
                         Thử lại
                       </Button>
                     </div>
                   ) : showtimes.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">Không có suất chiếu cho ngày này</p>
+                    <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-gray-200">
+                      <p className="text-gray-600 font-medium">Không có suất chiếu cho ngày này</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
+                    <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
                       {showtimes.map((slot) => {
                         const isSelected = selectedTime === slot.time
                         return (
-                          <Button
+                          <button
                             key={slot.startTime}
-                            variant={isSelected ? "default" : "outline"}
                             disabled={!slot.available}
                             onClick={() => {
                               if (!slot.available) return
@@ -363,16 +399,19 @@ export default function ShowtimeSelectionPage({ movieId }: ShowtimeSelectionPage
                                 }, 50)
                               }
                             }}
-                            className={`p-3 h-12 flex flex-col items-center justify-center transition-all duration-200 ${
+                            className={`p-4 h-16 rounded-xl border-2 transition-all duration-300 flex flex-col items-center justify-center font-bold ${
                               isSelected
-                                ? "bg-primary text-primary-foreground shadow-lg scale-105"
+                                ? "bg-gradient-to-br from-blue-600 to-blue-500 text-white border-blue-600 shadow-xl shadow-blue-500/50 scale-105 ring-4 ring-blue-200"
                                 : slot.available
-                                ? "hover:bg-primary/10 hover:scale-105"
-                                : "opacity-50 cursor-not-allowed"
+                                ? "bg-white hover:bg-blue-50 text-gray-700 border-gray-200 hover:border-blue-400 hover:shadow-lg hover:scale-105"
+                                : "opacity-50 cursor-not-allowed bg-gray-100 border-gray-200 text-gray-400"
                             }`}
                           >
                             <div className="text-base font-bold">{slot.time}</div>
-                          </Button>
+                            {isSelected && (
+                              <div className="text-xs mt-1 text-blue-100 font-medium">Đã chọn</div>
+                            )}
+                          </button>
                         )
                       })}
                     </div>
@@ -383,11 +422,13 @@ export default function ShowtimeSelectionPage({ movieId }: ShowtimeSelectionPage
 
             {/* Rooms */}
             {selectedTime && (
-              <Card className="shadow-2xl border-2 border-primary/30 bg-white hover:shadow-primary/20 transition-all duration-300">
-                <CardHeader className="bg-gradient-to-r from-primary/15 via-primary/10 to-primary/15 border-b-2 border-primary/40">
-                  <CardTitle className="flex items-center gap-2 text-primary">
-                    <Monitor className="h-5 w-5" />
-                    Chọn phòng chiếu
+              <Card className="shadow-2xl border-2 border-blue-200 bg-white hover:border-blue-400 hover:shadow-2xl transition-all duration-300">
+                <CardHeader className="bg-gradient-to-r from-blue-50 via-white to-blue-50 border-b-2 border-blue-200">
+                  <CardTitle className="flex items-center gap-3 text-gray-900">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
+                      <Monitor className="h-5 w-5" />
+                    </div>
+                    <span className="text-xl font-bold">Chọn phòng chiếu</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -454,12 +495,12 @@ export default function ShowtimeSelectionPage({ movieId }: ShowtimeSelectionPage
                         return (
                           <Card
                             key={room.roomId}
-                            className={`transition-all duration-200 ${
+                            className={`transition-all duration-300 border-2 ${
                               isSoldOut 
-                                ? "opacity-60 cursor-not-allowed" 
+                                ? "opacity-60 cursor-not-allowed border-gray-300" 
                                 : isSelected 
-                                  ? "ring-2 ring-primary shadow-lg cursor-pointer hover:shadow-lg" 
-                                  : "cursor-pointer hover:shadow-lg hover:shadow-md"
+                                  ? "ring-4 ring-blue-300 shadow-xl shadow-blue-500/50 cursor-pointer border-blue-500 scale-105" 
+                                  : "cursor-pointer hover:shadow-xl border-gray-200 hover:border-blue-300 hover:scale-105"
                             } ${getRoomColor(room.roomType)}`}
                             onClick={() => {
                               if (!isSoldOut) {
@@ -551,26 +592,29 @@ export default function ShowtimeSelectionPage({ movieId }: ShowtimeSelectionPage
 
             {/* Summary */}
             {selectedTime && selectedHall && (
-              <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Play className="h-4 w-4 text-primary" />
-                    <span className="font-semibold text-base">Suất chiếu đã chọn</span>
+              <Card className="shadow-xl border-2 border-blue-200 bg-gradient-to-r from-blue-50 via-white to-blue-50">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
+                      <Play className="h-4 w-4" />
+                    </div>
+                    <span className="font-bold text-lg text-gray-900">Suất chiếu đã chọn</span>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Ngày:</span>
-                      <span className="ml-2 font-medium">
-                        {days.find((d) => d.date === selectedDate)?.label} ({selectedDate})
-                      </span>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div className="bg-white rounded-lg p-3 border border-blue-200">
+                      <div className="text-xs text-gray-500 mb-1 font-medium">Ngày</div>
+                      <div className="font-bold text-gray-900">
+                        {days.find((d) => d.date === selectedDate)?.label}
+                      </div>
+                      <div className="text-xs text-gray-600">{selectedDate}</div>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground">Phòng:</span>
-                      <span className="ml-2 font-medium">{selectedHall}</span>
+                    <div className="bg-white rounded-lg p-3 border border-blue-200">
+                      <div className="text-xs text-gray-500 mb-1 font-medium">Phòng</div>
+                      <div className="font-bold text-gray-900">{selectedHall}</div>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground">Thời gian:</span>
-                      <span className="ml-2 font-medium">
+                    <div className="bg-white rounded-lg p-3 border border-blue-200">
+                      <div className="text-xs text-gray-500 mb-1 font-medium">Thời gian</div>
+                      <div className="font-bold text-gray-900">
                         {selectedTime} - {(() => {
                           const selectedRoom = rooms.find((room) => room.roomName === selectedHall)
                           return selectedRoom
@@ -581,24 +625,24 @@ export default function ShowtimeSelectionPage({ movieId }: ShowtimeSelectionPage
                               })
                             : "--:--"
                         })()}
-                      </span>
+                      </div>
                     </div>
                   </div>
                   {(() => {
                     const selectedRoom = rooms.find((room) => room.roomName === selectedHall)
                     if (!selectedRoom) return null
                     return (
-                      <div className="mt-3 pt-3 border-t border-primary/20">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                          <div>
-                            <span className="text-muted-foreground">Loại phòng:</span>
-                            <span className="ml-2 font-medium">{selectedRoom.roomType}</span>
+                      <div className="mt-4 pt-4 border-t-2 border-blue-200">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="bg-white rounded-lg p-3 border border-blue-200">
+                            <div className="text-xs text-gray-500 mb-1 font-medium">Loại phòng</div>
+                            <div className="font-bold text-gray-900">{selectedRoom.roomType}</div>
                           </div>
-                          <div>
-                            <span className="text-muted-foreground">Ghế trống:</span>
-                            <span className="ml-2 font-medium text-primary">
+                          <div className="bg-white rounded-lg p-3 border border-blue-200">
+                            <div className="text-xs text-gray-500 mb-1 font-medium">Ghế trống</div>
+                            <div className="font-bold text-blue-600">
                               {selectedRoom.totalSeatAvailable}/{selectedRoom.totalSeat}
-                            </span>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -610,8 +654,8 @@ export default function ShowtimeSelectionPage({ movieId }: ShowtimeSelectionPage
 
             {/* Continue */}
             {selectedTime && (
-              <Card className="shadow-lg border-0">
-                <CardContent className="p-4">
+              <Card className="shadow-xl border-2 border-blue-200 bg-white">
+                <CardContent className="p-6">
                   {(() => {
                     const selectedRoom = rooms.find((room) => room.roomName === selectedHall)
                     const isSoldOut = selectedRoom?.totalSeatAvailable === 0
@@ -621,20 +665,23 @@ export default function ShowtimeSelectionPage({ movieId }: ShowtimeSelectionPage
                       <Button
                         onClick={handleContinue}
                         disabled={isDisabled}
-                        className="w-full bg-gradient-to-r from-black to-gray-900 hover:from-gray-900 hover:to-black text-white font-semibold py-3 shadow-2xl hover:shadow-gray-900/50 transition-all duration-300 hover:scale-105 border-2 border-gray-800 active:scale-95 rounded-xl text-base disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                        className="w-full bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 hover:from-blue-700 hover:via-blue-600 hover:to-blue-700 text-white font-bold py-4 shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 hover:scale-105 border-2 border-blue-400 active:scale-95 rounded-xl text-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 relative overflow-hidden group"
                       >
-                        {isNavigating ? (
-                          <div className="flex items-center gap-2">
-                            <Loader2 className="h-5 w-5 animate-spin" />
-                            <span>Đang chuyển trang...</span>
-                          </div>
-                        ) : isSoldOut ? (
-                          "⚠️ Phòng này đã hết vé"
-                        ) : selectedHall ? (
-                          "Tiếp tục chọn ghế"
-                        ) : (
-                          "Vui lòng chọn phòng chiếu"
-                        )}
+                        <div className="absolute inset-0 bg-gradient-to-r from-white/20 via-transparent to-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                        <span className="relative z-10">
+                          {isNavigating ? (
+                            <div className="flex items-center gap-2">
+                              <Loader2 className="h-5 w-5 animate-spin" />
+                              <span>Đang chuyển trang...</span>
+                            </div>
+                          ) : isSoldOut ? (
+                            "⚠️ Phòng này đã hết vé"
+                          ) : selectedHall ? (
+                            "Tiếp tục chọn ghế →"
+                          ) : (
+                            "Vui lòng chọn phòng chiếu"
+                          )}
+                        </span>
                       </Button>
                     )
                   })()}

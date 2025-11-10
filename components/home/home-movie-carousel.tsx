@@ -34,23 +34,28 @@ export function HomeNowShowingCarousel() {
 
   if (loading) {
     return (
-      <section className="py-20 bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20">
-        <div className="movie-carousel-container container mx-auto px-4 max-w-7xl">
-          <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
-            <div>
-              <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1">
+      <section className="py-20 bg-white relative overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-blue-400 to-blue-500"></div>
+        <div className="movie-carousel-container container mx-auto px-4 max-w-7xl relative z-10">
+          <div className="flex items-center justify-between mb-12 gap-4 flex-wrap">
+            <div className="relative">
+              <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-blue-300 rounded-full"></div>
+              <div className="text-[11px] font-bold text-blue-600 uppercase tracking-wider mb-2 px-2 py-1 bg-blue-50 rounded-md inline-block">
                 Now Showing
               </div>
-              <h2 className="text-3xl md:text-4xl font-extrabold text-foreground mb-2 tracking-tight leading-tight">
-                <span className="text-foreground">
+              <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-3 tracking-tight leading-tight">
+                <span className="bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
                   Phim đang chiếu
                 </span>
               </h2>
-              <div className="h-1 w-16 rounded-full bg-black/80"></div>
+              <div className="flex items-center gap-2">
+                <div className="h-1.5 w-20 rounded-full bg-gradient-to-r from-blue-500 to-blue-300"></div>
+                <div className="h-1.5 w-2 rounded-full bg-blue-400"></div>
+              </div>
             </div>
             <Button 
               variant="outline" 
-              className="bg-white hover:bg-black hover:text-white border border-gray-300 hover:border-black transition-all duration-200 rounded-xl px-6 py-3 font-semibold shadow-sm"
+              className="bg-white hover:bg-blue-600 hover:text-white border-2 border-blue-500 hover:border-blue-600 transition-all duration-300 rounded-xl px-8 py-3 font-bold shadow-lg hover:shadow-xl hover:scale-105"
               onClick={() => router.push("/movies/now-showing")}
             >
               Xem tất cả →
@@ -72,23 +77,38 @@ export function HomeNowShowingCarousel() {
   }
 
   return (
-    <section className="py-20 bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20">
-      <div className="movie-carousel-container container mx-auto px-4 max-w-7xl">
-        <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
-          <div>
-            <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1">
+    <section className="py-20 bg-white relative overflow-hidden">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-5">
+        <div className="absolute inset-0" style={{
+          backgroundImage: 'radial-gradient(circle at 2px 2px, #3b82f6 1px, transparent 0)',
+          backgroundSize: '40px 40px'
+        }}></div>
+      </div>
+      
+      {/* Decorative Border Top */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-blue-400 to-blue-500"></div>
+      
+      <div className="movie-carousel-container container mx-auto px-4 max-w-7xl relative z-10">
+        <div className="flex items-center justify-between mb-12 gap-4 flex-wrap">
+          <div className="relative">
+            <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-blue-300 rounded-full"></div>
+            <div className="text-[11px] font-bold text-blue-600 uppercase tracking-wider mb-2 px-2 py-1 bg-blue-50 rounded-md inline-block">
               Now Showing
             </div>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-foreground mb-2 tracking-tight leading-tight">
-              <span className="text-foreground">
+            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-3 tracking-tight leading-tight">
+              <span className="bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
                 Phim đang chiếu
               </span>
             </h2>
-            <div className="h-1 w-16 rounded-full bg-black/80"></div>
+            <div className="flex items-center gap-2">
+              <div className="h-1.5 w-20 rounded-full bg-gradient-to-r from-blue-500 to-blue-300"></div>
+              <div className="h-1.5 w-2 rounded-full bg-blue-400"></div>
+            </div>
           </div>
           <Button 
             variant="outline" 
-            className="bg-white hover:bg-black hover:text-white border border-gray-300 hover:border-black transition-all duration-200 rounded-xl px-6 py-3 font-semibold shadow-sm"
+            className="bg-white hover:bg-blue-600 hover:text-white border-2 border-blue-500 hover:border-blue-600 transition-all duration-300 rounded-xl px-8 py-3 font-bold shadow-lg hover:shadow-xl hover:scale-105"
             onClick={() => router.push("/movies/now-showing")}
           >
             Xem tất cả →
@@ -184,23 +204,28 @@ export function HomeComingSoonCarousel() {
 
   if (loading) {
     return (
-      <section className="py-20 bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20">
-        <div className="movie-carousel-container container mx-auto px-4 max-w-7xl">
-          <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
-            <div>
-              <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1">
+      <section className="py-20 bg-gradient-to-br from-purple-50/50 via-white to-pink-50/30 relative overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-purple-400 to-purple-500"></div>
+        <div className="movie-carousel-container container mx-auto px-4 max-w-7xl relative z-10">
+          <div className="flex items-center justify-between mb-12 gap-4 flex-wrap">
+            <div className="relative">
+              <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-purple-500 to-purple-300 rounded-full"></div>
+              <div className="text-[11px] font-bold text-purple-600 uppercase tracking-wider mb-2 px-2 py-1 bg-purple-50 rounded-md inline-block">
                 Coming Soon
               </div>
-              <h2 className="text-3xl md:text-4xl font-extrabold text-foreground mb-2 tracking-tight leading-tight">
-                <span className="text-foreground">
+              <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-3 tracking-tight leading-tight">
+                <span className="bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent">
                   Phim sắp chiếu
                 </span>
               </h2>
-              <div className="h-1 w-16 rounded-full bg-black/80"></div>
+              <div className="flex items-center gap-2">
+                <div className="h-1.5 w-20 rounded-full bg-gradient-to-r from-purple-500 to-pink-400"></div>
+                <div className="h-1.5 w-2 rounded-full bg-purple-400"></div>
+              </div>
             </div>
             <Button 
               variant="outline" 
-              className="bg-white hover:bg-black hover:text-white border border-gray-300 hover:border-black transition-all duration-200 rounded-xl px-6 py-3 font-semibold shadow-sm"
+              className="bg-white hover:bg-purple-600 hover:text-white border-2 border-purple-500 hover:border-purple-600 transition-all duration-300 rounded-xl px-8 py-3 font-bold shadow-lg hover:shadow-xl hover:scale-105"
               onClick={() => router.push("/movies/coming-soon")}
             >
               Xem tất cả →
@@ -222,23 +247,38 @@ export function HomeComingSoonCarousel() {
   }
 
   return (
-    <section className="py-20 bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20">
-      <div className="movie-carousel-container container mx-auto px-4 max-w-7xl">
-        <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
-          <div>
-            <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1">
+    <section className="py-20 bg-gradient-to-br from-purple-50/50 via-white to-pink-50/30 relative overflow-hidden">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-5">
+        <div className="absolute inset-0" style={{
+          backgroundImage: 'radial-gradient(circle at 2px 2px, #a855f7 1px, transparent 0)',
+          backgroundSize: '40px 40px'
+        }}></div>
+      </div>
+      
+      {/* Decorative Border Top */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-purple-400 to-purple-500"></div>
+      
+      <div className="movie-carousel-container container mx-auto px-4 max-w-7xl relative z-10">
+        <div className="flex items-center justify-between mb-12 gap-4 flex-wrap">
+          <div className="relative">
+            <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-purple-500 to-purple-300 rounded-full"></div>
+            <div className="text-[11px] font-bold text-purple-600 uppercase tracking-wider mb-2 px-2 py-1 bg-purple-50 rounded-md inline-block">
               Coming Soon
             </div>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-foreground mb-2 tracking-tight leading-tight">
-              <span className="text-foreground">
+            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-3 tracking-tight leading-tight">
+              <span className="bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent">
                 Phim sắp chiếu
               </span>
             </h2>
-            <div className="h-1 w-16 rounded-full bg-black/80"></div>
+            <div className="flex items-center gap-2">
+              <div className="h-1.5 w-20 rounded-full bg-gradient-to-r from-purple-500 to-pink-400"></div>
+              <div className="h-1.5 w-2 rounded-full bg-purple-400"></div>
+            </div>
           </div>
           <Button 
             variant="outline" 
-            className="bg-white hover:bg-black hover:text-white border border-gray-300 hover:border-black transition-all duration-200 rounded-xl px-6 py-3 font-semibold shadow-sm"
+            className="bg-white hover:bg-purple-600 hover:text-white border-2 border-purple-500 hover:border-purple-600 transition-all duration-300 rounded-xl px-8 py-3 font-bold shadow-lg hover:shadow-xl hover:scale-105"
             onClick={() => router.push("/movies/coming-soon")}
           >
             Xem tất cả →
