@@ -44,10 +44,10 @@ export interface SeatMatrixRequest {
     >
 }
 
-export async function initSeats(roomId: number, body: SeatInitRequest) {
-    const { data } = await apiClient.post<ResponseData<{ created: number }>>(`/rooms/${roomId}/seats/init`, body)
-    return data
-}
+// export async function initSeats(roomId: number, body: SeatInitRequest) {
+//     const { data } = await apiClient.post<ResponseData<{ created: number }>>(`/rooms/${roomId}/seats/init`, body)
+//     return data
+// }
 
 export async function fetchSeatMatrix(roomId: number) {
     const { data } = await apiClient.get<ResponseData<SeatMatrixResponse>>(`/rooms/${roomId}/seats/matrix`)
@@ -62,24 +62,24 @@ export async function saveSeatMatrix(roomId: number, body: SeatMatrixRequest) {
     return data
 }
 
-export async function bulkUpdateSeatType(
-    roomId: number,
-    body: { targets: { rowIndex: number; columnIndex: number }[]; seatTypeId: number },
-) {
-    const { data } = await apiClient.patch<ResponseData<{ affected: number }>>(
-        `/rooms/${roomId}/seats/bulk-type`,
-        body,
-    )
-    return data
-}
-
-export async function bulkBlockSeats(
-    roomId: number,
-    body: { targets: { rowIndex: number; columnIndex: number }[]; blocked: boolean },
-) {
-    const { data } = await apiClient.patch<ResponseData<{ affected: number }>>(
-        `/rooms/${roomId}/seats/bulk-block`,
-        body,
-    )
-    return data
-}
+// export async function bulkUpdateSeatType(
+//     roomId: number,
+//     body: { targets: { rowIndex: number; columnIndex: number }[]; seatTypeId: number },
+// ) {
+//     const { data } = await apiClient.patch<ResponseData<{ affected: number }>>(
+//         `/rooms/${roomId}/seats/bulk-type`,
+//         body,
+//     )
+//     return data
+// }
+//
+// export async function bulkBlockSeats(
+//     roomId: number,
+//     body: { targets: { rowIndex: number; columnIndex: number }[]; blocked: boolean },
+// ) {
+//     const { data } = await apiClient.patch<ResponseData<{ affected: number }>>(
+//         `/rooms/${roomId}/seats/bulk-block`,
+//         body,
+//     )
+//     return data
+// }

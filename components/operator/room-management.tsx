@@ -1,9 +1,24 @@
 "use client"
 
-// Overview
-// Function: Room management UI for cinema operator dashboard.
-// Input: API clients (rooms, seats), user interactions (filters, forms), initial state.
-// Output: Interactive CRUD for rooms, seat-map editor entry, and type managers via dialogs.
+// ===================================================================================
+// TỔNG QUAN COMPONENT: RoomManagement
+//
+// Chức năng:
+// - Là giao diện chính để người vận hành (operator) quản lý toàn bộ phòng chiếu.
+// - Hiển thị danh sách phòng chiếu với bộ lọc, tìm kiếm và phân trang.
+// - Cho phép thực hiện các thao tác CRUD (Thêm, Sửa, Kích hoạt/Vô hiệu hóa) cho phòng chiếu.
+// - Đóng vai trò là điểm khởi đầu để điều hướng đến giao diện "Thiết lập ghế" (SeatSetup).
+// - Mở các dialog để quản lý các thực thể liên quan như "Loại phòng" và "Loại ghế".
+//
+// Đầu vào:
+// - `onSelectRoom`: Một callback prop để thông báo cho component cha khi một phòng được chọn.
+// - Tương tác của người dùng (nhập liệu vào form, click nút, chọn bộ lọc).
+// - Dữ liệu từ các API (rooms, seats, room-types).
+//
+// Đầu ra:
+// - Một giao diện người dùng hoàn chỉnh, có tính tương tác cao.
+// - Các lệnh gọi API để cập nhật dữ liệu trên backend.
+// ===================================================================================
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
@@ -17,18 +32,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { ChevronLeft, ChevronRight, Filter, Pencil, Plus, Search, Settings, Trash2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { SeatSetup } from "./seat-setup"
+import { SeatSetup, type SeatCell } from "./seat-setup"
 import {
     fetchRooms, fetchRoomMeta, createRoom as createRoomApi,
-    updateRoom as updateRoomApi, deleteRoom as deleteRoomApi,
+    updateRoom as updateRoomApi,
     type RoomDto, type RoomTypeDto, type SeatTypeDto,
 } from "@/app/api/room/rooms"
 import { fetchSeatMatrix, saveSeatMatrix, type SeatCellDto } from "@/app/api/room/seats"
+import { friendlyFromPayload } from "@/src/utils/server-error" // Import friendlyFromPayload
 
-
-// Function: Lazy-load management submodules for RoomType & SeatType.
-// Input: None at call-time (dynamic import handles code-splitting).
-// Output: Components loaded client-side only with loading placeholders.
+// Chức năng: Tải động (lazy-load) các component quản lý con.
+// Lý do: Tối ưu hiệu suất. Các component này chỉ được tải về trình duyệt khi người dùng
+//       mở dialog tương ứng, giúp giảm kích thước gói JavaScript ban đầu.
+// Đầu vào: Đường dẫn đến component.
+// Đầu ra: Component được tải về phía client, với một placeholder "Đang tải..." hiển thị trong khi chờ.
 const RoomTypeManager = dynamic(
     () => import("@/components/operator/roomType-managerment").then((m) => m.default),
     { ssr: false, loading: () => <div className="p-6 text-muted-foreground">Đang tải Loại phòng…</div> },
@@ -38,29 +55,13 @@ const SeatTypeManager = dynamic(
     { ssr: false, loading: () => <div className="p-6 text-muted-foreground">Đang tải Loại ghế…</div> },
 )
 
-// ===== Types =====
-// Function: Define UI-only seat visualization enums.
-// Input: N/A (type-level only).
-// Output: SeatVisualType & SeatVisualStatus discriminated unions used across the UI.
-type SeatVisualType = "standard" | "vip" | "disabled"
-type SeatVisualStatus = "available" | "reserved" | "occupied" | "blocked"
+// ===================================================================================
+// CÁC ĐỊNH NGHĨA TYPE CỤC BỘ (VIEW MODELS)
+// Chức năng: Định nghĩa cấu trúc dữ liệu chỉ được sử dụng trong giao diện của component này.
+// ===================================================================================
 
-// Function: Local seat cell view model.
-// Input: N/A.
-// Output: Runtime shape for seat grid cells consumed by SeatSetup.
-interface SeatCell {
-    id: string | null
-    row: number
-    column: number
-    type: SeatVisualType
-    status: SeatVisualStatus
-    seatTypeId?: number
-    seatTypeName?: string
-}
-
-// Function: Local room item view model for listing table.
-// Input: N/A.
-// Output: Transformed shape mapped from RoomDto for table rendering.
+// Chức năng: Định nghĩa cấu trúc dữ liệu cho một phòng chiếu khi hiển thị trong bảng danh sách.
+// Nó là một phiên bản đã được "làm phẳng" và thân thiện với UI của `RoomDto` từ API.
 interface RoomItem {
     id: number
     name: string
@@ -74,24 +75,18 @@ interface RoomItem {
     screenType?: string | null
 }
 
-// Function: Parent callback prop contract.
-// Input: roomId to select.
-// Output: Notifies parent about room selection.
+// Chức năng: Định nghĩa props cho component RoomManagement.
 interface RoomManagementProps {
     onSelectRoom: (roomId: number) => void
 }
 
-// Function: Composite data used when entering seat setup.
-// Input: Selected room & its current matrix.
-// Output: Props for <SeatSetup/>.
+// Chức năng: Gom nhóm dữ liệu cần thiết khi chuyển sang màn hình thiết lập ghế.
 interface SelectedRoomData {
     room: RoomItem
     matrix: SeatCell[][]
 }
 
-// Function: Form state shape for Create/Edit room dialog.
-// Input: N/A.
-// Output: Controlled form fields.
+// Chức năng: Định nghĩa cấu trúc cho state của form Thêm/Sửa phòng chiếu.
 interface FormState {
     name: string
     roomTypeId: string
@@ -100,54 +95,32 @@ interface FormState {
     status: "ACTIVE" | "INACTIVE"
 }
 
-// ===== Component =====
-// Function: RoomManagement component (default exportable named export).
-// Input: onSelectRoom callback from parent.
-// Output: Full management UI and nested dialogs.
+// ===================================================================================
+// COMPONENT CHÍNH: RoomManagement
+// ===================================================================================
 export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
     const { toast } = useToast()
 
-    // ---- State buckets ----
-    // Function: Hold server data collections.
-    // Input: Results from fetchRoomMeta & fetchRooms.
-    // Output: roomTypes, seatTypes, rooms arrays for rendering and filtering.
-    const [rooms, setRooms] = useState<RoomItem[]>([])
-    const [roomTypes, setRoomTypes] = useState<RoomTypeDto[]>([])
-    const [seatTypes, setSeatTypes] = useState<SeatTypeDto[]>([])
-
-    // Function: Global loading flag for async actions.
-    // Input: Async operations toggling setLoading.
-    // Output: Disables buttons/spinners where needed.
-    const [loading, setLoading] = useState(false)
-
-    // Function: Dialog open flags.
-    // Input: Clicks on buttons.
-    // Output: Open/close Room/RoomType/SeatType dialogs.
-    const [isCreateOpen, setCreateOpen] = useState(false)
-    const [isRoomTypeOpen, setRoomTypeOpen] = useState(false)
-    const [isSeatTypeOpen, setSeatTypeOpen] = useState(false)
-
-    // Function: Track which room is being edited or configured.
-    // Input: User action on table row buttons.
-    // Output: Pre-fills form & enables seat setup mode.
-    const [editingRoom, setEditingRoom] = useState<RoomItem | null>(null)
-    const [selectedRoom, setSelectedRoom] = useState<SelectedRoomData | null>(null)
-
-    // Function: Filters and pagination controls.
-    // Input: User text/select changes.
-    // Output: Derive filtered + paginated room list.
-    const [searchTerm, setSearchTerm] = useState("")
-    const [typeFilter, setTypeFilter] = useState<string>("all")
-    const [statusFilter, setStatusFilter] = useState<string>("all")
-    const [capacityFilter, setCapacityFilter] = useState<string>("all")
-
-    const [currentPage, setCurrentPage] = useState(1)
-    const [itemsPerPage] = useState(10)
-
-    // Function: Controlled form state for Create/Edit dialog.
-    // Input: OnChange handlers.
-    // Output: Payload for create/update APIs.
-    const [formData, setFormData] = useState<FormState>({
+    // -------------------------------------------------------------------------------
+    // KHỐI QUẢN LÝ STATE
+    // Chức năng: Khai báo tất cả các state cần thiết cho hoạt động của component.
+    // -------------------------------------------------------------------------------
+    const [rooms, setRooms] = useState<RoomItem[]>([]) // Danh sách phòng chiếu hiển thị trên bảng.
+    const [roomTypes, setRoomTypes] = useState<RoomTypeDto[]>([]) // Danh sách loại phòng, dùng cho bộ lọc và form.
+    const [seatTypes, setSeatTypes] = useState<SeatTypeDto[]>([]) // Danh sách loại ghế, truyền cho SeatSetup và build payload.
+    const [loading, setLoading] = useState(false) // Cờ (flag) cho biết có thao tác bất đồng bộ (API call) đang chạy.
+    const [isCreateOpen, setCreateOpen] = useState(false) // Cờ điều khiển việc đóng/mở dialog Thêm/Sửa phòng.
+    const [isRoomTypeOpen, setRoomTypeOpen] = useState(false) // Cờ điều khiển dialog quản lý Loại phòng.
+    const [isSeatTypeOpen, setSeatTypeOpen] = useState(false) // Cờ điều khiển dialog quản lý Loại ghế.
+    const [editingRoom, setEditingRoom] = useState<RoomItem | null>(null) // Lưu thông tin phòng đang được sửa.
+    const [selectedRoom, setSelectedRoom] = useState<SelectedRoomData | null>(null) // Lưu phòng đang được thiết lập ghế, kích hoạt chế độ SeatSetup.
+    const [searchTerm, setSearchTerm] = useState("") // State cho ô tìm kiếm.
+    const [typeFilter, setTypeFilter] = useState<string>("all") // State cho bộ lọc Loại phòng.
+    const [statusFilter, setStatusFilter] = useState<string>("all") // State cho bộ lọc Trạng thái.
+    const [capacityFilter, setCapacityFilter] = useState<string>("all") // State cho bộ lọc Sức chứa.
+    const [currentPage, setCurrentPage] = useState(1) // Trang hiện tại của bảng danh sách.
+    const [itemsPerPage] = useState(10) // Số mục trên mỗi trang.
+    const [formData, setFormData] = useState<FormState>({ // State cho các trường trong form Thêm/Sửa.
         name: "",
         roomTypeId: "",
         rows: "",
@@ -155,101 +128,79 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         status: "ACTIVE",
     })
 
-    // ===== Utilities =====
-    // Function: Map seat type name to visual bucket (UI colors/legend).
-    // Input: seatTypeName (string or null/undefined).
-    // Output: SeatVisualType discriminant.
-    const detectVisualType = useCallback((seatTypeName?: string | null): SeatVisualType => {
-        const normalized = (seatTypeName ?? "").toLowerCase()
-        if (normalized.includes("vip")) return "vip"
-        if (normalized.includes("disable") || normalized.includes("khuyết") || normalized.includes("block")) return "disabled"
-        return "standard"
-    }, [])
+    // -------------------------------------------------------------------------------
+    // KHỐI CÁC HÀM TIỆN ÍCH VÀ CHUYỂN ĐỔI DỮ LIỆU (useCallback)
+    // Chức năng: Xử lý việc chuyển đổi dữ liệu giữa định dạng của API (backend)
+    // và định dạng của UI (frontend). `useCallback` được dùng để tối ưu,
+    // tránh việc tạo lại hàm một cách không cần thiết sau mỗi lần render.
+    // -------------------------------------------------------------------------------
 
-    // Function: Convert API seat matrix (SeatCellDto[][]) to UI matrix (SeatCell[][]).
-    // Input: matrixData from fetchSeatMatrix.
-    // Output: UI-friendly matrix for SeatSetup with derived 'type' & 'status'.
+    // Chức năng: Chuyển đổi ma trận ghế từ định dạng DTO của backend sang định dạng `SeatCell` của frontend.
+    // Đầu vào: `matrixData` - Mảng 2 chiều từ API `fetchSeatMatrix`.
+    // Đầu ra: Mảng 2 chiều `SeatCell[][]` mà component `SeatSetup` có thể hiểu và hiển thị.
     const transformSeatMatrix = useCallback(
         (matrixData: (SeatCellDto | null)[][]): SeatCell[][] => {
             return (matrixData ?? []).map((row, rIndex) =>
-                (row ?? []).map((cell, cIndex) => {
+                (row ?? []).map((cell, cIndex): SeatCell => {
                     if (!cell) {
-                        return {
-                            id: null,
-                            row: rIndex,
-                            column: cIndex,
-                            type: "standard",
-                            status: "available",
-                        } satisfies SeatCell
+                        return { id: null, row: rIndex, column: cIndex, seatTypeId: -1, status: "AVAILABLE", seatTypeName: "Vô hiệu hóa" }
                     }
-                    const visualType = detectVisualType(cell.seatType?.name)
-                    const status: SeatVisualStatus =
-                        cell.isBlocked === true
-                            ? "blocked"
-                            : cell.status === "RESERVED"
-                                ? "reserved"
-                                : cell.status === "OCCUPIED"
-                                    ? "occupied"
-                                    : "available"
-
+                    const isBlocked = cell.status === "BLOCKED";
                     return {
-                        id: cell.id !== null && cell.id !== undefined ? String(cell.id) : null,
+                        id: cell.id,
                         row: (cell.rowIndex ?? rIndex + 1) - 1,
                         column: (cell.columnIndex ?? cIndex + 1) - 1,
-                        type: visualType,
-                        status,
-                        seatTypeId: cell.seatType?.id ?? undefined,
-                        seatTypeName: cell.seatType?.name ?? undefined,
-                    } satisfies SeatCell
+                        seatTypeId: isBlocked ? -1 : (cell.seatType?.id ?? -1),
+                        status: isBlocked ? "BLOCKED" : "AVAILABLE",
+                        seatTypeName: cell.seatType?.name,
+                    }
                 }),
             )
         },
-        [detectVisualType],
+        [],
     )
 
-    // Function: Build payload to persist seat matrix changes.
-    // Input: matrix (SeatCell[][]) from SeatSetup save handler.
-    // Output: { matrix: ... } payload matching saveSeatMatrix API.
+    // Chức năng: Chuyển đổi ma trận ghế từ định dạng `SeatCell` của UI sang payload mà API lưu trữ của backend yêu cầu.
+    // Đầu vào: `matrix` - Mảng `SeatCell[][]` từ sự kiện `onSave` của `SeatSetup`.
+    // Đầu ra: Một object payload hợp lệ cho API `saveSeatMatrix`.
     const buildMatrixPayload = useCallback(
         (matrix: SeatCell[][]) => {
-            const typeToId: Record<SeatVisualType, number | undefined> = {
-                standard: undefined,
-                vip: undefined,
-                disabled: undefined,
-            }
-            seatTypes.forEach((seatType) => {
-                const visual = detectVisualType(seatType.name)
-                if (!typeToId[visual]) {
-                    typeToId[visual] = seatType.id
-                }
-            })
-            const fallbackSeatTypeId =
-                typeToId.standard ?? typeToId.vip ?? typeToId.disabled ?? seatTypes[0]?.id ?? 0
-
+            const fallbackSeatTypeId = seatTypes[0]?.id;
             return {
                 matrix: matrix.map((row) =>
                     row.map((cell) => {
-                        if (!cell) return null
-                        const seatTypeId = cell.seatTypeId ?? typeToId[cell.type] ?? fallbackSeatTypeId
+                        if (!cell) return null;
+                        if (cell.seatTypeId === -1) {
+                            if (fallbackSeatTypeId === undefined) return null; // Trường hợp an toàn nếu không có loại ghế nào
+                            return {
+                                id: cell.id ? Number(cell.id) : null,
+                                rowIndex: cell.row + 1,
+                                columnIndex: cell.column + 1,
+                                seatTypeId: fallbackSeatTypeId, // Dùng một ID hợp lệ làm placeholder
+                                status: "BLOCKED",
+                            };
+                        }
                         return {
                             id: cell.id ? Number(cell.id) : null,
                             rowIndex: cell.row + 1,
                             columnIndex: cell.column + 1,
-                            seatTypeId,
-                            status: cell.status === "blocked" ? "BLOCKED" : cell.status.toUpperCase(),
-                            isBlocked: cell.status === "blocked" ? true : undefined,
+                            seatTypeId: cell.seatTypeId,
+                            status: cell.status,
                         }
                     }),
                 ),
             }
         },
-        [detectVisualType, seatTypes],
+        [seatTypes], // Phụ thuộc vào `seatTypes` để có `fallbackSeatTypeId`
     )
 
-    // ===== Data fetching =====
-    // Function: Load and cache room & seat type metadata.
-    // Input: None (calls fetchRoomMeta()).
-    // Output: Populates roomTypes and seatTypes or shows toast error.
+    // -------------------------------------------------------------------------------
+    // KHỐI LẤY DỮ LIỆU TỪ SERVER (DATA FETCHING)
+    // -------------------------------------------------------------------------------
+
+    // Chức năng: Tải các dữ liệu "meta" như loại phòng và loại ghế.
+    // Đầu vào: Không có.
+    // Đầu ra: Cập nhật state `roomTypes` và `seatTypes`, hoặc hiển thị toast báo lỗi.
     const loadMeta = useCallback(async () => {
         try {
             const res = await fetchRoomMeta()
@@ -257,21 +208,21 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                 setRoomTypes(res.data.roomTypes ?? [])
                 setSeatTypes(res.data.seatTypes ?? [])
             } else {
-                toast({ title: "Không thể tải metadata", description: res.message || "Vui lòng thử lại" })
+                toast({ title: "Không thể tải metadata", description: friendlyFromPayload(res, "Vui lòng thử lại") })
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to fetch room meta", error)
-            toast({ title: "Lỗi tải metadata", description: "Không thể tải loại phòng/ghế" })
+            toast({ title: "Lỗi tải metadata", description: friendlyFromPayload(error?.response?.data, "Không thể tải loại phòng/ghế") })
         }
     }, [toast])
 
-    // Function: Load rooms for list view.
-    // Input: Pagination params (fixed: page 0, size 500).
-    // Output: rooms[] state mapped to RoomItem shape, with toasts on failure.
+    // Chức năng: Tải danh sách các phòng chiếu.
+    // Đầu vào: Tham số phân trang (hiện đang hardcode để lấy tất cả).
+    // Đầu ra: Cập nhật state `rooms` với dữ liệu đã được chuyển đổi sang `RoomItem`, hoặc báo lỗi.
     const loadRooms = useCallback(async () => {
         setLoading(true)
         try {
-            const res = await fetchRooms({ page: 0, size: 500 })
+            const res = await fetchRooms({ page: 0, size: 500 }) // Lấy tối đa 500 phòng
             if (res.status === 200 && res.data) {
                 const mapped: RoomItem[] = (res.data.items ?? []).map((room: RoomDto) => ({
                     id: room.id,
@@ -287,28 +238,32 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                 }))
                 setRooms(mapped)
             } else {
-                toast({ title: "Không thể tải danh sách phòng", description: res.message || "Vui lòng thử lại" })
+                toast({ title: "Không thể tải danh sách phòng", description: friendlyFromPayload(res, "Vui lòng thử lại") })
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to fetch rooms", error)
-            toast({ title: "Lỗi tải phòng", description: "Không thể tải danh sách phòng" })
+            toast({ title: "Lỗi tải phòng", description: friendlyFromPayload(error?.response?.data, "Không thể tải danh sách phòng") })
         } finally {
             setLoading(false)
         }
     }, [toast])
 
-    // Function: Bootstrap data on mount.
-    // Input: None (effects call loadMeta & loadRooms).
-    // Output: Populates state for initial render.
+    // Chức năng: Effect để tải dữ liệu lần đầu khi component được mount.
+    // Đầu vào: `loadMeta`, `loadRooms`.
+    // Đầu ra: Chạy 2 hàm trên để lấy dữ liệu ban đầu.
     useEffect(() => {
         loadMeta()
         loadRooms()
     }, [loadMeta, loadRooms])
 
-    // ===== Derivations =====
-    // Function: Compute filtered list based on search & filters.
-    // Input: rooms, searchTerm, typeFilter, statusFilter, capacityFilter.
-    // Output: Filtered array for pagination.
+    // -------------------------------------------------------------------------------
+    // KHỐI DỮ LIỆU PHÁI SINH (DERIVED DATA - useMemo)
+    // -------------------------------------------------------------------------------
+
+    // Chức năng: Lọc danh sách phòng chiếu dựa trên các state filter.
+    // `useMemo` giúp việc lọc chỉ chạy lại khi các giá trị phụ thuộc thay đổi, tối ưu hiệu suất.
+    // Đầu vào: `rooms`, `searchTerm`, `typeFilter`, `statusFilter`, `capacityFilter`.
+    // Đầu ra: Mảng `filteredRooms` đã được lọc.
     const filteredRooms = useMemo(() => {
         return rooms.filter((room) => {
             const matchesSearch = room.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -319,50 +274,40 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                 (capacityFilter === "small" && room.capacity < 50) ||
                 (capacityFilter === "medium" && room.capacity >= 50 && room.capacity < 100) ||
                 (capacityFilter === "large" && room.capacity >= 100)
-
             return matchesSearch && matchesType && matchesStatus && matchesCapacity
         })
     }, [rooms, searchTerm, typeFilter, statusFilter, capacityFilter])
 
-    // Function: Pagination helpers.
-    // Input: filteredRooms.length, itemsPerPage, currentPage.
-    // Output: totalPages, indices, and current page slice.
+    // Chức năng: Tính toán các giá trị cho việc phân trang.
+    // Đầu vào: `filteredRooms`, `itemsPerPage`, `currentPage`.
+    // Đầu ra: `totalPages`, `paginatedRooms` (mảng chứa các phòng của trang hiện tại).
     const totalPages = Math.max(1, Math.ceil(filteredRooms.length / itemsPerPage))
     const startIndex = (currentPage - 1) * itemsPerPage
     const endIndex = startIndex + itemsPerPage
     const paginatedRooms = filteredRooms.slice(startIndex, endIndex)
 
-    // ===== Helpers =====
-    // Function: Reset create/edit form.
-    // Input: None.
-    // Output: Clears formData & editingRoom.
+    // -------------------------------------------------------------------------------
+    // KHỐI CÁC HÀM XỬ LÝ SỰ KIỆN (ACTION HANDLERS)
+    // -------------------------------------------------------------------------------
+
+    // Chức năng: Reset form về trạng thái ban đầu.
     const resetForm = () => {
         setFormData({ name: "", roomTypeId: "", rows: "", columns: "", status: "ACTIVE" })
         setEditingRoom(null)
     }
 
-    // ===== Actions: Create/Update =====
-    // Function: Validate & submit create/update room.
-    // Input: formData state; editingRoom presence.
-    // Output: Calls createRoomApi/updateRoomApi, shows toasts, refreshes list.
+    // Chức năng: Xử lý việc submit form Thêm/Sửa phòng.
+    // Đầu vào: State `formData` và `editingRoom`.
+    // Đầu ra: Gọi API `createRoomApi` hoặc `updateRoomApi`, hiển thị toast, tải lại danh sách.
     const handleSubmit = async () => {
         const rows = Number(formData.rows)
         const columns = Number(formData.columns)
         const roomTypeId = Number(formData.roomTypeId)
-
         if (!formData.name.trim() || !roomTypeId || !rows || !columns) {
             toast({ title: "Thiếu thông tin", description: "Vui lòng nhập tên, loại phòng, số hàng và số cột" })
             return
         }
-
-        const payload = {
-            name: formData.name.trim(),
-            roomTypeId,
-            rows,
-            columns,
-            status: formData.status,
-        }
-
+        const payload = { name: formData.name.trim(), roomTypeId, rows, columns, status: formData.status }
         try {
             setLoading(true)
             if (editingRoom) {
@@ -377,59 +322,47 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
             await loadRooms()
         } catch (error: any) {
             console.error("Failed to submit room", error)
-            const message = error?.response?.data?.message ?? "Không thể lưu phòng chiếu"
-            toast({ title: "Lỗi", description: message })
+            toast({ title: "Lỗi", description: friendlyFromPayload(error?.response?.data, "Không thể lưu phòng chiếu") })
         } finally {
             setLoading(false)
         }
     }
 
-    // Function: Update room status while preserving other fields.
-    // Input: room (RoomItem), desired status.
-    // Output: updateRoomApi call to persist status change.
+    // Chức năng: Cập nhật trạng thái của phòng (helper function).
     const updateRoomStatus = async (room: RoomItem, status: "ACTIVE" | "INACTIVE") => {
-        // build đủ RoomPayload theo type của updateRoomApi
-        const payload = {
-            name: room.name,
-            roomTypeId: room.roomTypeId ?? 0, // or enforce selection if API disallows 0
-            rows: room.rows,
-            columns: room.columns,
-            status,
-        }
+        const payload = { name: room.name, roomTypeId: room.roomTypeId ?? 0, rows: room.rows, columns: room.columns, status }
         await updateRoomApi(room.id, payload)
     }
 
-    // Function: Deactivate a room.
-    // Input: room to deactivate.
-    // Output: Persists status, shows toast, refreshes list.
+    // Chức năng: Vô hiệu hóa một phòng.
     const deactivateRoom = async (room: RoomItem) => {
         try {
             setLoading(true)
             await updateRoomStatus(room, "INACTIVE")
             toast({ title: "Đã vô hiệu hóa", description: "Phòng chuyển sang không hoạt động" })
             await loadRooms()
+        } catch (error: any) {
+            toast({ title: "Lỗi vô hiệu hóa", description: friendlyFromPayload(error?.response?.data, "Không thể vô hiệu hóa phòng") })
         } finally {
             setLoading(false)
         }
     }
 
-    // Function: Activate a room.
-    // Input: room to activate.
-    // Output: Persists status, shows toast, refreshes list.
+    // Chức năng: Kích hoạt lại một phòng.
     const activateRoom = async (room: RoomItem) => {
         try {
             setLoading(true)
             await updateRoomStatus(room, "ACTIVE")
             toast({ title: "Đã bật lại", description: "Phòng đã hoạt động" })
             await loadRooms()
+        } catch (error: any) {
+            toast({ title: "Lỗi kích hoạt", description: friendlyFromPayload(error?.response?.data, "Không thể kích hoạt phòng") })
         } finally {
             setLoading(false)
         }
     }
 
-    // Function: Open edit dialog and preload form values.
-    // Input: room selected from table.
-    // Output: Shows dialog with formData set.
+    // Chức năng: Mở dialog sửa và điền thông tin của phòng đã chọn vào form.
     const openEditDialog = (room: RoomItem) => {
         setEditingRoom(room)
         setFormData({
@@ -442,36 +375,38 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         setCreateOpen(true)
     }
 
-    // ===== Seat setup navigation =====
-    // Function: Fetch seat matrix and enter seat setup screen.
-    // Input: room selected.
-    // Output: Sets selectedRoom with transformed matrix for <SeatSetup/>.
+    // Chức năng: Xử lý khi người dùng nhấn nút "Thiết lập ghế".
+    // Đầu vào: `room` được chọn từ bảng.
+    // Đầu ra: Gọi API lấy ma trận ghế, chuyển đổi dữ liệu và cập nhật `selectedRoom` để chuyển sang màn hình `SeatSetup`.
     const handleSelectRoom = async (room: RoomItem) => {
         onSelectRoom(room.id)
         try {
+            setLoading(true);
+            await loadMeta();
             const res = await fetchSeatMatrix(room.id)
             if (res.status === 200 && res.data) {
                 const matrix = transformSeatMatrix(res.data.matrix ?? [])
                 setSelectedRoom({ room, matrix })
             } else {
-                toast({ title: "Không thể tải sơ đồ ghế", description: res.message || "Vui lòng thử lại" })
+                toast({ title: "Không thể tải sơ đồ ghế", description: friendlyFromPayload(res, "Vui lòng thử lại") })
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to fetch seat matrix", error)
-            toast({ title: "Lỗi tải ghế", description: "Không thể tải ma trận ghế" })
+            toast({ title: "Lỗi tải ghế", description: friendlyFromPayload(error?.response?.data, "Không thể tải ma trận ghế") })
+        } finally {
+            setLoading(false);
         }
     }
 
-    // Function: Leave seat setup and return to list view.
-    // Input: None.
-    // Output: Clears selectedRoom to render main list UI.
+    // Chức năng: Xử lý khi người dùng nhấn nút "Quay lại" từ màn hình `SeatSetup`.
+    // Đầu ra: Reset `selectedRoom` về `null` để quay lại màn hình danh sách.
     const handleBackFromSeatSetup = () => {
         setSelectedRoom(null)
     }
 
-    // Function: Persist seat grid changes.
-    // Input: matrix from SeatSetup onSave.
-    // Output: Calls saveSeatMatrix, shows toast, refreshes rooms, exits setup.
+    // Chức năng: Xử lý khi người dùng nhấn "Lưu cấu hình" từ `SeatSetup`.
+    // Đầu vào: `matrix` - Dữ liệu ma trận ghế mới nhất từ `SeatSetup`.
+    // Đầu ra: Gọi API `saveSeatMatrix`, hiển thị toast, và quay về màn hình danh sách.
     const handleSaveSeatConfig = async (matrix: SeatCell[][]) => {
         if (!selectedRoom) return
         try {
@@ -483,17 +418,13 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
             await loadRooms()
         } catch (error: any) {
             console.error("Failed to save seat matrix", error)
-            const message = error?.response?.data?.message ?? "Không thể lưu ma trận ghế"
-            toast({ title: "Lỗi", description: message })
+            toast({ title: "Lỗi", description: friendlyFromPayload(error?.response?.data, "Không thể lưu ma trận ghế") })
         } finally {
             setLoading(false)
         }
     }
 
-    // ===== Filters =====
-    // Function: Centralized filter changes, resets pagination to page 1.
-    // Input: type (which filter) and new value.
-    // Output: Updates corresponding state and triggers re-compute.
+    // Chức năng: Xử lý thay đổi các bộ lọc và reset phân trang về trang 1.
     const handleFilterChange = (type: string, value: string) => {
         setCurrentPage(1)
         if (type === "search") setSearchTerm(value)
@@ -502,9 +433,7 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         else if (type === "capacity") setCapacityFilter(value)
     }
 
-    // Function: Clear all filters.
-    // Input: None.
-    // Output: Resets filters and pagination.
+    // Chức năng: Xóa tất cả các bộ lọc.
     const clearFilters = () => {
         setSearchTerm("")
         setTypeFilter("all")
@@ -513,10 +442,34 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         setCurrentPage(1)
     }
 
-    // ===== Conditional Rendering =====
-    // Function: Render seat setup view when a room is selected.
-    // Input: selectedRoom presence.
-    // Output: Delegates to <SeatSetup/> with proper props.
+    // Chức năng: Xử lý việc đóng mở dialog quản lý loại phòng và tải lại dữ liệu khi cần.
+    // Đầu vào: `open` - boolean cho biết dialog đang mở hay đóng.
+    // Đầu ra: Cập nhật state `isRoomTypeOpen` và gọi `loadMeta` nếu dialog vừa được đóng.
+    const handleRoomTypeDialogChange = (open: boolean) => {
+        setRoomTypeOpen(open);
+        if (!open) {
+            loadMeta();
+        }
+    }
+
+    // Chức năng: Xử lý việc đóng mở dialog quản lý loại ghế và tải lại dữ liệu khi cần.
+    // Đầu vào: `open` - boolean cho biết dialog đang mở hay đóng.
+    // Đầu ra: Cập nhật state `isSeatTypeOpen` và gọi `loadMeta` nếu dialog vừa được đóng.
+    const handleSeatTypeDialogChange = (open: boolean) => {
+        setSeatTypeOpen(open);
+        if (!open) {
+            loadMeta();
+        }
+    }
+
+    // -------------------------------------------------------------------------------
+    // KHỐI RENDER GIAO DIỆN (UI RENDERING)
+    // -------------------------------------------------------------------------------
+
+    // Chức năng: Render có điều kiện. Nếu có một phòng đang được chọn để thiết lập ghế,
+    // thì render component `SeatSetup`.
+    // Đầu vào: State `selectedRoom`.
+    // Đầu ra: Giao diện `SeatSetup`.
     if (selectedRoom) {
         return (
             <SeatSetup
@@ -529,27 +482,20 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         )
     }
 
-    // Function: Render main management UI when not in seat setup.
-    // Input: Current state (filters, lists, dialog flags, etc.).
-    // Output: Full page with toolbars, filters, table, pagination, and dialogs.
+    // Chức năng: Render giao diện chính (danh sách phòng, bộ lọc, dialogs) khi không ở chế độ `SeatSetup`.
+    // Đầu vào: Toàn bộ state của component.
+    // Đầu ra: Giao diện quản lý phòng chiếu hoàn chỉnh.
     return (
         <div className="space-y-6">
-            {/* Header & actions */}
-            {/* Function: Top toolbar */}
-            {/* Input: Click interactions */}
-            {/* Output: Opens Type/Ghế managers or Create dialog */}
+            {/* Header và các nút hành động chính */}
             <div className="flex items-start justify-between gap-4">
                 <div className="space-y-1.5">
                     <h1 className="text-3xl font-bold text-foreground">Quản lý phòng chiếu</h1>
                     <p className="text-muted-foreground">Quản lý phòng chiếu và cấu hình sơ đồ ghế</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setRoomTypeOpen(true)}>
-                        Quản lý loại phòng
-                    </Button>
-                    <Button variant="outline" onClick={() => setSeatTypeOpen(true)}>
-                        Quản lý loại ghế
-                    </Button>
+                    <Button variant="outline" onClick={() => setRoomTypeOpen(true)}>Quản lý loại phòng</Button>
+                    <Button variant="outline" onClick={() => setSeatTypeOpen(true)}>Quản lý loại ghế</Button>
                     <Button onClick={() => setCreateOpen(true)} disabled={loading} className="bg-primary text-primary-foreground hover:bg-primary/90">
                         <Plus className="w-4 h-4 mr-2" />
                         Thêm phòng
@@ -557,58 +503,35 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                 </div>
             </div>
 
-            {/* Filters card */}
-            {/* Function: Let users search/filter rooms */}
-            {/* Input: searchTerm, type/status/capacity filters */}
-            {/* Output: Updates filteredRooms via useMemo */}
+            {/* Card chứa các bộ lọc */}
             <Card className="bg-card border-border">
                 <CardHeader>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                        <Filter className="w-4 h-4" />
-                        Bộ lọc & tìm kiếm
-                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground"><Filter className="w-4 h-4" />Bộ lọc & tìm kiếm</div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                        {/* Các input và select cho bộ lọc */}
                         <div className="space-y-2">
-                            <Label htmlFor="search" className="text-sm font-medium text-foreground">
-                                Tìm kiếm theo tên
-                            </Label>
+                            <Label htmlFor="search" className="text-sm font-medium text-foreground">Tìm kiếm theo tên</Label>
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                <Input
-                                    id="search"
-                                    placeholder="Nhập tên phòng..."
-                                    value={searchTerm}
-                                    onChange={(e) => handleFilterChange("search", e.target.value)}
-                                    className="pl-10 bg-input border-border text-foreground"
-                                />
+                                <Input id="search" placeholder="Nhập tên phòng..." value={searchTerm} onChange={(e) => handleFilterChange("search", e.target.value)} className="pl-10 bg-input border-border text-foreground" />
                             </div>
                         </div>
-
                         <div className="space-y-2">
                             <Label className="text-sm font-medium text-foreground">Loại phòng</Label>
                             <Select value={typeFilter} onValueChange={(v) => handleFilterChange("type", v)}>
-                                <SelectTrigger className="bg-input border-border text-foreground">
-                                    <SelectValue placeholder="Tất cả loại" />
-                                </SelectTrigger>
+                                <SelectTrigger className="bg-input border-border text-foreground"><SelectValue placeholder="Tất cả loại" /></SelectTrigger>
                                 <SelectContent className="bg-popover border-border">
                                     <SelectItem value="all">Tất cả loại</SelectItem>
-                                    {roomTypes.map((type) => (
-                                        <SelectItem key={type.id} value={type.id.toString()}>
-                                            {type.name}
-                                        </SelectItem>
-                                    ))}
+                                    {roomTypes.map((type) => (<SelectItem key={type.id} value={type.id.toString()}>{type.name}</SelectItem>))}
                                 </SelectContent>
                             </Select>
                         </div>
-
                         <div className="space-y-2">
                             <Label className="text-sm font-medium text-foreground">Trạng thái</Label>
                             <Select value={statusFilter} onValueChange={(v) => handleFilterChange("status", v)}>
-                                <SelectTrigger className="bg-input border-border text-foreground">
-                                    <SelectValue placeholder="Trạng thái" />
-                                </SelectTrigger>
+                                <SelectTrigger className="bg-input border-border text-foreground"><SelectValue placeholder="Trạng thái" /></SelectTrigger>
                                 <SelectContent className="bg-popover border-border">
                                     <SelectItem value="all">Tất cả</SelectItem>
                                     <SelectItem value="active">Hoạt động</SelectItem>
@@ -616,13 +539,10 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                                 </SelectContent>
                             </Select>
                         </div>
-
                         <div className="space-y-2">
                             <Label className="text-sm font-medium text-foreground">Sức chứa</Label>
                             <Select value={capacityFilter} onValueChange={(v) => handleFilterChange("capacity", v)}>
-                                <SelectTrigger className="bg-input border-border text-foreground">
-                                    <SelectValue placeholder="Sức chứa" />
-                                </SelectTrigger>
+                                <SelectTrigger className="bg-input border-border text-foreground"><SelectValue placeholder="Sức chứa" /></SelectTrigger>
                                 <SelectContent className="bg-popover border-border">
                                     <SelectItem value="all">Tất cả</SelectItem>
                                     <SelectItem value="small">Nhỏ (&lt;50 ghế)</SelectItem>
@@ -631,30 +551,22 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                                 </SelectContent>
                             </Select>
                         </div>
-
                         <div className="space-y-2">
                             <Label className="text-sm font-medium text-transparent select-none">Clear</Label>
-                            <Button variant="outline" onClick={clearFilters} className="w-full text-foreground hover:bg-muted">
-                                Xóa bộ lọc
-                            </Button>
+                            <Button variant="outline" onClick={clearFilters} className="w-full text-foreground hover:bg-muted">Xóa bộ lọc</Button>
                         </div>
                     </div>
                 </CardContent>
             </Card>
 
-            {/* Rooms table card */}
-            {/* Function: Display paginated rooms */}
-            {/* Input: paginatedRooms */}
-            {/* Output: Rows with action buttons */}
+            {/* Card chứa bảng danh sách phòng chiếu */}
             <Card className="bg-card border-border">
                 <CardHeader>
                     <div className="flex items-center justify-between">
                         <div>
                             <h2 className="text-lg font-semibold text-foreground">Danh sách phòng</h2>
                             <p className="text-sm text-muted-foreground">
-                                {filteredRooms.length > 0
-                                    ? `Hiển thị ${startIndex + 1}-${Math.min(endIndex, filteredRooms.length)} trong ${filteredRooms.length} phòng`
-                                    : "Không có phòng phù hợp."}
+                                {filteredRooms.length > 0 ? `Hiển thị ${startIndex + 1}-${Math.min(endIndex, filteredRooms.length)} trong ${filteredRooms.length} phòng` : "Không có phòng phù hợp."}
                             </p>
                         </div>
                     </div>
@@ -676,69 +588,22 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                                 <TableRow key={room.id} className="border-border hover:bg-muted/30">
                                     <TableCell className="font-medium text-foreground">{room.name}</TableCell>
                                     <TableCell className="text-foreground">{room.roomTypeName}</TableCell>
-                                    <TableCell className="text-foreground">
-                                        {room.rows} x {room.columns}
-                                    </TableCell>
+                                    <TableCell className="text-foreground">{room.rows} x {room.columns}</TableCell>
                                     <TableCell className="text-foreground">{room.capacity} ghế</TableCell>
                                     <TableCell>
-                                        <Badge
-                                            variant={room.status === "active" ? "default" : "secondary"}
-                                            className={room.status === "active" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}
-                                        >
+                                        <Badge variant={room.status === "active" ? "default" : "secondary"} className={room.status === "active" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}>
                                             {room.status === "active" ? "Hoạt động" : "Không hoạt động"}
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                onClick={() => openEditDialog(room)}
-                                                className="text-foreground hover:bg-muted"
-                                                type="button"
-                                            >
-                                                <Pencil className="w-4 h-4" />
-                                            </Button>
-
-                                            {/* Function: Toggle status */}
-                                            {/* Input: room.status */}
-                                            {/* Output: activate/deactivate effects */}
+                                            <Button size="sm" variant="ghost" onClick={() => openEditDialog(room)} className="text-foreground hover:bg-muted" type="button"><Pencil className="w-4 h-4" /></Button>
                                             {room.status === "active" ? (
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() => deactivateRoom(room)}
-                                                    className="text-destructive hover:bg-destructive/10"
-                                                    type="button"
-                                                    title="Vô hiệu hóa"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </Button>
+                                                <Button size="sm" variant="ghost" onClick={() => deactivateRoom(room)} className="text-destructive hover:bg-destructive/10" type="button" title="Vô hiệu hóa"><Trash2 className="w-4 h-4" /></Button>
                                             ) : (
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() => activateRoom(room)}
-                                                    className="text-primary hover:bg-primary/10"
-                                                    type="button"
-                                                    title="Bật lại"
-                                                >
-                                                    <Plus className="w-4 h-4" />
-                                                </Button>
+                                                <Button size="sm" variant="ghost" onClick={() => activateRoom(room)} className="text-primary hover:bg-primary/10" type="button" title="Bật lại"><Plus className="w-4 h-4" /></Button>
                                             )}
-
-                                            {/* Function: Open seat setup */}
-                                            {/* Input: room */}
-                                            {/* Output: Navigate to SeatSetup view */}
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                onClick={() => handleSelectRoom(room)}
-                                                className="text-primary hover:bg-primary/10"
-                                                type="button"
-                                            >
-                                                <Settings className="w-4 h-4" />
-                                            </Button>
+                                            <Button size="sm" variant="ghost" onClick={() => handleSelectRoom(room)} className="text-primary hover:bg-primary/10" type="button"><Settings className="w-4 h-4" /></Button>
                                         </div>
                                     </TableCell>
                                 </TableRow>
@@ -746,177 +611,52 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                         </TableBody>
                     </Table>
 
-                    {/* Pagination */}
-                    {/* Function: Navigate pages */}
-                    {/* Input: currentPage, totalPages */}
-                    {/* Output: Updates currentPage and visible rows */}
+                    {/* Phân trang */}
                     <div className="flex items-center justify-between">
-                        <p className="text-sm text-muted-foreground">
-                            Trang {currentPage} / {totalPages} — Tổng {filteredRooms.length} phòng
-                        </p>
+                        <p className="text-sm text-muted-foreground">Trang {currentPage} / {totalPages} — Tổng {filteredRooms.length} phòng</p>
                         <div className="flex items-center gap-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                                disabled={currentPage === 1}
-                                className="text-foreground hover:bg-muted"
-                            >
-                                <ChevronLeft className="w-4 h-4 mr-1" />
-                                Trước
-                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} className="text-foreground hover:bg-muted"><ChevronLeft className="w-4 h-4 mr-1" />Trước</Button>
                             <span className="text-sm text-muted-foreground">Trang {currentPage}</span>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                                disabled={currentPage === totalPages}
-                                className="text-foreground hover:bg-muted"
-                            >
-                                Sau
-                                <ChevronRight className="w-4 h-4 ml-1" />
-                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="text-foreground hover:bg-muted">Sau<ChevronRight className="w-4 h-4 ml-1" /></Button>
                         </div>
                     </div>
                 </CardContent>
             </Card>
 
-            {/* Create/Edit Room dialog */}
-            {/* Function: Create or update a room */}
-            {/* Input: formData; editingRoom flag */}
-            {/* Output: API calls via handleSubmit */}
+            {/* Dialog Thêm/Sửa phòng chiếu */}
             <Dialog open={isCreateOpen} onOpenChange={setCreateOpen}>
                 <DialogContent className="bg-card text-card-foreground border border-border/60 sm:max-w-lg">
-                    <DialogHeader>
-                        <DialogTitle className="text-foreground">{editingRoom ? "Sửa phòng chiếu" : "Thêm phòng mới"}</DialogTitle>
-                    </DialogHeader>
-
+                    <DialogHeader><DialogTitle className="text-foreground">{editingRoom ? "Sửa phòng chiếu" : "Thêm phòng mới"}</DialogTitle></DialogHeader>
                     <div className="space-y-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="name" className="text-foreground">
-                                Tên phòng
-                            </Label>
-                            <Input
-                                id="name"
-                                value={formData.name}
-                                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-                                className="bg-input border-border text-foreground"
-                            />
-                        </div>
-
-                        <div className="grid gap-2">
-                            <Label className="text-foreground">Loại phòng</Label>
-                            <Select
-                                value={formData.roomTypeId}
-                                onValueChange={(value) => setFormData((prev) => ({ ...prev, roomTypeId: value }))}
-                            >
-                                <SelectTrigger className="bg-input border-border text-foreground">
-                                    <SelectValue placeholder="Chọn loại phòng" />
-                                </SelectTrigger>
-                                <SelectContent className="bg-popover border-border">
-                                    {roomTypes.map((type) => (
-                                        <SelectItem key={type.id} value={type.id.toString()}>
-                                            {type.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
+                        {/* Các trường input của form */}
+                        <div className="grid gap-2"><Label htmlFor="name" className="text-foreground">Tên phòng</Label><Input id="name" value={formData.name} onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))} className="bg-input border-border text-foreground" /></div>
+                        <div className="grid gap-2"><Label className="text-foreground">Loại phòng</Label><Select value={formData.roomTypeId} onValueChange={(value) => setFormData((prev) => ({ ...prev, roomTypeId: value }))}><SelectTrigger className="bg-input border-border text-foreground"><SelectValue placeholder="Chọn loại phòng" /></SelectTrigger><SelectContent className="bg-popover border-border">{roomTypes.map((type) => (<SelectItem key={type.id} value={type.id.toString()}>{type.name}</SelectItem>))}</SelectContent></Select></div>
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="rows" className="text-foreground">
-                                    Số hàng
-                                </Label>
-                                <Input
-                                    id="rows"
-                                    type="number"
-                                    min={1}
-                                    value={formData.rows}
-                                    onChange={(e) => setFormData((prev) => ({ ...prev, rows: e.target.value }))}
-                                    className="bg-input border-border text-foreground"
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="columns" className="text-foreground">
-                                    Số cột
-                                </Label>
-                                <Input
-                                    id="columns"
-                                    type="number"
-                                    min={1}
-                                    value={formData.columns}
-                                    onChange={(e) => setFormData((prev) => ({ ...prev, columns: e.target.value }))}
-                                    className="bg-input border-border text-foreground"
-                                />
-                            </div>
+                            <div className="grid gap-2"><Label htmlFor="rows" className="text-foreground">Số hàng</Label><Input id="rows" type="number" min={1} value={formData.rows} onChange={(e) => setFormData((prev) => ({ ...prev, rows: e.target.value }))} className="bg-input border-border text-foreground" /></div>
+                            <div className="grid gap-2"><Label htmlFor="columns" className="text-foreground">Số cột</Label><Input id="columns" type="number" min={1} value={formData.columns} onChange={(e) => setFormData((prev) => ({ ...prev, columns: e.target.value }))} className="bg-input border-border text-foreground" /></div>
                         </div>
-
-                        <div className="grid gap-2">
-                            <Label className="text-foreground">Trạng thái</Label>
-                            <Select
-                                value={formData.status}
-                                onValueChange={(value: "ACTIVE" | "INACTIVE") =>
-                                    setFormData((prev) => ({ ...prev, status: value }))
-                                }
-                            >
-                                <SelectTrigger className="bg-input border-border text-foreground">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent className="bg-popover border-border">
-                                    <SelectItem value="ACTIVE">Hoạt động</SelectItem>
-                                    <SelectItem value="INACTIVE">Không hoạt động</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
+                        <div className="grid gap-2"><Label className="text-foreground">Trạng thái</Label><Select value={formData.status} onValueChange={(value: "ACTIVE" | "INACTIVE") => setFormData((prev) => ({ ...prev, status: value }))}><SelectTrigger className="bg-input border-border text-foreground"><SelectValue /></SelectTrigger><SelectContent className="bg-popover border-border"><SelectItem value="ACTIVE">Hoạt động</SelectItem><SelectItem value="INACTIVE">Không hoạt động</SelectItem></SelectContent></Select></div>
                     </div>
-
                     <div className="flex justify-end gap-2 pt-4">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => {
-                                setCreateOpen(false)
-                                resetForm()
-                            }}
-                            className="border-border text-foreground hover:bg-muted"
-                        >
-                            Hủy
-                        </Button>
-                        <Button type="button" onClick={handleSubmit} disabled={loading} className="bg-primary text-primary-foreground hover:bg-primary/90">
-                            Lưu
-                        </Button>
+                        <Button type="button" variant="outline" onClick={() => { setCreateOpen(false); resetForm() }} className="border-border text-foreground hover:bg-muted">Hủy</Button>
+                        <Button type="button" onClick={handleSubmit} disabled={loading} className="bg-primary text-primary-foreground hover:bg-primary/90">Lưu</Button>
                     </div>
                 </DialogContent>
             </Dialog>
 
-            {/* RoomType manager dialog */}
-            {/* Function: Manage room type taxonomy */}
-            {/* Input: None (internal to RoomTypeManager) */}
-            {/* Output: CRUD for room types (side-effect: affects filters & form options) */}
-            <Dialog open={isRoomTypeOpen} onOpenChange={setRoomTypeOpen}>
+            {/* Dialog Quản lý Loại phòng */}
+            <Dialog open={isRoomTypeOpen} onOpenChange={handleRoomTypeDialogChange}>
                 <DialogContent className="bg-card text-card-foreground border border-border/60 w-[85vw] max-w-[85vw] h-[92vh] p-0 rounded-lg shadow-xl sm:max-w-none">
-                    <DialogHeader className="sticky top-0 z-10 bg-card px-5 py-3 border-b border-border/60 rounded-t-lg">
-                        <DialogTitle className="text-foreground">Quản lý loại phòng</DialogTitle>
-                    </DialogHeader>
-                    <div className="h-[calc(92vh-56px)] overflow-y-auto overflow-x-hidden p-5">
-                        <RoomTypeManager />
-                    </div>
+                    <DialogHeader className="sticky top-0 z-10 bg-card px-5 py-3 border-b border-border/60 rounded-t-lg"><DialogTitle className="text-foreground">Quản lý loại phòng</DialogTitle></DialogHeader>
+                    <div className="h-[calc(92vh-56px)] overflow-y-auto overflow-x-hidden p-5"><RoomTypeManager /></div>
                 </DialogContent>
             </Dialog>
 
-            {/* SeatType manager dialog */}
-            {/* Function: Manage seat type taxonomy */}
-            {/* Input: None (internal to SeatTypeManager) */}
-            {/* Output: CRUD for seat types (side-effect: affects buildMatrixPayload mapping) */}
-            <Dialog open={isSeatTypeOpen} onOpenChange={setSeatTypeOpen}>
+            {/* Dialog Quản lý Loại ghế */}
+            <Dialog open={isSeatTypeOpen} onOpenChange={handleSeatTypeDialogChange}>
                 <DialogContent className="bg-card text-card-foreground border border-border/60 w-[85vw] max-w-[85vw] h-[92vh] p-0 rounded-lg shadow-xl sm:max-w-none">
-                    <DialogHeader className="sticky top-0 z-10 bg-card px-5 py-3 border-b border-border/60 rounded-t-lg">
-                        <DialogTitle className="text-foreground">Quản lý loại ghế</DialogTitle>
-                    </DialogHeader>
-                    <div className="h-[calc(92vh-56px)] overflow-y-auto overflow-x-hidden p-5">
-                        <SeatTypeManager />
-                    </div>
+                    <DialogHeader className="sticky top-0 z-10 bg-card px-5 py-3 border-b border-border/60 rounded-t-lg"><DialogTitle className="text-foreground">Quản lý loại ghế</DialogTitle></DialogHeader>
+                    <div className="h-[calc(92vh-56px)] overflow-y-auto overflow-x-hidden p-5"><SeatTypeManager /></div>
                 </DialogContent>
             </Dialog>
         </div>
