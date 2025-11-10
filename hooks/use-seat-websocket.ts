@@ -14,7 +14,6 @@ export function useSeatWebSocket(
   showtimeId: number | null,
   userId: number | null,
   enabled: boolean = true,
-  onExpired?: (userId: number, showtimeId: number) => void,
   onReleased?: (userId: number, ticketIds: number[]) => void,
   onBooked?: (ticketIds: number[]) => void
 ) {
@@ -70,12 +69,6 @@ export function useSeatWebSocket(
       }
     } else if (message.status === 'FAILED') {
       console.warn('[useSeatWebSocket] Seat selection failed for user', message.userId)
-    } else if (message.status === 'EXPIRED') {
-      // Seat hold expired - notify callback
-      console.log('[useSeatWebSocket] Seat hold expired for user', message.userId, 'showtime', message.showtimeId)
-      if (onExpired) {
-        onExpired(message.userId, message.showtimeId)
-      }
     } else if (message.status === 'BOOKED') {
       // Seats were booked - remove from heldSeats and seatsByUser
       console.log('[useSeatWebSocket] Seats booked for showtime', message.showtimeId, 'ticketIds:', ticketIds)
@@ -102,7 +95,7 @@ export function useSeatWebSocket(
         onBooked(ticketIds)
       }
     }
-  }, [onExpired, onReleased, onBooked, userId])
+  }, [onReleased, onBooked, userId])
 
   // Connect to WebSocket
   useEffect(() => {

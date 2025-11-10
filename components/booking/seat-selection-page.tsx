@@ -73,55 +73,6 @@ export default function SeatSelectionPage() {
 
   const { toast } = useToast()
   
-  // Callback khi seat hold hết hạn từ Redis notification (qua WebSocket)
-  const handleSeatHoldExpired = useCallback(() => {
-    if (userId && showtimeId) {
-      console.log('[SeatSelection] Seat hold expired via Redis notification')
-      
-      // Hiển thị toast thông báo cho user
-      toast({
-        title: "⏰ Hết thời gian giữ ghế",
-        description: "Thời gian giữ ghế đã hết hạn. Vui lòng chọn lại ghế.",
-        variant: "destructive",
-      })
-      
-      // Reset selected seats
-      setSelectedSeats([])
-      setSelectedTicketIds([])
-      // Xóa sentSeatsRef
-      sentSeatsRef.current.clear()
-      
-      // Redirect về home sau khi hiển thị toast
-      setTimeout(() => {
-        router.push('/home')
-      }, 3000) // Đợi 3 giây để user đọc thông báo
-    }
-  }, [userId, showtimeId, router, toast])
-  
-  // Callback để truyền vào BookingOrderSummary
-  // BookingOrderSummary sẽ expose handler qua ref này
-  // Khi nhận EXPIRED message từ WebSocket, chúng ta sẽ gọi handler này để BookingOrderSummary xử lý countdown
-  const bookingExpiredHandlerRef = useRef<(() => void) | null>(null)
-  
-  // Callback để BookingOrderSummary có thể register handler
-  const handleBookingExpired = useCallback(() => {
-    // Khi được gọi từ BookingOrderSummary, nó sẽ set handler vào ref
-    // Nhưng thực tế, chúng ta cần gọi handler khi nhận EXPIRED message
-    if (bookingExpiredHandlerRef.current) {
-      bookingExpiredHandlerRef.current()
-    }
-  }, [])
-  
-  // Update handleSeatHoldExpired để cũng gọi bookingExpiredHandlerRef
-  const handleSeatHoldExpiredWithBooking = useCallback(() => {
-    // Gọi handler từ BookingOrderSummary nếu có
-    if (bookingExpiredHandlerRef.current) {
-      bookingExpiredHandlerRef.current()
-    }
-    // Sau đó xử lý UI như bình thường
-    handleSeatHoldExpired()
-  }, [handleSeatHoldExpired])
-  
   // Track seats that were just released by current user (to ignore stale backendStatus HELD)
   const releasedSeatsRef = useRef<Set<number>>(new Set())
   
@@ -189,7 +140,6 @@ export default function SeatSelectionPage() {
     showtimeId,
     userId,
     !!showtimeId && !!userId,
-    handleSeatHoldExpiredWithBooking, // Subscribe vào Redis expiration notification
     handleSeatReleased, // Callback when seats are released
     handleSeatBooked // Callback when seats are booked
   )
@@ -725,27 +675,6 @@ export default function SeatSelectionPage() {
       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-blue-400 to-blue-500"></div>
       
       <div className="container mx-auto px-4 py-8 relative z-10">
-        {/* Header Section */}
-        <div className="mb-12 relative">
-          <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-blue-300 rounded-full"></div>
-          <div className="inline-block mb-4">
-            <div className="text-[11px] font-bold text-blue-600 uppercase tracking-wider mb-2 px-3 py-1 bg-blue-50 rounded-md">
-              Step 2
-            </div>
-          </div>
-          <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-3 tracking-tight">
-            <span className="bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
-              Chọn Ghế Ngồi
-            </span>
-          </h1>
-          <p className="text-lg text-gray-600 font-medium">
-            Chọn ghế ngồi yêu thích của bạn trên sơ đồ
-          </p>
-          <div className="flex items-center gap-2 mt-4">
-            <div className="h-1.5 w-24 rounded-full bg-gradient-to-r from-blue-500 to-blue-300"></div>
-            <div className="h-1.5 w-2 rounded-full bg-blue-400"></div>
-          </div>
-        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Seat Selection */}
@@ -940,9 +869,6 @@ export default function SeatSelectionPage() {
               userId={userId}
               movieId={movieId}
               triggerSync={syncTrigger}
-              onSeatHoldExpired={(handler) => {
-                bookingExpiredHandlerRef.current = handler
-              }}
               showSeatTypeStats={true}
               actionButton={
                 <Button

@@ -252,11 +252,6 @@ export default function ShowtimeSelectionPage({ movieId }: ShowtimeSelectionPage
               Step 1
             </div>
           </div>
-          <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-3 tracking-tight">
-            <span className="bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
-              Chọn Suất Chiếu
-            </span>
-          </h1>
           <p className="text-lg text-gray-600 font-medium">
             Chọn ngày, giờ và phòng chiếu phù hợp với bạn
           </p>

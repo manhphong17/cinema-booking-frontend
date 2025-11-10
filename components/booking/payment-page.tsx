@@ -59,12 +59,10 @@ export default function PaymentPage({
   const [concessions, setConcessions] = useState<any[]>([])
   const [userId, setUserId] = useState<number | null>(null)
   const [comboQty, setComboQty] = useState<Record<string, number>>({})
+  const [resolvedMovieId, setResolvedMovieId] = useState<string | null>(movieId)
 
   // Seat data
   const [seatData, setSeatData] = useState<TicketResponse[]>([])
-
-
-  const bookingExpiredHandlerRef = useRef<(() => void) | null>(null)
   
   // Get userId from token
   useEffect(() => {
@@ -79,35 +77,11 @@ export default function PaymentPage({
     }
   }, [])
   
-  // Callback khi seat hold hết hạn từ Redis notification (qua WebSocket)
-  const handleSeatHoldExpired = useCallback(() => {
-    if (userId && showtimeId) {
-      console.log('[Payment] Seat hold expired via Redis notification')
-      
-      // Hiển thị toast thông báo cho user
-        toast.error( "Thời gian giữ ghế đã hết hạn. Vui lòng chọn lại ghế.");
-      
-      // Redirect về home sau khi hiển thị toast
-      setTimeout(() => {
-        router.push('/home')
-      }, 3000)
-    }
-  }, [userId, showtimeId, router, toast])
-  
-  // Callback để truyền vào BookingOrderSummary
-  const handleBookingExpired = useCallback(() => {
-    if (bookingExpiredHandlerRef.current) {
-      bookingExpiredHandlerRef.current()
-    }
-    handleSeatHoldExpired()
-  }, [handleSeatHoldExpired])
-  
-  // WebSocket connection để nhận EXPIRED message từ Redis
+  // WebSocket connection
   const { isConnected } = useSeatWebSocket(
     showtimeId ? parseInt(showtimeId) : null,
     userId,
-    !!(showtimeId && userId), // Enable WebSocket nếu có showtimeId và userId
-    handleSeatHoldExpired
+    !!(showtimeId && userId) // Enable WebSocket nếu có showtimeId và userId
   )
 
 
@@ -116,6 +90,34 @@ export default function PaymentPage({
             if (!showtimeId || !userId) return;
 
             try {
+                // Nếu chưa có movieId, lấy từ showtime API
+                if (!resolvedMovieId && showtimeId) {
+                    try {
+                        // Thử endpoint /api/showtimes/showtimeBy/{id} như trong operator page
+                        const showtimeRes = await apiClient.get(`/api/showtimes/showtimeBy/${showtimeId}`);
+                        if (showtimeRes.data?.status === 200 && showtimeRes.data?.data?.movieId) {
+                            setResolvedMovieId(showtimeRes.data.data.movieId.toString());
+                            console.log('[PaymentPage] Got movieId from showtime:', showtimeRes.data.data.movieId);
+                        } else if (showtimeRes.data?.movieId) {
+                            // Nếu response không có status, thử lấy trực tiếp
+                            setResolvedMovieId(showtimeRes.data.movieId.toString());
+                            console.log('[PaymentPage] Got movieId from showtime (direct):', showtimeRes.data.movieId);
+                        }
+                    } catch (err) {
+                        console.error('[PaymentPage] Error fetching showtime:', err);
+                        // Fallback: thử endpoint khác
+                        try {
+                            const showtimeRes2 = await apiClient.get(`/showtimes/${showtimeId}`);
+                            if (showtimeRes2.data?.status === 200 && showtimeRes2.data?.data?.movieId) {
+                                setResolvedMovieId(showtimeRes2.data.data.movieId.toString());
+                                console.log('[PaymentPage] Got movieId from showtime (fallback):', showtimeRes2.data.data.movieId);
+                            }
+                        } catch (err2) {
+                            console.error('[PaymentPage] Error fetching showtime (fallback):', err2);
+                        }
+                    }
+                }
+
                 // Gọi API lấy OrderSession trong Redis
                 const res = await apiClient.get(`/bookings/order-session`, {
                     params: { showtimeId, userId }
@@ -132,7 +134,8 @@ export default function PaymentPage({
                     const seatRes = await apiClient.get(`/bookings/tickets/details`, {
                         params: { ids: ticketIds.join(",") }
                     });
-                    setSeatData(seatRes.data.data || []);
+                    const tickets = seatRes.data.data || [];
+                    setSeatData(tickets);
                 }
 
                 //  Fetch concessions theo comboId
@@ -253,10 +256,23 @@ export default function PaymentPage({
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 py-8">
-      <div className="container mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8 px-4">
-        {/* LEFT */}
-        <div className="lg:col-span-3 space-y-6">
+    <div className="min-h-screen bg-white relative overflow-hidden">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-5">
+        <div className="absolute inset-0" style={{
+          backgroundImage: 'radial-gradient(circle at 2px 2px, #3b82f6 1px, transparent 0)',
+          backgroundSize: '40px 40px'
+        }}></div>
+      </div>
+      
+      {/* Decorative Border Top */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-blue-400 to-blue-500"></div>
+      
+      <div className="container mx-auto px-4 py-8 max-w-7xl relative z-10">
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* LEFT */}
+          <div className="lg:col-span-3 space-y-6">
           <CustomerInfoCard
             onChange={(info, discount) => {
               setCustomerInfo(info)
@@ -279,10 +295,7 @@ export default function PaymentPage({
             earnedPoints={Math.floor(calculateTotal() / 10000)}
             showtimeId={showtimeId ? parseInt(showtimeId) : null}
             userId={userId}
-            movieId={movieId}
-            onSeatHoldExpired={(handler) => {
-              bookingExpiredHandlerRef.current = handler
-            }}
+            movieId={resolvedMovieId || movieId}
           />
 
           {/* Payment Button */}
@@ -296,6 +309,7 @@ export default function PaymentPage({
               : `Thanh toán ${calculateTotal().toLocaleString()}đ`}
           </button>
 
+        </div>
         </div>
       </div>
     </div>
