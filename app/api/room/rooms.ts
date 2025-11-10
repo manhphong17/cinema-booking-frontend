@@ -60,6 +60,7 @@ export async function fetchRooms(params?: {
     return data
 }
 
+
 export async function fetchRoomMeta() {
     const { data } = await apiClient.get<ResponseData<{ roomTypes: RoomTypeDto[]; seatTypes: SeatTypeDto[] }>>(
         "/rooms/meta",

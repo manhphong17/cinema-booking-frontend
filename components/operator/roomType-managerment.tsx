@@ -308,15 +308,15 @@ export default function RoomTypesManager() {
                                                 {/* Function: Delete selected item. */}
                                                 {/* Output: Removes item and refreshes list. */}
                                                 {/* Input: it.id. */}
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() => onDelete(it.id)}
-                                                    className="text-destructive hover:bg-destructive/10"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </Button>
+                                                {/*<Button*/}
+                                                {/*    type="button"*/}
+                                                {/*    size="sm"*/}
+                                                {/*    variant="ghost"*/}
+                                                {/*    onClick={() => onDelete(it.id)}*/}
+                                                {/*    className="text-destructive hover:bg-destructive/10"*/}
+                                                {/*>*/}
+                                                {/*    <Trash2 className="w-4 h-4" />*/}
+                                                {/*</Button>*/}
                                             </div>
                                         </TableCell>
                                     </TableRow>
