@@ -73,55 +73,6 @@ export default function SeatSelectionPage() {
 
   const { toast } = useToast()
   
-  // Callback khi seat hold hết hạn từ Redis notification (qua WebSocket)
-  const handleSeatHoldExpired = useCallback(() => {
-    if (userId && showtimeId) {
-      console.log('[SeatSelection] Seat hold expired via Redis notification')
-      
-      // Hiển thị toast thông báo cho user
-      toast({
-        title: "⏰ Hết thời gian giữ ghế",
-        description: "Thời gian giữ ghế đã hết hạn. Vui lòng chọn lại ghế.",
-        variant: "destructive",
-      })
-      
-      // Reset selected seats
-      setSelectedSeats([])
-      setSelectedTicketIds([])
-      // Xóa sentSeatsRef
-      sentSeatsRef.current.clear()
-      
-      // Redirect về home sau khi hiển thị toast
-      setTimeout(() => {
-        router.push('/home')
-      }, 3000) // Đợi 3 giây để user đọc thông báo
-    }
-  }, [userId, showtimeId, router, toast])
-  
-  // Callback để truyền vào BookingOrderSummary
-  // BookingOrderSummary sẽ expose handler qua ref này
-  // Khi nhận EXPIRED message từ WebSocket, chúng ta sẽ gọi handler này để BookingOrderSummary xử lý countdown
-  const bookingExpiredHandlerRef = useRef<(() => void) | null>(null)
-  
-  // Callback để BookingOrderSummary có thể register handler
-  const handleBookingExpired = useCallback(() => {
-    // Khi được gọi từ BookingOrderSummary, nó sẽ set handler vào ref
-    // Nhưng thực tế, chúng ta cần gọi handler khi nhận EXPIRED message
-    if (bookingExpiredHandlerRef.current) {
-      bookingExpiredHandlerRef.current()
-    }
-  }, [])
-  
-  // Update handleSeatHoldExpired để cũng gọi bookingExpiredHandlerRef
-  const handleSeatHoldExpiredWithBooking = useCallback(() => {
-    // Gọi handler từ BookingOrderSummary nếu có
-    if (bookingExpiredHandlerRef.current) {
-      bookingExpiredHandlerRef.current()
-    }
-    // Sau đó xử lý UI như bình thường
-    handleSeatHoldExpired()
-  }, [handleSeatHoldExpired])
-  
   // Track seats that were just released by current user (to ignore stale backendStatus HELD)
   const releasedSeatsRef = useRef<Set<number>>(new Set())
   
@@ -189,7 +140,6 @@ export default function SeatSelectionPage() {
     showtimeId,
     userId,
     !!showtimeId && !!userId,
-    handleSeatHoldExpiredWithBooking, // Subscribe vào Redis expiration notification
     handleSeatReleased, // Callback when seats are released
     handleSeatBooked // Callback when seats are booked
   )
@@ -712,20 +662,30 @@ export default function SeatSelectionPage() {
   }, [selectedSeats, seatData])
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-gray-50/50">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <div className="w-20 h-1 bg-gradient-to-r from-primary to-primary/50 rounded-full"></div>
-        </div>
+    <div className="min-h-screen bg-white relative overflow-hidden">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-5">
+        <div className="absolute inset-0" style={{
+          backgroundImage: 'radial-gradient(circle at 2px 2px, #3b82f6 1px, transparent 0)',
+          backgroundSize: '40px 40px'
+        }}></div>
+      </div>
+      
+      {/* Decorative Border Top */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-blue-400 to-blue-500"></div>
+      
+      <div className="container mx-auto px-4 py-8 relative z-10">
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Seat Selection */}
           <div className="lg:col-span-3">
-            <Card className="shadow-2xl border-2 border-primary/30 bg-white hover:shadow-primary/20 transition-all duration-300">
-              <CardHeader className="bg-gradient-to-r from-primary/15 via-primary/10 to-primary/15 border-b-2 border-primary/40">
-                <CardTitle className="flex items-center gap-2 text-primary">
-                  <Sofa className="h-5 w-5" />
-                  <span className="text-lg font-semibold">Sơ đồ ghế</span>
+            <Card className="shadow-2xl border-2 border-blue-200 bg-white hover:border-blue-400 hover:shadow-2xl transition-all duration-300">
+              <CardHeader className="bg-gradient-to-r from-blue-50 via-white to-blue-50 border-b-2 border-blue-200">
+                <CardTitle className="flex items-center gap-3 text-gray-900">
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
+                    <Sofa className="h-5 w-5" />
+                  </div>
+                  <span className="text-xl font-bold">Sơ đồ ghế</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
@@ -764,15 +724,15 @@ export default function SeatSelectionPage() {
 
                 {/* Seat Layout */}
                 {loadingSeats ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin mr-3 text-primary" />
-                    <span className="text-lg text-muted-foreground">Đang tải sơ đồ ghế...</span>
+                  <div className="flex items-center justify-center py-16 bg-blue-50 rounded-xl border-2 border-blue-200">
+                    <Loader2 className="h-10 w-10 animate-spin mr-4 text-blue-600" />
+                    <span className="text-lg text-gray-700 font-medium">Đang tải sơ đồ ghế...</span>
                   </div>
                 ) : (
-                  <div className="space-y-4 flex flex-col items-center">
+                  <div className="space-y-5 flex flex-col items-center">
                     {getSeatLayout().map((row) => (
                       <div key={row.row} className="flex items-center gap-4">
-                        <div className="w-8 text-center font-bold text-sm text-foreground bg-gradient-to-r from-primary/10 to-primary/20 rounded-lg py-1">
+                        <div className="w-10 text-center font-bold text-base text-gray-900 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg py-2 border-2 border-blue-300 shadow-md">
                           {row.row}
                         </div>
                         <div className="flex gap-2 justify-center">
@@ -835,24 +795,24 @@ export default function SeatSelectionPage() {
                                   }}
                                   disabled={buttonDisabled}
                                 className={`
-                                  w-10 h-10 rounded-lg text-xs font-bold transition-all duration-300 flex items-center justify-center relative
+                                  w-12 h-12 rounded-xl text-sm font-bold transition-all duration-300 flex items-center justify-center relative border-2
                                 ${isBooked 
-                                    ? 'bg-gradient-to-br from-orange-500 to-orange-700 text-white cursor-not-allowed shadow-inner ring-2 ring-orange-300' 
+                                    ? 'bg-gradient-to-br from-orange-500 to-orange-700 text-white cursor-not-allowed shadow-xl ring-3 ring-orange-300 border-orange-400' 
                                     : isMaintenance
-                                      ? 'bg-gradient-to-br from-gray-600 to-gray-800 text-white cursor-not-allowed shadow-inner ring-2 ring-gray-400'
+                                      ? 'bg-gradient-to-br from-gray-600 to-gray-800 text-white cursor-not-allowed shadow-xl ring-3 ring-gray-400 border-gray-500'
                                       : isHeld
-                                        ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-yellow-950 cursor-not-allowed shadow-inner animate-pulse ring-2 ring-yellow-300'
+                                        ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-yellow-950 cursor-not-allowed shadow-xl animate-pulse ring-3 ring-yellow-300 border-yellow-400'
                                       : isLimitReached
-                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
+                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50 border-gray-300'
                                         : isDifferentType
-                                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-30'
+                                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-30 border-gray-200'
                                   : isSelected
-                                          ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white scale-110 shadow-2xl ring-4 ring-emerald-300 ring-offset-2 font-extrabold'
+                                          ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white scale-110 shadow-2xl ring-4 ring-emerald-300 ring-offset-2 font-extrabold border-emerald-400'
                                       : seatType === 'vip'
-                                            ? 'bg-gradient-to-br from-violet-500 to-violet-700 text-white hover:from-violet-400 hover:to-violet-600 shadow-xl hover:shadow-violet-500/60 ring-2 ring-violet-300'
-                                            : 'bg-gradient-to-br from-blue-500 to-blue-700 text-white hover:from-blue-400 hover:to-blue-600 shadow-xl hover:shadow-blue-500/60 ring-2 ring-blue-300'
+                                            ? 'bg-gradient-to-br from-violet-500 to-violet-700 text-white hover:from-violet-400 hover:to-violet-600 shadow-xl hover:shadow-violet-500/60 ring-2 ring-violet-300 border-violet-400 hover:scale-110'
+                                            : 'bg-gradient-to-br from-blue-500 to-blue-700 text-white hover:from-blue-400 hover:to-blue-600 shadow-xl hover:shadow-blue-500/60 ring-2 ring-blue-300 border-blue-400 hover:scale-110'
                                   }
-                                  hover:scale-110 active:scale-95
+                                  active:scale-95
                                 `}
                               >
                                 <span className="text-sm font-bold">{seat.id.slice(1)}</span>
@@ -866,28 +826,31 @@ export default function SeatSelectionPage() {
                 )}
 
                 {/* Legend */}
-                <div className="mt-8 bg-gray-50 rounded-xl p-4 border-2 border-gray-300">
-                  <h4 className="font-semibold text-center mb-3 text-foreground text-base">Chú thích ghế</h4>
-                  <div className="grid grid-cols-2 gap-2 text-xs mb-4 max-w-sm mx-auto">
-                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-blue-200">
-                      <div className="w-5 h-5 bg-gradient-to-br from-blue-500 to-blue-700 rounded ring-2 ring-blue-300"></div>
-                      <span className="text-foreground font-medium">Có thể chọn</span>
+                <div className="mt-10 bg-gradient-to-br from-blue-50 via-white to-blue-50 rounded-xl p-6 border-2 border-blue-200 shadow-lg">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-1 h-6 bg-gradient-to-b from-blue-500 to-blue-300 rounded-full"></div>
+                    <h4 className="font-bold text-lg text-gray-900">Chú thích ghế</h4>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-sm max-w-lg mx-auto">
+                    <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-md border-2 border-blue-300 hover:shadow-lg transition-all">
+                      <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg ring-2 ring-blue-300 shadow-md"></div>
+                      <span className="text-gray-900 font-semibold">Có thể chọn</span>
                     </div>
-                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-emerald-200">
-                      <div className="w-5 h-5 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded ring-2 ring-emerald-300"></div>
-                      <span className="text-foreground font-medium">Đã chọn</span>
+                    <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-md border-2 border-emerald-300 hover:shadow-lg transition-all">
+                      <div className="w-6 h-6 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg ring-2 ring-emerald-300 shadow-md"></div>
+                      <span className="text-gray-900 font-semibold">Đã chọn</span>
                     </div>
-                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-orange-200">
-                      <div className="w-5 h-5 bg-gradient-to-br from-orange-500 to-orange-700 rounded ring-2 ring-orange-300"></div>
-                      <span className="text-foreground font-medium">Đã đặt</span>
+                    <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-md border-2 border-orange-300 hover:shadow-lg transition-all">
+                      <div className="w-6 h-6 bg-gradient-to-br from-orange-500 to-orange-700 rounded-lg ring-2 ring-orange-300 shadow-md"></div>
+                      <span className="text-gray-900 font-semibold">Đã đặt</span>
                     </div>
-                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-yellow-200">
-                      <div className="w-5 h-5 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded animate-pulse ring-2 ring-yellow-300"></div>
-                      <span className="text-foreground font-medium">Đang giữ</span>
+                    <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-md border-2 border-yellow-300 hover:shadow-lg transition-all">
+                      <div className="w-6 h-6 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-lg animate-pulse ring-2 ring-yellow-300 shadow-md"></div>
+                      <span className="text-gray-900 font-semibold">Đang giữ</span>
                     </div>
-                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-gray-300 col-span-2">
-                      <div className="w-5 h-5 bg-gradient-to-br from-gray-600 to-gray-800 rounded ring-2 ring-gray-400"></div>
-                      <span className="text-foreground font-medium">Bảo trì</span>
+                    <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-md border-2 border-gray-300 hover:shadow-lg transition-all col-span-2">
+                      <div className="w-6 h-6 bg-gradient-to-br from-gray-600 to-gray-800 rounded-lg ring-2 ring-gray-400 shadow-md"></div>
+                      <span className="text-gray-900 font-semibold">Bảo trì</span>
                     </div>
                   </div>
                 </div>
@@ -906,17 +869,17 @@ export default function SeatSelectionPage() {
               userId={userId}
               movieId={movieId}
               triggerSync={syncTrigger}
-              onSeatHoldExpired={(handler) => {
-                bookingExpiredHandlerRef.current = handler
-              }}
               showSeatTypeStats={true}
               actionButton={
                 <Button
                   onClick={handleContinue}
                   disabled={selectedSeats.length === 0}
-                  className="w-full bg-gradient-to-r from-black to-gray-900 hover:from-gray-900 hover:to-black text-white font-semibold py-4 shadow-2xl hover:shadow-gray-900/50 transition-all duration-300 hover:scale-105 border-2 border-gray-800 active:scale-95 rounded-xl text-lg"
+                  className="w-full bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 hover:from-blue-700 hover:via-blue-600 hover:to-blue-700 text-white font-bold py-4 shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 hover:scale-105 border-2 border-blue-400 active:scale-95 rounded-xl text-lg relative overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
-                  {selectedSeats.length > 0 ? 'Tiếp tục chọn combo' : 'Vui lòng chọn ghế'}
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/20 via-transparent to-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                  <span className="relative z-10">
+                    {selectedSeats.length > 0 ? 'Tiếp tục chọn combo →' : 'Vui lòng chọn ghế'}
+                  </span>
                 </Button>
               }
             />

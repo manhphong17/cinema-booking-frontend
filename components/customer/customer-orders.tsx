@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, ShoppingBag } from "lucide-react"
 import { searchOrdersByDate, getOrderDetail, type CustomerOrder, type OrderDetail } from "@/src/api/orders"
 import { Input } from "@/components/ui/input"
 import { OrderDetailModal } from "./order-detail-modal"
@@ -71,135 +71,185 @@ export function CustomerOrders() {
     switch (status?.toLowerCase()) {
       case "completed":
         return (
-          <Badge variant="secondary" className="bg-green-100 text-green-800">
-            Completed
+          <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-2 border-emerald-400 shadow-lg font-bold">
+            Hoàn thành
           </Badge>
         )
       case "pending":
         return (
-          <Badge variant="outline" className="bg-yellow-50 text-yellow-800">
-            Pending
+          <Badge className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-950 border-2 border-yellow-400 shadow-lg font-bold">
+            Đang chờ
           </Badge>
         )
       case "upcoming":
         return (
-          <Badge variant="default" className="bg-blue-100 text-blue-800">
-            Upcoming
+          <Badge className="bg-gradient-to-r from-blue-500 to-blue-600 text-white border-2 border-blue-400 shadow-lg font-bold">
+            Sắp tới
           </Badge>
         )
       case "cancelled":
         return (
-          <Badge variant="destructive" className="bg-red-100 text-red-800">
-            Cancelled
+          <Badge className="bg-gradient-to-r from-red-500 to-red-600 text-white border-2 border-red-400 shadow-lg font-bold">
+            Đã hủy
           </Badge>
         )
       default:
-        return <Badge variant="outline">{status}</Badge>
+        return <Badge className="border-2 font-bold">{status}</Badge>
     }
   }
 
   return (
-    <div id="view-orders" className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">My Orders</h1>
+    <div id="view-orders" className="min-h-screen bg-white relative overflow-hidden">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-5">
+        <div className="absolute inset-0" style={{
+          backgroundImage: 'radial-gradient(circle at 2px 2px, #3b82f6 1px, transparent 0)',
+          backgroundSize: '40px 40px'
+        }}></div>
       </div>
-
-      <div className="mb-6">
-        <div className="flex items-center gap-4 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg shadow-sm border border-gray-100">
-          <div className="flex items-center gap-3">
-            <span className="text-lg font-semibold text-blue-700">Chọn ngày</span>
-            <Input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => {
-                setCurrentPage(1)
-                setSelectedDate(e.target.value)
-              }}
-              className="w-[220px] h-10 text-base font-medium border-blue-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-            />
+      
+      {/* Decorative Border Top */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-blue-400 to-blue-500"></div>
+      
+      <div className="container mx-auto px-4 py-8 max-w-7xl relative z-10 space-y-6">
+        {/* Header Section */}
+        <div className="mb-12 relative">
+          <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-blue-300 rounded-full"></div>
+          <div className="inline-block mb-4">
+            <div className="text-[11px] font-bold text-blue-600 uppercase tracking-wider mb-2 px-3 py-1 bg-blue-50 rounded-md">
+              Orders
+            </div>
+          </div>
+          <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-3 tracking-tight">
+            <span className="bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
+              Lịch sử đơn hàng
+            </span>
+          </h1>
+          <p className="text-lg text-gray-600 font-medium">
+            Theo dõi tất cả các đơn hàng và giao dịch của bạn
+          </p>
+          <div className="flex items-center gap-2 mt-4">
+            <div className="h-1.5 w-24 rounded-full bg-gradient-to-r from-blue-500 to-blue-300"></div>
+            <div className="h-1.5 w-2 rounded-full bg-blue-400"></div>
           </div>
         </div>
+
+      <div className="mb-6">
+        <Card className="shadow-xl border-2 border-blue-200 bg-white">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
+                  <ShoppingBag className="h-5 w-5" />
+                </div>
+                <span className="text-lg font-bold text-gray-900">Chọn ngày</span>
+              </div>
+              <Input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => {
+                  setCurrentPage(1)
+                  setSelectedDate(e.target.value)
+                }}
+                className="w-[220px] h-12 text-base font-medium border-2 border-blue-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-200 bg-white"
+              />
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Orders Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Order History</CardTitle>
+      <Card className="shadow-2xl border-2 border-blue-200 bg-white hover:border-blue-400 hover:shadow-2xl transition-all duration-300">
+        <CardHeader className="bg-gradient-to-r from-blue-50 via-white to-blue-50 border-b-2 border-blue-200">
+          <CardTitle className="flex items-center gap-3 text-gray-900">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
+              <ShoppingBag className="h-5 w-5" />
+            </div>
+            <span className="text-xl font-bold">Lịch sử đơn hàng</span>
+          </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
           {error && (
-            <div className="text-sm text-red-600 mb-4">{error}</div>
+            <div className="text-sm text-red-600 mb-4 p-4 bg-red-50 rounded-lg border-2 border-red-200 font-semibold">{error}</div>
           )}
           {loading ? (
-            <div className="py-10 text-center text-gray-600">Đang tải đơn hàng...</div>
+            <div className="py-16 text-center bg-blue-50 rounded-xl border-2 border-blue-200">
+              <div className="text-lg text-gray-700 font-medium">Đang tải đơn hàng...</div>
+            </div>
           ) : orders.length === 0 ? (
-            <div className="py-10 text-center text-gray-600">Không có đơn hàng</div>
+            <div className="py-16 text-center bg-blue-50 rounded-xl border-2 border-blue-200">
+              <div className="text-lg text-gray-700 font-medium">Không có đơn hàng</div>
+            </div>
           ) : (
-          <Table className="border-collapse">
-            <TableHeader>
-              <TableRow className="bg-gray-50 hover:bg-gray-50">
-                <TableHead className="px-4 py-3 text-sm font-semibold text-gray-700 w-[15%]">Mã đơn</TableHead>
-                <TableHead className="px-4 py-3 text-sm font-semibold text-gray-700 w-[15%] text-right">Giá tiền</TableHead>
-                <TableHead className="px-4 py-3 text-sm font-semibold text-gray-700 w-[20%]">Trạng thái</TableHead>
-                <TableHead className="px-4 py-3 text-sm font-semibold text-gray-700 w-[30%]">Ngày tạo</TableHead>
-                <TableHead className="px-4 py-3 text-sm font-semibold text-gray-700 w-[20%] text-center">Thao tác</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {orders.map((order) => (
-                <TableRow key={order.id} className="hover:bg-gray-50">
-                  <TableCell className="px-4 py-3 text-sm font-medium text-gray-900">{order.code || "-"}</TableCell>
-                  <TableCell className="px-4 py-3 text-sm text-gray-700 text-right">{order.total?.toLocaleString('vi-VN')} đ</TableCell>
-                  <TableCell className="px-4 py-3">{getStatusBadge(order.status)}</TableCell>
-                  <TableCell className="px-4 py-3 text-sm text-gray-600">
-                    {order.date ? new Date(order.date).toLocaleString('vi-VN', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    }) : "-"}
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-center">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-8 text-sm font-medium"
-                      onClick={() => handleViewDetail(order.id)}
-                    >
-                      Xem chi tiết
-                    </Button>
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table className="border-collapse">
+              <TableHeader>
+                <TableRow className="bg-gradient-to-r from-blue-50 to-blue-50 hover:bg-blue-50 border-b-2 border-blue-200">
+                  <TableHead className="px-6 py-4 text-sm font-bold text-gray-900 w-[15%]">Mã đơn</TableHead>
+                  <TableHead className="px-6 py-4 text-sm font-bold text-gray-900 w-[15%] text-right">Giá tiền</TableHead>
+                  <TableHead className="px-6 py-4 text-sm font-bold text-gray-900 w-[20%]">Trạng thái</TableHead>
+                  <TableHead className="px-6 py-4 text-sm font-bold text-gray-900 w-[30%]">Ngày tạo</TableHead>
+                  <TableHead className="px-6 py-4 text-sm font-bold text-gray-900 w-[20%] text-center">Thao tác</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {orders.map((order) => (
+                  <TableRow key={order.id} className="hover:bg-blue-50/50 border-b border-gray-200 transition-colors">
+                    <TableCell className="px-6 py-4 text-sm font-semibold text-gray-900">{order.code || "-"}</TableCell>
+                    <TableCell className="px-6 py-4 text-sm font-bold text-blue-600 text-right">{order.total?.toLocaleString('vi-VN')} đ</TableCell>
+                    <TableCell className="px-6 py-4">{getStatusBadge(order.status)}</TableCell>
+                    <TableCell className="px-6 py-4 text-sm text-gray-700">
+                      {order.date ? new Date(order.date).toLocaleString('vi-VN', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      }) : "-"}
+                    </TableCell>
+                    <TableCell className="px-6 py-4 text-center">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-9 text-sm font-semibold border-2 border-blue-300 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all duration-300"
+                        onClick={() => handleViewDetail(order.id)}
+                      >
+                        Xem chi tiết
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
           )}
 
-          <div className="flex items-center justify-between mt-4">
-            <p className="text-sm text-gray-600">
-              Showing {total === 0 ? 0 : startIndex + 1} to {Math.min(startIndex + itemsPerPage, total)} of {total} orders
+          <div className="flex items-center justify-between mt-6 pt-6 border-t-2 border-blue-200">
+            <p className="text-sm font-semibold text-gray-700 bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
+              Hiển thị {total === 0 ? 0 : startIndex + 1} đến {Math.min(startIndex + itemsPerPage, total)} trong tổng số {total} đơn hàng
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
+                className="border-2 border-blue-300 hover:bg-blue-600 hover:text-white hover:border-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
               >
                 <ChevronLeft className="h-4 w-4" />
-                Previous
+                Trước
               </Button>
-              <span className="text-sm">
-                Page {currentPage} of {totalPages}
+              <span className="text-sm font-bold text-gray-900 bg-blue-50 px-4 py-2 rounded-lg border-2 border-blue-200">
+                Trang {currentPage} / {totalPages}
               </span>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages}
+                className="border-2 border-blue-300 hover:bg-blue-600 hover:text-white hover:border-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
               >
-                Next
+                Sau
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
@@ -215,6 +265,7 @@ export function CustomerOrders() {
         loading={detailLoading}
         onQRGenerated={handleQRGenerated}
       />
+      </div>
     </div>
   )
 }

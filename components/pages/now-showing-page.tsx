@@ -155,16 +155,34 @@ export function NowShowingPageContent() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20">
+        <div className="min-h-screen bg-white">
             {/* Hero Section */}
-            <section className="py-20 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600">
-                <div className="container mx-auto px-4 text-center">
-                    <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
-                        Phim Đang Chiếu
+            <section className="py-24 bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 relative overflow-hidden">
+                {/* Background Pattern */}
+                <div className="absolute inset-0 opacity-10">
+                    <div className="absolute inset-0" style={{
+                        backgroundImage: 'radial-gradient(circle at 2px 2px, #ffffff 1px, transparent 0)',
+                        backgroundSize: '40px 40px'
+                    }}></div>
+                </div>
+                <div className="container mx-auto px-4 text-center relative z-10">
+                    <div className="inline-block mb-4">
+                        <div className="text-[11px] font-bold text-blue-100 uppercase tracking-wider mb-2 px-3 py-1 bg-blue-500/30 rounded-md backdrop-blur-sm">
+                            Now Showing
+                        </div>
+                    </div>
+                    <h1 className="text-5xl md:text-6xl font-black text-white mb-6 tracking-tight">
+                        <span className="bg-gradient-to-r from-white via-blue-50 to-white bg-clip-text text-transparent drop-shadow-lg">
+                            Phim Đang Chiếu
+                        </span>
                     </h1>
-                    <p className="text-xl text-blue-100 max-w-2xl mx-auto">
+                    <p className="text-xl text-blue-50 max-w-2xl mx-auto font-medium">
                         Khám phá những bộ phim hay nhất đang được chiếu tại rạp của chúng tôi
                     </p>
+                    <div className="flex items-center justify-center gap-2 mt-6">
+                        <div className="h-1.5 w-24 rounded-full bg-white/50"></div>
+                        <div className="h-1.5 w-2 rounded-full bg-white"></div>
+                    </div>
                 </div>
             </section>
 
@@ -278,19 +296,34 @@ export function NowShowingPageContent() {
             </section>
 
             {/* Movies Section */}
-            <section className="py-20 bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20">
-                <div className="movie-carousel-container container mx-auto px-4 max-w-7xl">
-                    <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
-                        <div>
-                            <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1">
+            <section className="py-20 bg-white relative overflow-hidden">
+                {/* Background Pattern */}
+                <div className="absolute inset-0 opacity-5">
+                    <div className="absolute inset-0" style={{
+                        backgroundImage: 'radial-gradient(circle at 2px 2px, #3b82f6 1px, transparent 0)',
+                        backgroundSize: '40px 40px'
+                    }}></div>
+                </div>
+                
+                {/* Decorative Border Top */}
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-blue-400 to-blue-500"></div>
+                
+                <div className="movie-carousel-container container mx-auto px-4 max-w-7xl relative z-10">
+                    <div className="flex items-center justify-between mb-12 gap-4 flex-wrap">
+                        <div className="relative">
+                            <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-blue-300 rounded-full"></div>
+                            <div className="text-[11px] font-bold text-blue-600 uppercase tracking-wider mb-2 px-2 py-1 bg-blue-50 rounded-md inline-block">
                                 Now Showing
                             </div>
-                            <h2 className="text-3xl md:text-4xl font-extrabold text-foreground mb-2 tracking-tight leading-tight">
-                                <span className="text-foreground">
+                            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-3 tracking-tight leading-tight">
+                                <span className="bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
                                     Phim đang chiếu
                                 </span>
                             </h2>
-                            <div className="h-1 w-16 rounded-full bg-black/80"></div>
+                            <div className="flex items-center gap-2">
+                                <div className="h-1.5 w-20 rounded-full bg-gradient-to-r from-blue-500 to-blue-300"></div>
+                                <div className="h-1.5 w-2 rounded-full bg-blue-400"></div>
+                            </div>
                         </div>
                     </div>
 
@@ -403,16 +436,43 @@ export function NowShowingPageContent() {
                 </div>
             </section>
 
+            {/* Section Divider */}
+            <div className="relative h-2 bg-gradient-to-r from-transparent via-blue-300/50 to-transparent">
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/30 via-blue-400/50 to-blue-500/30"></div>
+            </div>
+
             {/* Features Section */}
-            <section className="py-20 bg-gray-50">
-                <div className="container mx-auto px-4">
-                    <div className="text-center mb-16">
-                        <h2 className="text-4xl font-bold text-gray-900 mb-4">
-                            Tại Sao Chọn Chúng Tôi?
+            <section className="py-20 bg-gradient-to-br from-gray-50 via-white to-slate-50 relative overflow-hidden">
+                {/* Background Pattern */}
+                <div className="absolute inset-0 opacity-5">
+                    <div className="absolute inset-0" style={{
+                        backgroundImage: 'radial-gradient(circle at 2px 2px, #3b82f6 1px, transparent 0)',
+                        backgroundSize: '40px 40px'
+                    }}></div>
+                </div>
+                
+                {/* Decorative Border Top */}
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-blue-400 to-blue-500"></div>
+                
+                <div className="container mx-auto px-4 relative z-10">
+                    <div className="text-center mb-16 relative">
+                        <div className="inline-block mb-4">
+                            <div className="text-[11px] font-bold text-blue-600 uppercase tracking-wider mb-2 px-3 py-1 bg-blue-50 rounded-md">
+                                Features
+                            </div>
+                        </div>
+                        <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4">
+                            <span className="bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
+                                Tại Sao Chọn Chúng Tôi?
+                            </span>
                         </h2>
-                        <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                        <p className="text-lg text-gray-600 max-w-2xl mx-auto font-medium">
                             Trải nghiệm xem phim tuyệt vời với công nghệ hiện đại và dịch vụ chuyên nghiệp
                         </p>
+                        <div className="flex items-center justify-center gap-2 mt-4">
+                            <div className="h-1.5 w-24 rounded-full bg-gradient-to-r from-blue-500 to-blue-300"></div>
+                            <div className="h-1.5 w-2 rounded-full bg-blue-400"></div>
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

@@ -146,16 +146,34 @@ export function ComingSoonPageContent() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50/30 to-pink-50/20">
+        <div className="min-h-screen bg-white">
             {/* Hero Section */}
-            <section className="py-20 bg-gradient-to-r from-purple-600 via-pink-600 to-red-600">
-                <div className="container mx-auto px-4 text-center">
-                    <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
-                        Phim Sắp Chiếu
+            <section className="py-24 bg-gradient-to-r from-purple-600 via-purple-500 to-pink-600 relative overflow-hidden">
+                {/* Background Pattern */}
+                <div className="absolute inset-0 opacity-10">
+                    <div className="absolute inset-0" style={{
+                        backgroundImage: 'radial-gradient(circle at 2px 2px, #ffffff 1px, transparent 0)',
+                        backgroundSize: '40px 40px'
+                    }}></div>
+                </div>
+                <div className="container mx-auto px-4 text-center relative z-10">
+                    <div className="inline-block mb-4">
+                        <div className="text-[11px] font-bold text-purple-100 uppercase tracking-wider mb-2 px-3 py-1 bg-purple-500/30 rounded-md backdrop-blur-sm">
+                            Coming Soon
+                        </div>
+                    </div>
+                    <h1 className="text-5xl md:text-6xl font-black text-white mb-6 tracking-tight">
+                        <span className="bg-gradient-to-r from-white via-purple-50 to-pink-50 bg-clip-text text-transparent drop-shadow-lg">
+                            Phim Sắp Chiếu
+                        </span>
                     </h1>
-                    <p className="text-xl text-purple-100 max-w-2xl mx-auto">
+                    <p className="text-xl text-purple-50 max-w-2xl mx-auto font-medium">
                         Những bộ phim hấp dẫn sắp ra mắt - Đặt vé ngay để không bỏ lỡ
                     </p>
+                    <div className="flex items-center justify-center gap-2 mt-6">
+                        <div className="h-1.5 w-24 rounded-full bg-white/50"></div>
+                        <div className="h-1.5 w-2 rounded-full bg-white"></div>
+                    </div>
                 </div>
             </section>
 
@@ -268,19 +286,34 @@ export function ComingSoonPageContent() {
             </section>
 
             {/* Movies Section */}
-            <section className="py-20 bg-gradient-to-br from-slate-50 via-purple-50/30 to-pink-50/20">
-                <div className="movie-carousel-container container mx-auto px-4 max-w-7xl">
-                    <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
-                        <div>
-                            <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1">
+            <section className="py-20 bg-gradient-to-br from-purple-50/50 via-white to-pink-50/30 relative overflow-hidden">
+                {/* Background Pattern */}
+                <div className="absolute inset-0 opacity-5">
+                    <div className="absolute inset-0" style={{
+                        backgroundImage: 'radial-gradient(circle at 2px 2px, #a855f7 1px, transparent 0)',
+                        backgroundSize: '40px 40px'
+                    }}></div>
+                </div>
+                
+                {/* Decorative Border Top */}
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-purple-400 to-purple-500"></div>
+                
+                <div className="movie-carousel-container container mx-auto px-4 max-w-7xl relative z-10">
+                    <div className="flex items-center justify-between mb-12 gap-4 flex-wrap">
+                        <div className="relative">
+                            <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-purple-500 to-purple-300 rounded-full"></div>
+                            <div className="text-[11px] font-bold text-purple-600 uppercase tracking-wider mb-2 px-2 py-1 bg-purple-50 rounded-md inline-block">
                                 Coming Soon
                             </div>
-                            <h2 className="text-3xl md:text-4xl font-extrabold text-foreground mb-2 tracking-tight leading-tight">
-                                <span className="text-foreground">
+                            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-3 tracking-tight leading-tight">
+                                <span className="bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent">
                                     Phim sắp chiếu
                                 </span>
                             </h2>
-                            <div className="h-1 w-16 rounded-full bg-black/80"></div>
+                            <div className="flex items-center gap-2">
+                                <div className="h-1.5 w-20 rounded-full bg-gradient-to-r from-purple-500 to-pink-400"></div>
+                                <div className="h-1.5 w-2 rounded-full bg-purple-400"></div>
+                            </div>
                         </div>
                     </div>
 
@@ -393,16 +426,43 @@ export function ComingSoonPageContent() {
                 </div>
             </section>
 
+            {/* Section Divider */}
+            <div className="relative h-2 bg-gradient-to-r from-transparent via-purple-300/50 to-transparent">
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-500/30 via-purple-400/50 to-purple-500/30"></div>
+            </div>
+
             {/* Features Section */}
-            <section className="py-20 bg-white">
-                <div className="container mx-auto px-4">
-                    <div className="text-center mb-16">
-                        <h2 className="text-4xl font-bold text-gray-900 mb-4">
-                            Lợi Ích Khi Đặt Vé Sớm
+            <section className="py-20 bg-gradient-to-br from-purple-50/30 via-white to-pink-50/20 relative overflow-hidden">
+                {/* Background Pattern */}
+                <div className="absolute inset-0 opacity-5">
+                    <div className="absolute inset-0" style={{
+                        backgroundImage: 'radial-gradient(circle at 2px 2px, #a855f7 1px, transparent 0)',
+                        backgroundSize: '40px 40px'
+                    }}></div>
+                </div>
+                
+                {/* Decorative Border Top */}
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-purple-400 to-purple-500"></div>
+                
+                <div className="container mx-auto px-4 relative z-10">
+                    <div className="text-center mb-16 relative">
+                        <div className="inline-block mb-4">
+                            <div className="text-[11px] font-bold text-purple-600 uppercase tracking-wider mb-2 px-3 py-1 bg-purple-50 rounded-md">
+                                Benefits
+                            </div>
+                        </div>
+                        <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4">
+                            <span className="bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent">
+                                Lợi Ích Khi Đặt Vé Sớm
+                            </span>
                         </h2>
-                        <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                        <p className="text-lg text-gray-600 max-w-2xl mx-auto font-medium">
                             Đặt vé trước để tận hưởng nhiều ưu đãi và đảm bảo chỗ ngồi tốt nhất
                         </p>
+                        <div className="flex items-center justify-center gap-2 mt-4">
+                            <div className="h-1.5 w-24 rounded-full bg-gradient-to-r from-purple-500 to-pink-400"></div>
+                            <div className="h-1.5 w-2 rounded-full bg-purple-400"></div>
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
