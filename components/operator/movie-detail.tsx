@@ -396,7 +396,7 @@ export function MovieDetail({ movieId }: MovieDetailProps) {
             toast.error("Vui lòng chọn ngày phát hành")
             return false
         }
-        if (!formData.status || formData.status === "") {
+        if (!formData.status) {
             toast.error("Vui lòng chọn trạng thái")
             return false
         }
