@@ -81,9 +81,13 @@ apiClient.interceptors.request.use(
             return config
         }
 
-        if (token && !isTokenExpired(token)) {
+        // Gửi token nếu có, không kiểm tra expired (để backend tự xử lý)
+        if (token) {
             config.headers = config.headers || {}
             config.headers.Authorization = `Bearer ${token}`
+            console.log('🔐 Token added to request:', config.url)
+        } else {
+            console.warn('⚠️ No token found for request:', config.url)
         }
 
         return config

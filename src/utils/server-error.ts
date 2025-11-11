@@ -1,132 +1,77 @@
-export type ApiEnvelope<T = unknown> = {
-    status?: number;
-    message?: string;
-    code?: number | string;
-    error?: string | { code?: number | string; message?: string };
-    data?: any;
-    errors?: Array<any>;
-    // sẽ gắn thêm __headers khi ném lỗi từ fetch
-    __headers?: Record<string, string | null>;
-    [k: string]: any;
-};
+// src/utils/server-error.ts
 
-/** tìm key trong object lồng nhau theo 1 danh sách tên khả dĩ */
-function deepPick(obj: any, keys: string[], maxDepth = 3): any {
-    if (!obj || typeof obj !== "object" || maxDepth < 0) return undefined;
-    for (const k of keys) {
-        if (obj && Object.prototype.hasOwnProperty.call(obj, k) && obj[k] != null) return obj[k];
-    }
-    // duyệt các nhánh con
-    for (const v of Object.values(obj)) {
-        if (typeof v === "object") {
-            const found = deepPick(v, keys, maxDepth - 1);
-            if (found != null) return found;
-        }
-    }
-    return undefined;
+/**
+ * Định nghĩa cấu trúc của payload lỗi được trả về từ backend.
+ * Dựa trên class `ErrorResponse` và `GlobalExceptionHandler` trong code Java.
+ */
+export interface BackendErrorResponse {
+    title?: string;
+    status?: number; // Đây là mã lỗi nghiệp vụ từ ErrorCode enum (ví dụ: 1040)
+    message?: string;
+    instance?: string;
+    timestamp?: string;
+    // Các trường khác có thể có
+    [k: string]: any;
 }
 
-export const readServerCode = (p?: ApiEnvelope | null) => {
-    if (!p) return undefined;
-    // ưu tiên header
-    const h = p.__headers || {};
-    const headerCode = h["x-error-code"] || h["x-app-error-code"] || h["x-error"];
-    if (headerCode) return headerCode;
-
-    // tìm trong nhiều vị trí (sâu)
-    return (
-        p.code ??
-        (typeof p.error === "object" ? (p.error as any).code : undefined) ??
-        p.errorCode ??
-        deepPick(p.data, ["code", "errorCode"]) ??
-        deepPick(p, ["errorCode"])
-    );
-};
-
-export const readServerMessage = (p?: ApiEnvelope | null) => {
-    if (!p) return undefined;
-    const h = p.__headers || {};
-    const headerMsg = h["x-error-message"] || h["x-app-error-message"];
-    if (headerMsg) return headerMsg?.toString();
-
-    return (
-        p.message ||
-        (typeof p.error === "object" ? (p.error as any).message : undefined) ||
-        p.error_description ||
-        deepPick(p.data, ["message"]) ||
-        deepPick(p, ["defaultMessage"])
-    )?.toString();
-};
-
-/** Map code → thông điệp thân thiện */
-const ERROR_TEXT: Record<string | number, string> = {
-    1006: "Không tìm thấy OTP",
-    1007: "Mã OTP không hợp lệ",
-    1008: "Mã OTP đã hết hạn",
-    1015: "Gửi OTP thất bại",
+/**
+ * Map mã lỗi từ backend (ErrorCode) sang thông điệp thân thiện với người dùng trên UI.
+ * Bạn nên cập nhật danh sách này để bao gồm tất cả các mã lỗi quan trọng từ `ErrorCode.java`.
+ */
+const ERROR_TEXT: Record<number, string> = {
+    // Lỗi chung & người dùng
+    1001: "Người dùng đã tồn tại",
+    1002: "Email đã tồn tại",
+    1005: "Email hoặc mật khẩu không hợp lệ",
     1019: "Tài khoản không tồn tại",
-    1033: "Token đặt lại không tồn tại",
-    1034: "Token đặt lại không hợp lệ hoặc đã hết hạn",
-    1021: "Tham số không hợp lệ",
     1020: "Mật khẩu quá yếu",
+    1021: "Tham số không hợp lệ",
 
-    OTP_NOT_FOUND: "Không tìm thấy OTP",
-    OTP_INVALID: "Mã OTP không hợp lệ",
-    OTP_EXPIRED: "Mã OTP đã hết hạn",
-    OTP_SEND_FAILED: "Gửi OTP thất bại",
-    ACCOUNT_NOT_FOUND: "Tài khoản không tồn tại",
-    PASSWORD_RESET_TOKEN_NOT_FOUND: "Token đặt lại không tồn tại",
-    PASSWORD_RESET_TOKEN_INVALID: "Token đặt lại không hợp lệ hoặc đã hết hạn",
-    INVALID_PARAMETER: "Tham số không hợp lệ",
-    PASSWORD_TOO_WEAK: "Mật khẩu quá yếu",
+    // Lỗi nghiệp vụ phòng & ghế
+    1030: "Không tìm thấy loại ghế",
+    1031: "Không tìm thấy loại phòng",
+    1038: "Tên loại ghế này đã tồn tại",
+    1039: "Loại ghế đang được sử dụng, không thể xóa",
+    1040: "Tên loại phòng này đã tồn tại",
+    1041: "Loại phòng đang được sử dụng, không thể xóa",
+    1042: "Tên phòng này đã tồn tại",
+    1043: "Phòng đang được sử dụng, không thể xóa",
+    2003: "Không tìm thấy phòng",
+    2033: "Phòng đang ở trạng thái không hoạt động",
+
+    // Lỗi nghiệp vụ suất chiếu
+    2036: "Suất chiếu bị trùng lặp trong cùng một phòng",
+    3001: "Không tìm thấy suất chiếu",
+
+    // Thêm các mã lỗi khác bạn muốn hiển thị thông báo thân thiện ở đây...
 };
 
-const MESSAGE_TO_CODE: Array<[RegExp, string | number]> = [
-    [/invalid\s*otp/i, "OTP_INVALID"],
-    [/otp.*expired/i, "OTP_EXPIRED"],
-    [/otp.*not\s*found/i, "OTP_NOT_FOUND"],
-    [/account.*not\s*found/i, "ACCOUNT_NOT_FOUND"],
-    [/reset\s*token.*not\s*found/i, "PASSWORD_RESET_TOKEN_NOT_FOUND"],
-    [/reset\s*token.*(invalid|expired)/i, "PASSWORD_RESET_TOKEN_INVALID"],
-    [/tham số không hợp lệ|invalid parameter/i, "INVALID_PARAMETER"],
-    [/mật khẩu.*(yếu|quá yếu)|password.*weak/i, "PASSWORD_TOO_WEAK"],
-];
-
-
-
-export function friendlyFromPayload(p?: ApiEnvelope | null, fallback?: string) {
-    const code = readServerCode(p);
-    if (code != null && ERROR_TEXT[code] != null) return ERROR_TEXT[code];
-
-    const msg = readServerMessage(p);
-    if (msg) {
-        for (const [re, mapped] of MESSAGE_TO_CODE) {
-            if (re.test(msg)) return ERROR_TEXT[mapped] ?? msg;
-        }
-        return msg;
-    }
-    // nếu có errors[] từ Bean Validation, ưu tiên ghép thông điệp theo field
-    if (p?.errors && Array.isArray(p.errors) && p.errors.length) {
-        const label = (f: string) => {
-            switch (f) {
-                case "email": return "Email";
-                case "otp":
-                case "otpCode":
-                case "otpInput": return "Mã OTP";
-                case "newPassword": return "Mật khẩu mới";
-                case "resetToken": return "Mã khôi phục";
-                default: return f;
-            }
-        };
-        const lines = p.errors.map((e: any) => {
-            const field = (e?.field || e?.propertyPath || "").toString();
-            const msg = (e?.defaultMessage || e?.message || "").toString();
-            // Chuẩn hoá “must not be blank” -> “không được để trống”
-            const nice = /must not be blank/i.test(msg) ? "không được để trống" : msg || "không hợp lệ";
-            return field ? `${label(field)} ${nice}` : nice;
-        });
-        return lines.join("\n");
+/**
+ * Chuyển đổi payload lỗi từ server (trong `error.response.data`) thành một thông báo thân thiện.
+ * @param errorPayload - Object lỗi được trả về từ backend.
+ * @param fallback - Thông báo mặc định nếu không thể dịch lỗi.
+ * @returns Một chuỗi thông báo lỗi dễ hiểu cho người dùng.
+ */
+export function friendlyFromPayload(errorPayload?: BackendErrorResponse | null, fallback?: string): string {
+    // Nếu không có payload lỗi, trả về thông báo mặc định.
+    if (!errorPayload) {
+        return fallback || "Yêu cầu không thành công";
     }
 
-    return fallback || "Yêu cầu không thành công";
+    // Backend trả về mã lỗi nghiệp vụ trong trường `status` của `ErrorResponse`.
+    const errorCode = errorPayload.status;
+    const serverMessage = errorPayload.message;
+
+    // 1. Ưu tiên tra cứu mã lỗi trong danh sách đã định nghĩa sẵn.
+    if (errorCode != null && ERROR_TEXT[errorCode]) {
+        return ERROR_TEXT[errorCode];
+    }
+
+    // 2. Nếu không có mã lỗi trong danh sách, sử dụng message trực tiếp từ server.
+    if (serverMessage) {
+        return serverMessage;
+    }
+
+    // 3. Nếu không có gì cả, trả về thông báo mặc định.
+    return fallback || "Đã xảy ra lỗi không xác định";
 }
