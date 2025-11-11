@@ -5,7 +5,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL
 // Tạo axios instance
 export const apiClient = axios.create({
     baseURL: BASE_URL,
-    timeout: 10000,
+    timeout: 30000,
     withCredentials: true, // Enable sending cookies (refresh token) with requests
 })
 
@@ -24,16 +24,16 @@ const isTokenExpired = (token: string | null): boolean => {
 // Helper function to determine login page based on user role
 const getLoginPage = (): string => {
     if (typeof window === 'undefined') return "/login"
-    
+
     const currentPath = window.location.pathname
-    
+
     // Nếu đang ở admin/operator pages thì redirect đến admin login
-    if (currentPath.startsWith('/admin') || 
-        currentPath.startsWith('/operator-manager') || 
+    if (currentPath.startsWith('/admin') ||
+        currentPath.startsWith('/operator-manager') ||
         currentPath.startsWith('/business-manager')) {
         return "/login/admin"
     }
-    
+
     // Mặc định redirect đến customer login
     return "/login"
 }
@@ -70,12 +70,12 @@ apiClient.interceptors.request.use(
         const token = localStorage.getItem("accessToken")
 
         // Skip auth for login/register/logout endpoints (except refresh-token)
-        if ((config.url?.includes('/auth/') && !config.url?.includes('/auth/refresh-token')) || 
-            config.url?.includes('/login') || 
+        if ((config.url?.includes('/auth/') && !config.url?.includes('/auth/refresh-token')) ||
+            config.url?.includes('/login') ||
             config.url?.includes('/register')) {
             return config
         }
-        
+
         // Skip auth for logout endpoint
         if (config.url?.includes('/auth/log-out')) {
             return config
@@ -102,8 +102,8 @@ apiClient.interceptors.response.use(
         const originalRequest = error.config
 
         // Skip redirect for auth endpoints (except refresh-token)
-        if ((originalRequest.url?.includes('/auth/') && !originalRequest.url?.includes('/auth/refresh-token')) || 
-            originalRequest.url?.includes('/login') || 
+        if ((originalRequest.url?.includes('/auth/') && !originalRequest.url?.includes('/auth/refresh-token')) ||
+            originalRequest.url?.includes('/login') ||
             originalRequest.url?.includes('/register')) {
             return Promise.reject(error)
         }
@@ -119,7 +119,7 @@ apiClient.interceptors.response.use(
 
             try {
                 const newToken = await refreshAccessToken()
-                
+
                 if (newToken) {
                     // Thử lại request với token mới
                     originalRequest.headers.Authorization = `Bearer ${newToken}`
@@ -180,7 +180,7 @@ export const logout = async () => {
             localStorage.removeItem("userAddress")
             localStorage.removeItem("userPhone")
             localStorage.removeItem("userId")
-            
+
             const loginPage = getLoginPage()
             window.location.replace(loginPage)
         }

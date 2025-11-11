@@ -92,11 +92,28 @@ export default function BookingOrderSummary({
   const [hasTTLFromBackend, setHasTTLFromBackend] = useState(false) // Flag để biết đã có TTL từ backend chưa
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null) // Ref để lưu timeout cho retry
   const hasRedirectedRef = useRef(false) // Flag để tránh redirect nhiều lần
+  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null) // Ref để lưu countdown interval
 
   // Reset hasRedirectedRef khi showtimeId hoặc movieId thay đổi
   useEffect(() => {
     hasRedirectedRef.current = false
   }, [showtimeId, movieId])
+
+  // Cleanup tất cả timers khi component unmount
+  useEffect(() => {
+    return () => {
+      // Clear countdown interval
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current)
+        countdownIntervalRef.current = null
+      }
+      // Clear retry timeout
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current)
+        retryTimeoutRef.current = null
+      }
+    }
+  }, [])
 
   // Determine if we're in auto mode (manage countdown internally) or manual mode (use external countdown)
   // Auto mode: tự động lấy TTL từ backend khi có đủ showtimeId và userId
@@ -204,8 +221,10 @@ export default function BookingOrderSummary({
 
       isSyncInProgress = true
       try {
+        // Tăng timeout cho request TTL vì có thể backend xử lý chậm
         const response = await apiClient.get(
-          `/bookings/show-times/${showtimeId}/users/${userId}/seat-hold/ttl`
+          `/bookings/show-times/${showtimeId}/users/${userId}/seat-hold/ttl`,
+          { timeout: 30000 } // 30 giây cho request này
         )
 
         if (response.data?.status === 200 && response.data?.data !== undefined) {
@@ -257,8 +276,29 @@ export default function BookingOrderSummary({
             }
           }
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('[BookingOrderSummary] Error fetching TTL from backend:', error)
+        
+        // Log more details about the error
+        if (error.response) {
+          // Server responded with error status
+          console.error('[BookingOrderSummary] Backend responded with error:', {
+            status: error.response.status,
+            statusText: error.response.statusText,
+            data: error.response.data
+          })
+        } else if (error.request) {
+          // Request was made but no response received
+          const isTimeout = error.code === 'ECONNABORTED' || error.message?.includes('timeout')
+          if (isTimeout) {
+            console.error('[BookingOrderSummary] Request timeout! Backend took too long to respond. This may indicate backend is slow or overloaded.')
+          } else {
+            console.error('[BookingOrderSummary] No response from backend. Check if backend is running and accessible.')
+          }
+        } else {
+          // Error setting up the request
+          console.error('[BookingOrderSummary] Error setting up request:', error.message)
+        }
 
         // Nếu lỗi API, chỉ dùng sessionStorage làm fallback tạm thời
         // (có thể do mạng lỗi, không phải do backend xóa key)
@@ -324,8 +364,10 @@ export default function BookingOrderSummary({
     const syncTTL = async () => {
       try {
         console.log('[BookingOrderSummary] Trigger sync due to seat selection, attempt:', retryCount + 1)
+        // Tăng timeout cho request TTL vì có thể backend xử lý chậm
         const response = await apiClient.get(
-          `/bookings/show-times/${showtimeId}/users/${userId}/seat-hold/ttl`
+          `/bookings/show-times/${showtimeId}/users/${userId}/seat-hold/ttl`,
+          { timeout: 30000 } // 30 giây cho request này
         )
 
         if (response.data?.status === 200 && response.data?.data !== undefined) {
@@ -351,8 +393,27 @@ export default function BookingOrderSummary({
             console.log('[BookingOrderSummary] Max retries reached, backend may not have created seatHold')
           }
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('[BookingOrderSummary] Error in trigger sync:', error)
+        
+        // Log more details about the error
+        if (error.response) {
+          console.error('[BookingOrderSummary] Backend responded with error:', {
+            status: error.response.status,
+            statusText: error.response.statusText,
+            data: error.response.data
+          })
+        } else if (error.request) {
+          const isTimeout = error.code === 'ECONNABORTED' || error.message?.includes('timeout')
+          if (isTimeout) {
+            console.error('[BookingOrderSummary] Request timeout in trigger sync! Backend took too long to respond.')
+          } else {
+            console.error('[BookingOrderSummary] No response from backend. Check if backend is running and accessible.')
+          }
+        } else {
+          console.error('[BookingOrderSummary] Error setting up request:', error.message)
+        }
+        
         // Retry nếu lỗi và chưa đạt max retries
         if (retryCount < maxRetries) {
           retryCount++
@@ -376,7 +437,19 @@ export default function BookingOrderSummary({
   // Auto mode: Decrease countdown every second (chỉ đếm ngược khi đã có TTL từ backend)
   // Redirect khi countdown về 0
   useEffect(() => {
-    if (!isAutoMode || internalCountdown <= 0) return
+    if (!isAutoMode || internalCountdown <= 0) {
+      // Clear interval nếu không còn countdown
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current)
+        countdownIntervalRef.current = null
+      }
+      return
+    }
+
+    // Clear interval cũ nếu có
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current)
+    }
 
     const timer = setInterval(() => {
       setInternalCountdown(prev => {
@@ -390,7 +463,14 @@ export default function BookingOrderSummary({
       })
     }, 1000)
 
-    return () => clearInterval(timer)
+    countdownIntervalRef.current = timer
+
+    return () => {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current)
+        countdownIntervalRef.current = null
+      }
+    }
   }, [isAutoMode, internalCountdown, handleCountdownExpire])
 
   // Manual mode: Xử lý khi externalCountdown về 0

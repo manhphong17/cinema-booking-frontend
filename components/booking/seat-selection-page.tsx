@@ -41,11 +41,13 @@ export default function SeatSelectionPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const movieId = searchParams.get('movieId')
+  const seatsParam = searchParams.get('seats')
+  
+  // Extract search params values to use as stable dependencies for useEffect
+  const showtimeIdParam = searchParams.get('showtimeId')
   const dateParam = searchParams.get('date')
   const timeParam = searchParams.get('time')
   const hallParam = searchParams.get('hall')
-
-  const seatsParam = searchParams.get('seats')
   const [selectedSeats, setSelectedSeats] = useState<string[]>([])
   const [selectedTicketIds, setSelectedTicketIds] = useState<number[]>([])
   const [syncTrigger, setSyncTrigger] = useState(0) // Trigger để sync TTL khi chọn ghế
@@ -170,10 +172,9 @@ export default function SeatSelectionPage() {
 
   useEffect(() => {
     const fetchSeatData = async () => {
-      const showtimeIdParam = searchParams.get('showtimeId')
-
       if (!showtimeIdParam) {
         console.error('❌ Missing showtimeId parameter!')
+        setLoadingSeats(false)
         return
       }
 
@@ -185,32 +186,55 @@ export default function SeatSelectionPage() {
         setHall(hallParam || '')
 
         const showtimeIdNum = parseInt(showtimeIdParam)
+        if (isNaN(showtimeIdNum)) {
+          console.error('❌ Invalid showtimeId parameter!')
+          setLoadingSeats(false)
+          return
+        }
+        
         setShowtimeId(showtimeIdNum)
 
+        console.log('[SeatSelection] Fetching seat data for showtimeId:', showtimeIdNum)
         const response = await apiClient.get<ShowtimeSeatResponse>(
           `/bookings/show-times/${showtimeIdNum}/seats`
         )
+
+        console.log('[SeatSelection] Seat data response:', response.data)
 
         if (response.data?.status === 200 && response.data?.data?.length > 0) {
           const data = response.data.data[0]
           setShowtimeId(data.showTimeId)
           const tickets = data.ticketResponses
+          console.log('[SeatSelection] Setting seat data, ticket count:', tickets.length)
           setSeatData(tickets)
           
           // Reset restore flag when fetching new seats (new showtime or reload)
           hasRestoredRef.current = false
           // Clear releasedSeatsRef when fetching new seats (new showtime or reload)
           releasedSeatsRef.current.clear()
+        } else {
+          console.error('❌ No seat data received from API:', response.data)
+          toast({
+            title: "Lỗi tải sơ đồ ghế",
+            description: "Không có dữ liệu ghế từ server. Vui lòng thử lại.",
+            variant: "destructive",
+          })
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error fetching seat data:", error)
+        const errorMessage = error?.response?.data?.message || error?.message || "Không thể tải sơ đồ ghế"
+        toast({
+          title: "Lỗi tải sơ đồ ghế",
+          description: errorMessage,
+          variant: "destructive",
+        })
       } finally {
         setLoadingSeats(false)
       }
     }
 
     fetchSeatData()
-  }, [searchParams, dateParam, timeParam, hallParam, movieId])
+  }, [showtimeIdParam, dateParam, timeParam, hallParam, toast])
 
   // Track if we've already restored seats to avoid infinite loop
   const hasRestoredRef = useRef(false)
