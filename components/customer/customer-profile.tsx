@@ -12,6 +12,7 @@ import { Edit, Loader2, Save, Star, X, User, MapPin, Shield, Mail } from "lucide
 import { getMe, updateMe } from "../../src/api/user"
 import axios from "axios"
 import { useRouter } from "next/navigation"
+import { BACKEND_BASE_URL } from "@/src/utils/config"
 
 const getStoredEmail = () => {
     if (typeof window === "undefined") {
@@ -240,7 +241,7 @@ export function CustomerProfile() {
             }
 
             const response = await axios.put(
-                `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/users/me`,
+                `${BACKEND_BASE_URL}/users/me`,
                 requestBody,
                 {
                     headers: {
@@ -327,7 +328,7 @@ export function CustomerProfile() {
             }
 
             const response = await axios.post(
-                `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/accounts/${userId}/change-password`,
+                `${BACKEND_BASE_URL}/accounts/${userId}/change-password`,
                 {
                     currentPassword: trimmed.currentPassword,
                     newPassword: trimmed.newPassword,
@@ -383,7 +384,7 @@ export function CustomerProfile() {
             formData.append('file', file)
 
             // Upload avatar to backend
-            const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/users/me/avatar`, {
+            const response = await fetch(`${BACKEND_BASE_URL}/users/me/avatar`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${accessToken}`

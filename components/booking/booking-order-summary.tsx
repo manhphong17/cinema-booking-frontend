@@ -2,11 +2,12 @@
 
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card"
 import {Badge} from "@/components/ui/badge"
-import {Calendar, Clock, CreditCard, Crown, MapPin, Sofa, Users} from "lucide-react"
+import {Button} from "@/components/ui/button"
+import {ArrowLeft, Calendar, Clock, CreditCard, Crown, MapPin, Sofa, Users} from "lucide-react"
 import {ReactNode, useEffect, useState, useRef, useCallback, useMemo} from "react"
 import {useRouter} from "next/navigation"
 import {apiClient} from "@/src/api/interceptor"
-import {useToast} from "@/hooks/use-toast"
+import {toast} from "sonner"
 
 export type SeatInfo = {
   id: string
@@ -86,7 +87,6 @@ export default function BookingOrderSummary({
   triggerSync
 }: BookingOrderSummaryProps) {
   const router = useRouter()
-  const { toast } = useToast()
   // Khởi tạo countdown = 0, chỉ hiển thị khi có TTL từ backend (> 0)
   const [internalCountdown, setInternalCountdown] = useState(0)
   const [hasTTLFromBackend, setHasTTLFromBackend] = useState(false) // Flag để biết đã có TTL từ backend chưa
@@ -115,54 +115,17 @@ export default function BookingOrderSummary({
     }
   }, [])
 
-  // Determine if we're in auto mode (manage countdown internally) or manual mode (use external countdown)
-  // Auto mode: tự động lấy TTL từ backend khi có đủ showtimeId và userId
-  // movieId chỉ dùng cho storageKey, không bắt buộc
   const isAutoMode = externalCountdown === undefined && showtimeId && userId
 
-  // Debug log
-  useEffect(() => {
-    if (isAutoMode) {
-      console.log('[BookingOrderSummary] Auto mode enabled:', { showtimeId, userId, movieId })
-    } else {
-      console.log('[BookingOrderSummary] Auto mode disabled:', {
-        externalCountdown,
-        showtimeId,
-        userId,
-        movieId
-      })
-    }
-  }, [isAutoMode, showtimeId, userId, movieId, externalCountdown])
-
-  // Countdown chỉ hiển thị khi:
-  // - Manual mode: có externalCountdown
-  // - Auto mode: đã có TTL từ backend (hasTTLFromBackend = true và internalCountdown > 0)
   const countdown = useMemo(() => {
     if (isAutoMode) {
-      // Auto mode: chỉ hiển thị khi đã có TTL từ backend và countdown > 0
       if (hasTTLFromBackend && internalCountdown > 0) {
         return internalCountdown
       }
       return undefined
-    } else {
-      // Manual mode: dùng externalCountdown nếu có
-      return externalCountdown ?? undefined
     }
+    return externalCountdown ?? undefined
   }, [isAutoMode, hasTTLFromBackend, internalCountdown, externalCountdown])
-
-  // Debug log để kiểm tra countdown
-  useEffect(() => {
-    console.log('[BookingOrderSummary] Countdown state:', {
-      isAutoMode,
-      hasTTLFromBackend,
-      internalCountdown,
-      externalCountdown,
-      countdown,
-      showtimeId,
-      userId,
-      movieId
-    })
-  }, [isAutoMode, hasTTLFromBackend, internalCountdown, externalCountdown, countdown, showtimeId, userId, movieId])
 
   // Function để xử lý khi countdown hết hạn
   const handleCountdownExpire = useCallback(() => {
@@ -187,13 +150,9 @@ export default function BookingOrderSummary({
 
     // Hiển thị toast thông báo sau khi redirect
     setTimeout(() => {
-      toast({
-        title: "⏰ Hết thời gian giữ ghế",
-        description: "Thời gian giữ ghế đã hết hạn. Vui lòng chọn lại ghế.",
-        variant: "destructive",
-      })
+      toast.error("⏰ Hết thời gian giữ ghế. Thời gian giữ ghế đã hết hạn. Vui lòng chọn lại ghế.")
     }, 100) // Đợi một chút để trang home load xong
-  }, [toast, onCountdownExpire, router, movieId, showtimeId, userId])
+  }, [onCountdownExpire, router, movieId, showtimeId, userId])
 
   // Auto mode: Sync countdown with backend TTL
   useEffect(() => {
@@ -208,133 +167,86 @@ export default function BookingOrderSummary({
     const storageKey = movieId 
       ? `booking_timer_${movieId}_${showtimeId}`
       : `booking_timer_${showtimeId}_${userId}`
+    
+    const savedExpireTime = sessionStorage.getItem(storageKey)
+    if (savedExpireTime) {
+      const expireTime = parseInt(savedExpireTime)
+      if (expireTime <= Date.now()) {
+        sessionStorage.removeItem(storageKey)
+      }
+    }
+    
     let isSyncInProgress = false // Flag để tránh duplicate calls
 
     async function syncTTLFromBackend() {
-      // Tránh sync nếu đang có request đang chạy (debounce)
-      if (isSyncInProgress) {
-        console.log('[BookingOrderSummary] Sync already in progress, skipping')
-        return
-      }
-
-      console.log('[BookingOrderSummary] Starting TTL sync for:', { showtimeId, userId, movieId })
+        if (isSyncInProgress) return
 
       isSyncInProgress = true
       try {
-        // Tăng timeout cho request TTL vì có thể backend xử lý chậm
         const response = await apiClient.get(
           `/bookings/show-times/${showtimeId}/users/${userId}/seat-hold/ttl`,
-          { timeout: 30000 } // 30 giây cho request này
+          { timeout: 30000 }
         )
 
         if (response.data?.status === 200 && response.data?.data !== undefined) {
           const backendTTL = Math.max(0, response.data.data as number)
-          console.log('[BookingOrderSummary] Backend TTL received:', backendTTL, 'seconds')
 
           if (backendTTL > 0) {
-            // Trực tiếp sử dụng TTL từ backend làm countdown
-            // TTL chỉ tồn tại khi user đã chọn ghế (seatHold được tạo trong Redis)
-            console.log('[BookingOrderSummary] Setting countdown to:', backendTTL)
             setInternalCountdown(backendTTL)
-            setHasTTLFromBackend(true) // Đánh dấu đã có TTL từ backend
-            console.log('[BookingOrderSummary] hasTTLFromBackend set to true, internalCountdown set to:', backendTTL)
-
-            // Lưu expireTime (thời điểm hết hạn) vào sessionStorage để dùng làm fallback
-            // khi backend không trả về TTL (ví dụ: mạng lỗi, refresh trang)
+            setHasTTLFromBackend(true)
             const currentTime = Date.now()
             const expireTime = currentTime + backendTTL * 1000
             sessionStorage.setItem(storageKey, expireTime.toString())
           } else {
-            // Backend TTL = 0 hoặc không tồn tại
-            // Có 2 trường hợp:
-            // 1. User chưa chọn ghế lần nào -> chưa có seatHold -> TTL = 0 (bình thường, không redirect)
-            // 2. User đã chọn ghế nhưng key bị xóa/hết hạn -> TTL = 0 (cần redirect)
-
+            // Khi backend trả về TTL = 0 (không còn ghế được giữ), kiểm tra sessionStorage trước
             const savedExpireTime = sessionStorage.getItem(storageKey)
-
             if (savedExpireTime) {
-              // Có data trong sessionStorage -> đã từng có seatHold
-              // Nghĩa là user đã chọn ghế nhưng backend đã xóa key hoặc hết hạn
-              console.log('[BookingOrderSummary] Backend TTL = 0 và có sessionStorage -> đã hết hạn. Redirect về home.')
-
-              // Xóa sessionStorage vì đã không còn hợp lệ
-              sessionStorage.removeItem(storageKey)
-
-              // Dừng countdown ngay (set về 0) và reset flag
+              const expireTime = parseInt(savedExpireTime)
+              const currentTime = Date.now()
+              const remaining = Math.max(0, Math.floor((expireTime - currentTime) / 1000))
+              
+              if (remaining > 0) {
+                // Vẫn còn thời gian trong sessionStorage, tiếp tục dùng
+                setInternalCountdown(remaining)
+                setHasTTLFromBackend(true)
+              } else {
+                // Thời gian đã hết, xóa và expire
+                sessionStorage.removeItem(storageKey)
+                setInternalCountdown(0)
+                setHasTTLFromBackend(false)
+                handleCountdownExpire()
+              }
+            } else {
+              // Không có sessionStorage, reset về 0
               setInternalCountdown(0)
               setHasTTLFromBackend(false)
-
-              // Redirect về home và thông báo
-              handleCountdownExpire()
-            } else {
-              // Không có data trong sessionStorage -> user chưa chọn ghế lần nào
-              // Đây là trường hợp bình thường, không redirect, chỉ không hiển thị countdown
-              console.log('[BookingOrderSummary] Backend TTL = 0 và không có sessionStorage -> user chưa chọn ghế. Không redirect.')
-              setInternalCountdown(0)
-              setHasTTLFromBackend(false) // Chưa có TTL từ backend
-              // Không redirect, user có thể tiếp tục ở trang chọn ghế
             }
           }
         }
       } catch (error: any) {
-        console.error('[BookingOrderSummary] Error fetching TTL from backend:', error)
-        
-        // Log more details about the error
-        if (error.response) {
-          // Server responded with error status
-          console.error('[BookingOrderSummary] Backend responded with error:', {
-            status: error.response.status,
-            statusText: error.response.statusText,
-            data: error.response.data
-          })
-        } else if (error.request) {
-          // Request was made but no response received
-          const isTimeout = error.code === 'ECONNABORTED' || error.message?.includes('timeout')
-          if (isTimeout) {
-            console.error('[BookingOrderSummary] Request timeout! Backend took too long to respond. This may indicate backend is slow or overloaded.')
-          } else {
-            console.error('[BookingOrderSummary] No response from backend. Check if backend is running and accessible.')
-          }
-        } else {
-          // Error setting up the request
-          console.error('[BookingOrderSummary] Error setting up request:', error.message)
-        }
-
-        // Nếu lỗi API, chỉ dùng sessionStorage làm fallback tạm thời
-        // (có thể do mạng lỗi, không phải do backend xóa key)
+        console.error('[BookingOrderSummary] Error fetching TTL:', error)
         const savedExpireTime = sessionStorage.getItem(storageKey)
         if (savedExpireTime) {
           const expireTime = parseInt(savedExpireTime)
           const currentTime = Date.now()
           const remaining = Math.max(0, Math.floor((expireTime - currentTime) / 1000))
-
           if (remaining > 0) {
-            // Tính lại countdown từ expireTime đã lưu (fallback khi mạng lỗi)
-            console.log('[BookingOrderSummary] Using sessionStorage fallback due to API error, remaining:', remaining)
             setInternalCountdown(remaining)
+            setHasTTLFromBackend(true)
           } else {
-            // Đã hết hạn
-            console.log('[BookingOrderSummary] SessionStorage expired. Redirect về home.')
             sessionStorage.removeItem(storageKey)
             setInternalCountdown(0)
             setHasTTLFromBackend(false)
-            // Redirect về home và thông báo
-            handleCountdownExpire()
           }
         } else {
-          // Không có dữ liệu, có thể là lần đầu vào trang
-          // Không set countdown (sẽ không hiển thị cho đến khi có TTL từ backend)
-          console.log('[BookingOrderSummary] No sessionStorage data, waiting for backend TTL')
           setInternalCountdown(0)
+          setHasTTLFromBackend(false)
         }
       } finally {
         isSyncInProgress = false
       }
     }
 
-    // CHỈ gọi TTL 1 lần duy nhất khi component mount hoặc khi triggerSync thay đổi (user chọn ghế)
-    // Không cần polling interval vì đã có Redis expiration notification qua WebSocket real-time
-    // Countdown sẽ tự giảm dần, và khi nhận EXPIRED message thì dừng countdown
     syncTTLFromBackend()
 
     return () => {
@@ -352,69 +264,60 @@ export default function BookingOrderSummary({
       retryTimeoutRef.current = null
     }
 
-    // Tạo storageKey: ưu tiên dùng movieId nếu có, nếu không thì dùng userId
     const storageKey = movieId 
       ? `booking_timer_${movieId}_${showtimeId}`
       : `booking_timer_${showtimeId}_${userId}`
     let retryCount = 0
-    const maxRetries = 5 // Giảm xuống 5 lần retry (tối đa 1.5 giây)
+    const maxRetries = 5
 
-    // Polling để lấy TTL ngay khi backend tạo seatHold
-    // Delay nhỏ để backend kịp xử lý WebSocket selectSeats
     const syncTTL = async () => {
       try {
-        console.log('[BookingOrderSummary] Trigger sync due to seat selection, attempt:', retryCount + 1)
-        // Tăng timeout cho request TTL vì có thể backend xử lý chậm
         const response = await apiClient.get(
           `/bookings/show-times/${showtimeId}/users/${userId}/seat-hold/ttl`,
-          { timeout: 30000 } // 30 giây cho request này
+          { timeout: 30000 }
         )
 
         if (response.data?.status === 200 && response.data?.data !== undefined) {
           const backendTTL = Math.max(0, response.data.data as number)
           if (backendTTL > 0) {
-            console.log('[BookingOrderSummary] Got TTL from backend after seat selection:', backendTTL)
             setInternalCountdown(backendTTL)
-            setHasTTLFromBackend(true) // Đánh dấu đã có TTL từ backend -> hiển thị countdown
+            setHasTTLFromBackend(true)
             const currentTime = Date.now()
             const expireTime = currentTime + backendTTL * 1000
             sessionStorage.setItem(storageKey, expireTime.toString())
-            // Clear timeout nếu có
             if (retryTimeoutRef.current) {
               clearTimeout(retryTimeoutRef.current)
               retryTimeoutRef.current = null
             }
-            return // Đã lấy được TTL, dừng retry
-          } else if (retryCount < maxRetries) {
-            // Backend chưa kịp tạo seatHold, retry sau 300ms (tăng delay để giảm tải)
-            retryCount++
-            retryTimeoutRef.current = setTimeout(() => syncTTL(), 300)
+            return
           } else {
-            console.log('[BookingOrderSummary] Max retries reached, backend may not have created seatHold')
+            // Khi backend trả về TTL = 0, kiểm tra sessionStorage trước
+            const savedExpireTime = sessionStorage.getItem(storageKey)
+            if (savedExpireTime) {
+              const expireTime = parseInt(savedExpireTime)
+              const currentTime = Date.now()
+              const remaining = Math.max(0, Math.floor((expireTime - currentTime) / 1000))
+              
+              if (remaining > 0) {
+                // Vẫn còn thời gian trong sessionStorage, tiếp tục dùng
+                setInternalCountdown(remaining)
+                setHasTTLFromBackend(true)
+                if (retryTimeoutRef.current) {
+                  clearTimeout(retryTimeoutRef.current)
+                  retryTimeoutRef.current = null
+                }
+                return
+              }
+            }
+            // Không có TTL từ backend và không có thời gian trong sessionStorage, retry
+            if (retryCount < maxRetries) {
+              retryCount++
+              retryTimeoutRef.current = setTimeout(() => syncTTL(), 300)
+            }
           }
         }
       } catch (error: any) {
         console.error('[BookingOrderSummary] Error in trigger sync:', error)
-        
-        // Log more details about the error
-        if (error.response) {
-          console.error('[BookingOrderSummary] Backend responded with error:', {
-            status: error.response.status,
-            statusText: error.response.statusText,
-            data: error.response.data
-          })
-        } else if (error.request) {
-          const isTimeout = error.code === 'ECONNABORTED' || error.message?.includes('timeout')
-          if (isTimeout) {
-            console.error('[BookingOrderSummary] Request timeout in trigger sync! Backend took too long to respond.')
-          } else {
-            console.error('[BookingOrderSummary] No response from backend. Check if backend is running and accessible.')
-          }
-        } else {
-          console.error('[BookingOrderSummary] Error setting up request:', error.message)
-        }
-        
-        // Retry nếu lỗi và chưa đạt max retries
         if (retryCount < maxRetries) {
           retryCount++
           retryTimeoutRef.current = setTimeout(() => syncTTL(), 300)
@@ -422,7 +325,6 @@ export default function BookingOrderSummary({
       }
     }
 
-    // Delay nhỏ (300ms) để backend kịp xử lý WebSocket selectSeats trước khi fetch TTL
     retryTimeoutRef.current = setTimeout(() => syncTTL(), 300)
 
     // Cleanup: clear timeout khi component unmount hoặc dependencies thay đổi
@@ -434,11 +336,8 @@ export default function BookingOrderSummary({
     }
   }, [triggerSync, isAutoMode, showtimeId, userId, movieId])
 
-  // Auto mode: Decrease countdown every second (chỉ đếm ngược khi đã có TTL từ backend)
-  // Redirect khi countdown về 0
   useEffect(() => {
     if (!isAutoMode || internalCountdown <= 0) {
-      // Clear interval nếu không còn countdown
       if (countdownIntervalRef.current) {
         clearInterval(countdownIntervalRef.current)
         countdownIntervalRef.current = null
@@ -446,7 +345,6 @@ export default function BookingOrderSummary({
       return
     }
 
-    // Clear interval cũ nếu có
     if (countdownIntervalRef.current) {
       clearInterval(countdownIntervalRef.current)
     }
@@ -455,8 +353,7 @@ export default function BookingOrderSummary({
       setInternalCountdown(prev => {
         const newValue = Math.max(0, prev - 1)
         if (newValue <= 0) {
-          setHasTTLFromBackend(false) // Reset flag để ẩn countdown
-          // Xử lý khi countdown về 0
+          setHasTTLFromBackend(false)
           handleCountdownExpire()
         }
         return newValue
@@ -464,7 +361,6 @@ export default function BookingOrderSummary({
     }, 1000)
 
     countdownIntervalRef.current = timer
-
     return () => {
       if (countdownIntervalRef.current) {
         clearInterval(countdownIntervalRef.current)
@@ -473,11 +369,8 @@ export default function BookingOrderSummary({
     }
   }, [isAutoMode, internalCountdown, handleCountdownExpire])
 
-  // Manual mode: Xử lý khi externalCountdown về 0
   useEffect(() => {
     if (isAutoMode || externalCountdown === undefined || externalCountdown > 0) return
-
-    // Countdown đã về 0
     if (externalCountdown === 0 && !hasRedirectedRef.current) {
       handleCountdownExpire()
     }
@@ -489,13 +382,6 @@ export default function BookingOrderSummary({
     return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
   }
 
-  const getSeatTypeCount = (type: string) => {
-    return seats.filter(seat => seat.type === type).length
-  }
-
-  const getSeatIcon = (type: string) => {
-  return <Sofa className="h-4 w-4 text-blue-600" />
-  }
 
   return (
     <Card className="shadow-2xl border-2 border-primary/40 bg-white hover:shadow-primary/20 transition-all duration-300">
@@ -510,40 +396,30 @@ export default function BookingOrderSummary({
 
            {/* 🎬 Movie Info */}
            {movieInfo && (
-               <div
-                   className="
-      flex items-center
-      gap-4         /* tăng khoảng cách giữa ảnh và text */
-      scale-[1.1]   /* phóng to toàn bộ khối/
-        -mt-10          /* gần tiêu đề hơn */
-      mb-5             /* cách khối ghế ra thêm 2~4px */
-      origin-top-left /* để phóng to theo góc trái */
-      transition-transform duration-300
-    "
-               >
+               <div className="flex items-center gap-4 -mt-4 mb-4">
                    <img
                        src={movieInfo.poster || "/placeholder.svg"}
                        alt={movieInfo.title || "Movie"}
                        className="w-20 h-24 object-cover rounded-md border border-gray-200 shadow-md"
                    />
                    <div className="flex-1">
-                       <h3 className="font-semibold text- text-gray-900">{movieInfo.title}</h3>
-                       <div className="space-y-1 text-base text-gray-600 mt-1">
+                       <h3 className="font-semibold text-gray-900 mb-2">{movieInfo.title}</h3>
+                       <div className="space-y-1 text-sm text-gray-600">
                            {movieInfo.date && (
                                <div className="flex items-center gap-1">
-                                   <Calendar className="h-4 w-4 text-blue-500" />
+                                   <Calendar className="h-4 w-4 text-gray-600" />
                                    {movieInfo.date}
                                </div>
                            )}
                            {movieInfo.time && (
                                <div className="flex items-center gap-1">
-                                   <Clock className="h-4 w-4 text-blue-500" />
+                                   <Clock className="h-4 w-4 text-gray-600" />
                                    {movieInfo.time}
                                </div>
                            )}
                            {movieInfo.hall && (
                                <div className="flex items-center gap-1">
-                                   <MapPin className="h-4 w-4 text-blue-500" />
+                                   <MapPin className="h-4 w-4 text-gray-600" />
                                    {movieInfo.hall}
                                </div>
                            )}
@@ -556,23 +432,27 @@ export default function BookingOrderSummary({
            {seats.length > 0 && (
                <div>
                    <h4 className="font-semibold mb-4 flex items-center gap-2 text-gray-800">
-                       <Users className="h-5 w-5 text-indigo-500" />
+                       <Users className="h-5 w-5 text-gray-700" />
                        Ghế đã chọn ({seats.length})
                    </h4>
                    <div className="space-y-3">
                        {seats.map((seat) => (
                            <div
                                key={seat.id}
-                               className="flex justify-between items-center bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg p-3 border border-indigo-200 hover:shadow-sm transition"
+                               className="flex justify-between items-center bg-gray-50 rounded-lg p-3 border border-gray-200 hover:shadow-sm transition"
                            >
                                <div className="flex items-center gap-2">
-                                   {getSeatIcon(seat.type)}
+                                   <Sofa className="h-4 w-4 text-gray-700" />
                                    <span className="font-medium text-gray-800">Ghế {seat.id}</span>
                                    <Badge
                                        variant="outline"
-                                       className="text-xs border border-indigo-300 bg-white text-indigo-700 capitalize"
+                                       className={`text-xs capitalize ${
+                                         seat.type === 'vip' || seat.type === 'VIP'
+                                           ? 'border border-violet-400 bg-violet-50 text-violet-700'
+                                           : 'border border-gray-300 bg-gray-50 text-gray-700'
+                                       }`}
                                    >
-                                       {seat.type}
+                                       {seat.type === 'vip' ? 'VIP' : seat.type === 'standard' ? 'Thường' : seat.type}
                                    </Badge>
                                </div>
                                <span className="font-semibold text-gray-900">
@@ -612,34 +492,20 @@ export default function BookingOrderSummary({
 
            {/* Countdown Timer - chỉ hiển thị khi có countdown */}
         {countdown !== undefined && countdown > 0 && (
-          <div className={`rounded-lg p-4 border-2 shadow-lg ${
-            countdown <= 300 
-              ? 'bg-gradient-to-r from-red-100 to-orange-100 border-red-400 ring-2 ring-red-300' 
-              : countdown <= 600 
-              ? 'bg-gradient-to-r from-orange-100 to-yellow-100 border-orange-400 ring-2 ring-orange-300'
-              : 'bg-gradient-to-r from-green-100 to-emerald-100 border-green-400 ring-2 ring-green-300'
-          }`}>
+          <div className="rounded-lg p-4 border-2 shadow-lg bg-gray-50 border-gray-300">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Clock className={`h-5 w-5 ${
-                  countdown <= 300 ? 'text-red-600' : 
-                  countdown <= 600 ? 'text-orange-600' : 'text-green-600'
-                }`} />
-                <span className={`text-sm font-bold ${
-                  countdown <= 300 ? 'text-red-700' : 
-                  countdown <= 600 ? 'text-orange-700' : 'text-green-700'
-                }`}>Thời gian còn lại:</span>
+                <Clock className="h-5 w-5 text-gray-700" />
+                <span className="text-sm font-bold text-gray-700">Thời gian còn lại:</span>
               </div>
               <span className={`font-bold text-xl ${
-                countdown <= 300 ? 'text-red-700 animate-pulse' : 
-                countdown <= 600 ? 'text-orange-700' : 'text-green-700'
+                countdown <= 300 ? 'text-red-600 animate-pulse' : 'text-gray-900'
               }`}>
                 {formatTime(countdown)}
               </span>
             </div>
             <div className={`text-xs font-medium mt-2 ${
-              countdown <= 300 ? 'text-red-700' : 
-              countdown <= 600 ? 'text-orange-700' : 'text-green-700'
+              countdown <= 300 ? 'text-red-600' : 'text-gray-600'
             }`}>
               {countdown <= 300 ? '⚠️ Hãy hoàn tất đặt vé sớm!' :
                countdown <= 600 ? '⏰ Thời gian sắp hết!' : '✓ Bạn có đủ thời gian'}
@@ -683,9 +549,9 @@ export default function BookingOrderSummary({
             )}
 
 
-            <div className="flex justify-between items-center text-sm bg-emerald-50 rounded-lg p-2 border-2 border-emerald-400">
-            <span className=" font-medium text-emerald-700">Tổng cộng:</span>
-            <span className="font-bold text-xl text-emerald-700">{total.toLocaleString('vi-VN')} VNĐ</span>
+            <div className="flex justify-between items-center text-sm bg-gray-100 rounded-lg p-2 border-2 border-gray-300">
+            <span className="font-medium text-gray-900">Tổng cộng:</span>
+            <span className="font-bold text-xl text-gray-900">{total.toLocaleString('vi-VN')} VNĐ</span>
           </div>
         </div>
 

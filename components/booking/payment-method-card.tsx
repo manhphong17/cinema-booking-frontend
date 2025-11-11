@@ -52,8 +52,8 @@ export default function PaymentMethodCard({ onSelect, includeCash = false }: Pay
     }, [includeCash]); // Remove onSelect from dependencies to avoid infinite loop
 
     return (
-        <Card className="shadow-xl border-2 border-gray-200/80 rounded-xl bg-white transition-all duration-300">
-            <CardHeader className="border-b-1 ">
+        <Card className="shadow-xl border-2 rounded-xl bg-white transition-all duration-300" style={{ borderColor: '#B3E0FF' }} onMouseEnter={(e) => e.currentTarget.style.borderColor = '#3BAEF0'} onMouseLeave={(e) => e.currentTarget.style.borderColor = '#B3E0FF'}>
+            <CardHeader className="border-b-2" style={{ backgroundColor: '#E6F5FF', borderColor: '#B3E0FF' }}>
                 <CardTitle className="text-xl font-bold text-gray-900">
                     Phương thức thanh toán
                 </CardTitle>
@@ -82,10 +82,14 @@ export default function PaymentMethodCard({ onSelect, includeCash = false }: Pay
                                 className={`flex items-center justify-between p-4 rounded-xl cursor-pointer transition-all border
                                     ${
                                     selected === m.paymentCode
-                                        ? "    bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg p-3 border border-indigo-200 "
+                                        ? "rounded-lg p-3"
                                         : "border-gray-200 hover:bg-gray-50"
                                     }   
                                             `}
+                                style={selected === m.paymentCode 
+                                    ? { background: 'linear-gradient(to right, #E6F5FF, #B3E0FF)', borderColor: '#3BAEF0' }
+                                    : {}
+                                }
                                 onClick={() => {
                                     console.log("[PaymentMethodCard] Label clicked:", m.paymentCode);
                                     setSelected(m.paymentCode);

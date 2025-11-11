@@ -1,6 +1,7 @@
 "use client";
 import SockJS from "sockjs-client";
 import { Client, IMessage } from "@stomp/stompjs";
+import { BACKEND_BASE_URL } from "@/src/utils/config";
 
 export type SeatAction = "SELECT_SEAT" | "DESELECT_SEAT";
 
@@ -31,8 +32,7 @@ export async function connectSeatSocket(
   onSeatUpdate: (message: SeatUpdateMessage) => void,
   onError?: (error: any) => void
 ) {
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8885";
-  const socket = new SockJS(`${baseUrl}/ws`);
+  const socket = new SockJS(`${BACKEND_BASE_URL}/ws`);
 
   const client = new Client({
     webSocketFactory: () => socket,

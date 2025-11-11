@@ -3,10 +3,10 @@
 import {Button} from "@/components/ui/button"
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card"
 import {Badge} from "@/components/ui/badge"
-import {Clock, Crown, Loader2, Monitor, Sofa} from "lucide-react"
+import {ArrowLeft, Clock, Crown, Loader2, Monitor, Sofa} from "lucide-react"
 import {useRouter, useSearchParams} from "next/navigation"
 import {useEffect, useState, useMemo, useCallback, useRef} from "react"
-import {useToast} from "@/hooks/use-toast"
+import {toast} from "sonner"
 import {Movie} from "@/type/movie"
 import {apiClient} from "@/src/api/interceptor"
 import {useSeatWebSocket} from "@/hooks/use-seat-websocket"
@@ -40,14 +40,9 @@ type ShowtimeSeatResponse = {
 export default function SeatSelectionPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const movieId = searchParams.get('movieId')
-  const seatsParam = searchParams.get('seats')
   
   // Extract search params values to use as stable dependencies for useEffect
   const showtimeIdParam = searchParams.get('showtimeId')
-  const dateParam = searchParams.get('date')
-  const timeParam = searchParams.get('time')
-  const hallParam = searchParams.get('hall')
   const [selectedSeats, setSelectedSeats] = useState<string[]>([])
   const [selectedTicketIds, setSelectedTicketIds] = useState<number[]>([])
   const [syncTrigger, setSyncTrigger] = useState(0) // Trigger để sync TTL khi chọn ghế
@@ -73,7 +68,6 @@ export default function SeatSelectionPage() {
     }
   }, [])
 
-  const { toast } = useToast()
   
   // Track seats that were just released by current user (to ignore stale backendStatus HELD)
   const releasedSeatsRef = useRef<Set<number>>(new Set())
@@ -147,30 +141,6 @@ export default function SeatSelectionPage() {
   )
 
   useEffect(() => {
-    const fetchMovieData = async () => {
-      if (!movieId) {
-        setLoading(false)
-        return
-      }
-
-      try {
-        setLoading(true)
-        const response = await apiClient.get(`/movies/${movieId}`)
-
-        if (response.data?.status === 200 && response.data?.data) {
-          setMovie(response.data.data)
-        }
-      } catch (error) {
-        console.error("Error fetching movie details:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchMovieData()
-  }, [movieId])
-
-  useEffect(() => {
     const fetchSeatData = async () => {
       if (!showtimeIdParam) {
         console.error('❌ Missing showtimeId parameter!')
@@ -178,12 +148,9 @@ export default function SeatSelectionPage() {
         return
       }
 
+      const startTime = Date.now()
       try {
         setLoadingSeats(true)
-
-        setDate(dateParam || '')
-        setTime(timeParam || '')
-        setHall(hallParam || '')
 
         const showtimeIdNum = parseInt(showtimeIdParam)
         if (isNaN(showtimeIdNum)) {
@@ -212,29 +179,52 @@ export default function SeatSelectionPage() {
           hasRestoredRef.current = false
           // Clear releasedSeatsRef when fetching new seats (new showtime or reload)
           releasedSeatsRef.current.clear()
+          
+          // Try to get showtime details from order session to get movie, date, time, hall info
+          if (userId) {
+            try {
+              const orderSessionResponse = await apiClient.get(
+                `/bookings/show-times/${showtimeIdNum}/users/${userId}/seat-hold`
+              )
+              if (orderSessionResponse.data?.status === 200 && orderSessionResponse.data?.data) {
+                const orderSession = orderSessionResponse.data.data
+                // Extract movie info if available
+                if (orderSession.movieId) {
+                  try {
+                    const movieResponse = await apiClient.get(`/movies/${orderSession.movieId}`)
+                    if (movieResponse.data?.status === 200 && movieResponse.data?.data) {
+                      setMovie(movieResponse.data.data)
+                    }
+                  } catch (error) {
+                    console.error("Error fetching movie details:", error)
+                  }
+                }
+              }
+            } catch (error) {
+              console.log('[SeatSelection] No order session found, will fetch movie later if needed')
+            }
+          }
         } else {
           console.error('❌ No seat data received from API:', response.data)
-          toast({
-            title: "Lỗi tải sơ đồ ghế",
-            description: "Không có dữ liệu ghế từ server. Vui lòng thử lại.",
-            variant: "destructive",
-          })
+          const elapsedTime = Date.now() - startTime
+          if (elapsedTime < 10000) {
+            toast.error("Không có dữ liệu ghế từ server. Vui lòng thử lại.")
+          }
         }
       } catch (error: any) {
         console.error("Error fetching seat data:", error)
-        const errorMessage = error?.response?.data?.message || error?.message || "Không thể tải sơ đồ ghế"
-        toast({
-          title: "Lỗi tải sơ đồ ghế",
-          description: errorMessage,
-          variant: "destructive",
-        })
+        const elapsedTime = Date.now() - startTime
+        if (elapsedTime < 10000) {
+          const errorMessage = error?.response?.data?.message || error?.message || "Không thể tải sơ đồ ghế"
+          toast.error(errorMessage)
+        }
       } finally {
         setLoadingSeats(false)
       }
     }
 
     fetchSeatData()
-  }, [showtimeIdParam, dateParam, timeParam, hallParam, toast])
+  }, [showtimeIdParam, userId])
 
   // Track if we've already restored seats to avoid infinite loop
   const hasRestoredRef = useRef(false)
@@ -289,70 +279,6 @@ export default function SeatSelectionPage() {
     
     restoreHeldSeats()
   }, [userId, showtimeId, seatData])
-  
-  // Restore selected seats from URL params when returning from combo page
-  useEffect(() => {
-    if (!seatData.length) return
-
-    // If no seats param, clear selections (coming from booking page)
-    // But don't clear if we just restored from API (hasRestoredRef)
-    if (!seatsParam) {
-      // Only clear if we haven't restored from API yet
-      if (!hasRestoredRef.current && selectedSeats.length > 0) {
-        setSelectedSeats([])
-        setSelectedTicketIds([])
-      }
-      return
-    }
-
-    const seatsFromUrl = seatsParam.split(',').filter(seat => seat.trim())
-    
-    if (seatsFromUrl.length === 0) {
-      // Clear selections if seats param is empty
-      if (selectedSeats.length > 0) {
-        setSelectedSeats([])
-        setSelectedTicketIds([])
-      }
-      return
-    }
-
-    // Check if seats match current selection
-    const seatsMatch = seatsFromUrl.length === selectedSeats.length && 
-        seatsFromUrl.every(seat => selectedSeats.includes(seat))
-    
-    if (seatsMatch) return // Already restored, no need to update
-
-    // Restore selected seats and ticket IDs
-    const restoredSeats: string[] = []
-    const restoredTicketIds: number[] = []
-
-    seatsFromUrl.forEach(seatId => {
-      // Find ticket ID from seatData
-      const seat = seatData.find(ticket => {
-        const rowLabel = String.fromCharCode(65 + ticket.rowIdx)
-        const seatNumber = ticket.columnInx + 1
-        const expectedSeatId = `${rowLabel}${seatNumber}`
-        return expectedSeatId === seatId
-      })
-      if (seat) {
-        restoredSeats.push(seatId)
-        restoredTicketIds.push(seat.ticketId)
-      }
-    })
-    
-    console.log('[Restore Seats] Restoring:', { restoredSeats, restoredTicketIds, seatsFromUrl })
-    if (restoredSeats.length > 0) {
-      setSelectedSeats(restoredSeats)
-      setSelectedTicketIds(restoredTicketIds)
-      // Clear releasedSeatsRef when restoring - these seats are being restored, not released
-      restoredTicketIds.forEach(ticketId => {
-        releasedSeatsRef.current.delete(ticketId)
-      })
-    } else {
-      // If no seats to restore, clear releasedSeatsRef for this showtime
-      releasedSeatsRef.current.clear()
-    }
-  }, [seatData, seatsParam]) // Only depend on seatData and seatsParam
 
   // Track đã gửi ghế nào qua WebSocket để tránh gửi lại
   const sentSeatsRef = useRef<Set<number>>(new Set())
@@ -637,17 +563,8 @@ export default function SeatSelectionPage() {
   }, [selectedSeats, seatData])
 
   const handleContinue = () => {
-    if (selectedSeats.length > 0) {
-      const seatIds = selectedSeats.join(',')
-      const q = new URLSearchParams({
-        movieId: movieId ?? '',
-        showtimeId: showtimeId?.toString() ?? '',
-        date,
-        time,
-        hall,
-        seats: seatIds
-      })
-      router.push(`/booking/combo?${q.toString()}`)
+    if (selectedSeats.length > 0 && showtimeId) {
+      router.push(`/booking/combo?showtimeId=${showtimeId}`)
     }
   }
 
@@ -703,10 +620,10 @@ export default function SeatSelectionPage() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Seat Selection */}
           <div className="lg:col-span-3">
-            <Card className="shadow-2xl border-2 border-blue-200 bg-white hover:border-blue-400 hover:shadow-2xl transition-all duration-300">
-              <CardHeader className="bg-gradient-to-r from-blue-50 via-white to-blue-50 border-b-2 border-blue-200">
+            <Card className="shadow-2xl border-2 bg-white hover:shadow-2xl transition-all duration-300" style={{ borderColor: '#B3E0FF' }} onMouseEnter={(e) => e.currentTarget.style.borderColor = '#3BAEF0'} onMouseLeave={(e) => e.currentTarget.style.borderColor = '#B3E0FF'}>
+              <CardHeader className="border-b-2" style={{ background: 'linear-gradient(to right, #E6F5FF, white, #E6F5FF)', borderColor: '#B3E0FF' }}>
                 <CardTitle className="flex items-center gap-3 text-gray-900">
-                  <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
+                  <div className="p-2 rounded-lg text-white shadow-lg" style={{ background: 'linear-gradient(to bottom right, #3BAEF0, #38AAEC)' }}>
                     <Sofa className="h-5 w-5" />
                   </div>
                   <span className="text-xl font-bold">Sơ đồ ghế</span>
@@ -748,15 +665,24 @@ export default function SeatSelectionPage() {
 
                 {/* Seat Layout */}
                 {loadingSeats ? (
-                  <div className="flex items-center justify-center py-16 bg-blue-50 rounded-xl border-2 border-blue-200">
-                    <Loader2 className="h-10 w-10 animate-spin mr-4 text-blue-600" />
+                  <div className="flex items-center justify-center py-16 rounded-xl border-2" style={{ backgroundColor: '#E6F5FF', borderColor: '#B3E0FF' }}>
+                    <Loader2 className="h-10 w-10 animate-spin mr-4" style={{ color: '#3BAEF0' }} />
                     <span className="text-lg text-gray-700 font-medium">Đang tải sơ đồ ghế...</span>
                   </div>
                 ) : (
                   <div className="space-y-5 flex flex-col items-center">
-                    {getSeatLayout().map((row) => (
+                    {getSeatLayout().map((row, rowIndex) => {
+                      // Kiểm tra xem hàng có ghế VIP không
+                      const hasVipSeat = row.seats.some(seat => seat.type === 'vip' || seat.type === 'VIP')
+                      
+                      // Nếu có VIP thì màu đỏ nhạt, nếu không thì màu blue như ban đầu
+                      const rowColor = hasVipSeat
+                        ? { bg: 'from-red-100 to-red-200', border: 'border-red-300', text: 'text-red-900' }
+                        : { bg: 'from-blue-100 to-blue-200', border: 'border-blue-300', text: 'text-blue-900' }
+                      
+                      return (
                       <div key={row.row} className="flex items-center gap-4">
-                        <div className="w-10 text-center font-bold text-base text-gray-900 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg py-2 border-2 border-blue-300 shadow-md">
+                        <div className={`w-10 text-center font-bold text-base ${rowColor.text} bg-gradient-to-br ${rowColor.bg} rounded-lg py-2 border-2 ${rowColor.border} shadow-md`}>
                           {row.row}
                         </div>
                         <div className="flex gap-2 justify-center">
@@ -818,23 +744,31 @@ export default function SeatSelectionPage() {
                                     }
                                   }}
                                   disabled={buttonDisabled}
+                                style={isBooked 
+                                  ? { backgroundColor: '#FD2802', borderColor: '#FD2802' }
+                                  : isMaintenance
+                                    ? { backgroundColor: '#9CA3AF', borderColor: '#9CA3AF' }
+                                    : isHeld
+                                      ? { backgroundColor: '#3FB7F9', borderColor: '#3FB7F9' }
+                                        : isSelected
+                                        ? { backgroundColor: '#03599D', borderColor: '#03599D' }
+                                        : { backgroundColor: '#BABBC3', borderColor: '#BABBC3' }
+                                }
                                 className={`
                                   w-12 h-12 rounded-xl text-sm font-bold transition-all duration-300 flex items-center justify-center relative border-2
                                 ${isBooked 
-                                    ? 'bg-gradient-to-br from-orange-500 to-orange-700 text-white cursor-not-allowed shadow-xl ring-3 ring-orange-300 border-orange-400' 
+                                    ? 'text-white cursor-not-allowed shadow-xl' 
                                     : isMaintenance
-                                      ? 'bg-gradient-to-br from-gray-600 to-gray-800 text-white cursor-not-allowed shadow-xl ring-3 ring-gray-400 border-gray-500'
+                                      ? 'text-white cursor-not-allowed shadow-xl'
                                       : isHeld
-                                        ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-yellow-950 cursor-not-allowed shadow-xl animate-pulse ring-3 ring-yellow-300 border-yellow-400'
+                                        ? 'text-white cursor-not-allowed shadow-xl'
                                       : isLimitReached
-                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50 border-gray-300'
+                                        ? 'opacity-50 cursor-not-allowed'
                                         : isDifferentType
-                                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-30 border-gray-200'
+                                          ? 'opacity-30 cursor-not-allowed'
                                   : isSelected
-                                          ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white scale-110 shadow-2xl ring-4 ring-emerald-300 ring-offset-2 font-extrabold border-emerald-400'
-                                      : seatType === 'vip'
-                                            ? 'bg-gradient-to-br from-violet-500 to-violet-700 text-white hover:from-violet-400 hover:to-violet-600 shadow-xl hover:shadow-violet-500/60 ring-2 ring-violet-300 border-violet-400 hover:scale-110'
-                                            : 'bg-gradient-to-br from-blue-500 to-blue-700 text-white hover:from-blue-400 hover:to-blue-600 shadow-xl hover:shadow-blue-500/60 ring-2 ring-blue-300 border-blue-400 hover:scale-110'
+                                          ? 'text-white scale-110 shadow-2xl ring-2 ring-[#03599D] ring-offset-1 font-extrabold'
+                                      : 'text-white hover:opacity-90 shadow-lg hover:shadow-xl hover:scale-110'
                                   }
                                   active:scale-95
                                 `}
@@ -845,7 +779,8 @@ export default function SeatSelectionPage() {
                           })}
                         </div>
                       </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
 
@@ -856,25 +791,21 @@ export default function SeatSelectionPage() {
                     <h4 className="font-bold text-lg text-gray-900">Chú thích ghế</h4>
                   </div>
                   <div className="grid grid-cols-2 gap-3 text-sm max-w-lg mx-auto">
-                    <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-md border-2 border-blue-300 hover:shadow-lg transition-all">
-                      <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg ring-2 ring-blue-300 shadow-md"></div>
-                      <span className="text-gray-900 font-semibold">Có thể chọn</span>
+                    <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-md border-2 border-gray-200 hover:shadow-lg transition-all">
+                      <div className="w-6 h-6 rounded-lg shadow-md" style={{ backgroundColor: '#BABBC3' }}></div>
+                      <span className="text-gray-900 font-semibold">Ghế trống</span>
                     </div>
-                    <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-md border-2 border-emerald-300 hover:shadow-lg transition-all">
-                      <div className="w-6 h-6 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg ring-2 ring-emerald-300 shadow-md"></div>
-                      <span className="text-gray-900 font-semibold">Đã chọn</span>
+                    <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-md border-2 border-gray-200 hover:shadow-lg transition-all">
+                      <div className="w-6 h-6 rounded-lg shadow-md ring-1 ring-[#03599D]" style={{ backgroundColor: '#03599D' }}></div>
+                      <span className="text-gray-900 font-semibold">Đang chọn</span>
                     </div>
-                    <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-md border-2 border-orange-300 hover:shadow-lg transition-all">
-                      <div className="w-6 h-6 bg-gradient-to-br from-orange-500 to-orange-700 rounded-lg ring-2 ring-orange-300 shadow-md"></div>
-                      <span className="text-gray-900 font-semibold">Đã đặt</span>
+                    <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-md border-2 border-gray-200 hover:shadow-lg transition-all">
+                      <div className="w-6 h-6 rounded-lg shadow-md" style={{ backgroundColor: '#FD2802' }}></div>
+                      <span className="text-gray-900 font-semibold">Đã bán</span>
                     </div>
-                    <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-md border-2 border-yellow-300 hover:shadow-lg transition-all">
-                      <div className="w-6 h-6 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-lg animate-pulse ring-2 ring-yellow-300 shadow-md"></div>
+                    <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-md border-2 border-gray-200 hover:shadow-lg transition-all">
+                      <div className="w-6 h-6 rounded-lg shadow-md" style={{ backgroundColor: '#3FB7F9' }}></div>
                       <span className="text-gray-900 font-semibold">Đang giữ</span>
-                    </div>
-                    <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-md border-2 border-gray-300 hover:shadow-lg transition-all col-span-2">
-                      <div className="w-6 h-6 bg-gradient-to-br from-gray-600 to-gray-800 rounded-lg ring-2 ring-gray-400 shadow-md"></div>
-                      <span className="text-gray-900 font-semibold">Bảo trì</span>
                     </div>
                   </div>
                 </div>
@@ -891,20 +822,31 @@ export default function SeatSelectionPage() {
               total={seatsTotal}
               showtimeId={showtimeId}
               userId={userId}
-              movieId={movieId}
+              movieId={movie?.id?.toString() || null}
               triggerSync={syncTrigger}
               showSeatTypeStats={true}
               actionButton={
-                <Button
-                  onClick={handleContinue}
-                  disabled={selectedSeats.length === 0}
-                  className="w-full bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 hover:from-blue-700 hover:via-blue-600 hover:to-blue-700 text-white font-bold py-4 shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 hover:scale-105 border-2 border-blue-400 active:scale-95 rounded-xl text-lg relative overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-white/20 via-transparent to-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                  <span className="relative z-10">
-                    {selectedSeats.length > 0 ? 'Tiếp tục chọn combo →' : 'Vui lòng chọn ghế'}
-                  </span>
-                </Button>
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => router.back()}
+                    className="flex items-center gap-2 border-gray-300 text-gray-700 hover:bg-gray-50 flex-1"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Quay lại
+                  </Button>
+                  <Button
+                    onClick={handleContinue}
+                    disabled={selectedSeats.length === 0}
+                    style={{ backgroundColor: '#38AAEC' }}
+                    className="flex-1 hover:opacity-90 text-white font-bold py-4 shadow-lg transition-all duration-300 hover:scale-105 active:scale-95 rounded-xl text-lg relative overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-white/20 via-transparent to-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                    <span className="relative z-10">
+                      {selectedSeats.length > 0 ? 'Tiếp tục →' : 'Vui lòng chọn ghế'}
+                    </span>
+                  </Button>
+                </div>
               }
             />
           </div>

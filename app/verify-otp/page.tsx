@@ -9,8 +9,7 @@ import {Alert, AlertDescription} from "@/components/ui/alert"
 import {InputOTP, InputOTPGroup, InputOTPSlot} from "@/components/ui/input-otp"
 import {Film} from "lucide-react"
 import {toast} from "sonner"
-
-const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL
+import { BACKEND_BASE_URL } from "@/src/utils/config"
 
 export default function OTPVerifyPage() {
     const [otp, setOtp] = useState("")
