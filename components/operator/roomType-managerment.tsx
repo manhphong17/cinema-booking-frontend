@@ -1,9 +1,23 @@
 "use client"
 
-// Overview
-// Function: Manage cinema room types (create, update, toggle active, delete, filter, search).
-// Output: A full-featured UI with form + table for RoomType items.
-// Input: roomTypesApi (CRUD methods), user interactions (form fields, buttons, filters).
+// ===================================================================================
+// TỔNG QUAN COMPONENT: RoomTypesManager
+//
+// Chức năng:
+// - Cung cấp một giao diện hoàn chỉnh để quản lý "Loại phòng" (ví dụ: 2D, 3D, IMAX).
+// - Cho phép người dùng thực hiện các thao tác CRUD: Thêm, Sửa, và thay đổi trạng thái
+//   (Kích hoạt/Vô hiệu hóa) các loại phòng.
+// - Tích hợp các tính năng tìm kiếm và lọc danh sách theo trạng thái.
+//
+// Đầu vào:
+// - `roomTypesApi`: Một object chứa các phương thức gọi API (list, create, update, etc.).
+// - Tương tác của người dùng: Nhập liệu vào form, click nút, chọn bộ lọc.
+//
+// Đầu ra:
+// - Một giao diện người dùng bao gồm form nhập liệu và bảng hiển thị dữ liệu.
+// - Các lệnh gọi API để cập nhật dữ liệu trên backend.
+// - Các thông báo (toast) cho người dùng về kết quả của các thao tác.
+// ===================================================================================
 
 import { useEffect, useMemo, useState } from "react"
 import { Card } from "@/components/ui/card"
@@ -12,84 +26,80 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Filter, Pencil, Plus, Search, Trash2 } from "lucide-react"
+import { Filter, Pencil, Plus, Search } from "lucide-react" // Removed Trash2
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { roomTypesApi } from "@/app/api/room/room-types"
 import type { RoomTypeDto } from "@/app/api/room/rooms"
+import { friendlyFromPayload } from "@/src/utils/server-error"
 
+// Định nghĩa kiểu dữ liệu cho trạng thái trên UI
 type Status = "active" | "inactive"
 
-// Function: Convert UI status union to backend boolean.
-// Output: boolean representing active flag for BE.
-// Input: s (Status) from UI state/controls.
-const toBool = (s: Status): boolean => s === "active" // CHANGED
+// Chức năng: Chuyển đổi trạng thái từ `Status` của UI sang `boolean` mà backend yêu cầu.
+// Đầu vào: s - chuỗi "active" hoặc "inactive".
+// Đầu ra: boolean (true nếu "active", ngược lại là false).
+const toBool = (s: Status): boolean => s === "active"
 
-// Function: Convert backend boolean to UI status union.
-// Output: "active" | "inactive" for display and state.
-// Input: b (boolean) typically from API payloads.
-const toStatus = (b: boolean): Status => (b ? "active" : "inactive") // CHANGED
+// Chức năng: Chuyển đổi trạng thái `boolean` từ backend sang `Status` để UI hiển thị.
+// Đầu vào: b - giá trị boolean từ API.
+// Đầu ra: chuỗi "active" hoặc "inactive".
+const toStatus = (b: boolean): Status => (b ? "active" : "inactive")
 
-// Function: Main component for managing room types.
-// Output: JSX UI that handles CRUD, filtering, and state transitions.
-// Input: None (relies on imported APIs and internal state).
 export default function RoomTypesManager() {
     const { toast } = useToast()
 
-    // Function: Global loading flag for asynchronous actions.
-    // Output: Disables buttons/indicates loading across the view.
-    // Input: Set to true/false around API calls.
-    const [loading, setLoading] = useState(false)
-
-    // Function: Data sources and filter/search state.
-    // Output: items (list for table), search text, selected status filter.
-    // Input: Populated by fetchList and user inputs.
-    const [items, setItems] = useState<RoomTypeDto[]>([])
-    const [search, setSearch] = useState("")
-    const [statusFilter, setStatusFilter] = useState<"all" | Status>("all")
-
-    // Function: Controlled form state for create/update.
-    // Output: Form values used to build API payloads.
-    // Input: User edits through inputs; onEdit() loads existing item.
+    // -------------------------------------------------------------------------------
+    // KHỐI QUẢN LÝ STATE
+    // -------------------------------------------------------------------------------
+    const [loading, setLoading] = useState(false) // Cờ báo hiệu một thao tác bất đồng bộ đang diễn ra.
+    const [items, setItems] = useState<RoomTypeDto[]>([]) // Danh sách các loại phòng từ API.
+    const [search, setSearch] = useState("") // State cho ô tìm kiếm.
+    const [statusFilter, setStatusFilter] = useState<"all" | Status>("all") // State cho bộ lọc trạng thái.
     const [form, setForm] = useState<{ id?: number; name: string; description: string; status: Status }>({
+        id: undefined,
         name: "",
         description: "",
         status: "active",
-    })
+    }) // State cho form Thêm/Sửa.
 
-    // Function: Load list of room types from API with optional active filter.
-    // Output: Updates items[] with fetched data; toggles loading; shows toast on error.
-    // Input: statusFilter ("all" | Status) to derive onlyActive boolean for API.
+    // -------------------------------------------------------------------------------
+    // KHỐI LẤY DỮ LIỆU VÀ XỬ LÝ SIDE EFFECT
+    // -------------------------------------------------------------------------------
+
+    // Chức năng: Tải danh sách các loại phòng từ API.
+    // Đầu vào: `statusFilter` từ state để quyết định có lọc theo trạng thái không.
+    // Đầu ra: Cập nhật state `items` với dữ liệu mới, hoặc hiển thị toast báo lỗi.
     const fetchList = async () => {
         setLoading(true)
         try {
-            // CHANGED: list() expects boolean | undefined
-            const onlyActive =
-                statusFilter === "all" ? undefined : statusFilter === "active" // CHANGED
-            const data = await roomTypesApi.list(onlyActive) // CHANGED
+            const onlyActive = statusFilter === "all" ? undefined : statusFilter === "active"
+            const data = await roomTypesApi.list(onlyActive)
             setItems(data)
         } catch (e: any) {
-            toast({ title: "Lỗi tải dữ liệu / Load error", description: e.message })
+            toast({ title: "Lỗi tải dữ liệu", description: friendlyFromPayload(e?.response?.data, "Không thể tải danh sách loại phòng") })
         } finally {
             setLoading(false)
         }
     }
 
-    // Function: Re-fetch whenever the filter changes; initial mount also triggers it.
-    // Output: Refreshes items[] to reflect new filter.
-    // Input: statusFilter dependency.
+    // Chức năng: Tự động gọi `fetchList` khi bộ lọc thay đổi hoặc khi component được tải lần đầu.
+    // Đầu vào: `statusFilter` - dependency của effect.
+    // Đầu ra: Một lần gọi hàm `fetchList`.
     useEffect(() => {
         fetchList()
-    }, [statusFilter]) // CHANGED
+    }, [statusFilter])
 
-    // Function: Reset form fields to default (create mode).
-    // Output: form becomes pristine; id cleared.
-    // Input: None.
+    // -------------------------------------------------------------------------------
+    // KHỐI CÁC HÀM XỬ LÝ SỰ KIỆN (ACTION HANDLERS)
+    // -------------------------------------------------------------------------------
+
+    // Chức năng: Đưa form về trạng thái mặc định (chế độ "Thêm mới").
     const resetForm = () => setForm({ id: undefined, name: "", description: "", status: "active" })
 
-    // Function: Create or update a room type based on presence of form.id.
-    // Output: Persists changes via API, shows toast, refreshes list, then resets form.
-    // Input: form state (name, description, status, optional id).
+    // Chức năng: Xử lý việc submit form (Thêm mới hoặc Cập nhật).
+    // Đầu vào: State `form`.
+    // Đầu ra: Gọi API tương ứng, hiển thị toast, tải lại danh sách và reset form.
     const onSubmit = async () => {
         if (!form.name.trim()) {
             toast({ title: "Thiếu tên", description: "Vui lòng nhập tên loại phòng" })
@@ -100,141 +110,106 @@ export default function RoomTypesManager() {
                 await roomTypesApi.update(form.id, {
                     name: form.name.trim(),
                     description: form.description.trim(),
-                    active: toBool(form.status), // CHANGED: boolean for BE
-                } as any) // keep cast if DTO differs
+                    active: toBool(form.status),
+                } as any)
                 toast({ title: "Đã cập nhật", description: "Loại phòng đã được cập nhật" })
             } else {
                 await roomTypesApi.create({
                     name: form.name.trim(),
                     description: form.description.trim() || undefined,
-                    active: toBool(form.status), // CHANGED
+                    active: toBool(form.status),
                 } as any)
                 toast({ title: "Đã thêm", description: "Loại phòng mới đã được thêm" })
             }
             await fetchList()
             resetForm()
         } catch (e: any) {
-            toast({ title: "Lỗi thao tác", description: e.message })
+            toast({ title: "Lỗi thao tác", description: friendlyFromPayload(e?.response?.data, "Thao tác không thành công") })
         }
     }
 
-    // Function: Load an existing item into the form for editing.
-    // Output: Pre-fills form state with item data, mapping BE flags to UI Status.
-    // Input: it (RoomTypeDto) clicked from table.
+    // Chức năng: Đổ dữ liệu của một mục vào form để bắt đầu chỉnh sửa.
+    // Đầu vào: `it` - Object `RoomTypeDto` từ hàng được chọn trong bảng.
+    // Đầu ra: Cập nhật state `form` với dữ liệu của mục đó.
     const onEdit = (it: RoomTypeDto) =>
         setForm({
             id: it.id,
             name: it.name,
             description: it.description || "",
-            status: toStatus((it as any).active ?? (it as any).status === "active"), // CHANGED: tolerate both shapes
+            status: toStatus((it as any).active ?? (it as any).status === "active"),
         })
 
-    // Function: Permanently delete a room type by id.
-    // Output: Removes item in BE, shows toast, refreshes list.
-    // Input: id (number) of the row to delete.
-    const onDelete = async (id: number) => {
-        try {
-            await roomTypesApi.delete(id)
-            toast({ title: "Đã xóa", description: "Đã xóa loại phòng" })
-            fetchList()
-        } catch (e: any) {
-            toast({ title: "Lỗi xóa", description: e.message })
-        }
-    }
-
-    // Function: Toggle active flag using dedicated activate/deactivate endpoints.
-    // Output: Updates item active state in BE, then refreshes list.
-    // Input: id (number) and currentActive (boolean) of the row.
-    const onToggle = async (id: number, currentActive: boolean) => { // CHANGED
+    // Chức năng: Chuyển đổi trạng thái active/inactive của một loại phòng.
+    // Đầu vào: `id` của mục và `currentActive` (trạng thái hiện tại).
+    // Đầu ra: Gọi API `activate` hoặc `deactivate`, sau đó tải lại danh sách.
+    const onToggle = async (id: number, currentActive: boolean) => {
         try {
             if (currentActive) await roomTypesApi.deactivate(id)
             else await roomTypesApi.activate(id)
             fetchList()
         } catch (e: any) {
-            toast({ title: "Lỗi cập nhật trạng thái", description: e.message })
+            toast({ title: "Lỗi cập nhật trạng thái", description: friendlyFromPayload(e?.response?.data, "Không thể cập nhật trạng thái") })
         }
     }
 
-    // Function: Derive filtered list based on search text and status filter.
-    // Output: filtered array for rendering in the table.
-    // Input: items[], search string, statusFilter.
+    // -------------------------------------------------------------------------------
+    // KHỐI DỮ LIỆU PHÁI SINH (DERIVED DATA - useMemo)
+    // -------------------------------------------------------------------------------
+
+    // Chức năng: Lọc danh sách `items` dựa trên `search` và `statusFilter`.
+    // `useMemo` giúp việc lọc chỉ chạy lại khi dependency thay đổi, tối ưu hiệu suất.
+    // Đầu vào: `items`, `search`, `statusFilter`.
+    // Đầu ra: Mảng `filtered` chứa các mục đã được lọc để hiển thị trong bảng.
     const filtered = useMemo(() => {
         return items.filter(it => {
             const q = search.toLowerCase()
             const matchText = it.name.toLowerCase().includes(q) || (it.description || "").toLowerCase().includes(q)
-            const active = (it as any).active ?? ((it as any).status === "active") // CHANGED
-            const matchStatus = statusFilter === "all" || toStatus(active) === statusFilter // CHANGED
+            const active = (it as any).active ?? ((it as any).status === "active")
+            const matchStatus = statusFilter === "all" || toStatus(active) === statusFilter
             return matchText && matchStatus
         })
     }, [items, search, statusFilter])
 
-    // Function: Render the manager UI (form, filters, table).
-    // Output: Complete page layout.
-    // Input: Current component state and handlers above.
+    // -------------------------------------------------------------------------------
+    // KHỐI RENDER GIAO DIỆN (UI RENDERING)
+    // -------------------------------------------------------------------------------
     return (
         <div className="space-y-6 overflow-x-hidden">
-            {/* ---- Form Card: Create/Update ---- */}
-            {/* Function: Gather name/description, submit to create or update. */}
-            {/* Output: Calls onSubmit(); may also reset to cancel edit. */}
-            {/* Input: form.name, form.description, form.id; loading state. */}
+            {/* Card Form: Dùng để thêm mới hoặc cập nhật loại phòng */}
             <Card className="bg-card border border-border/60 rounded-md shadow-sm p-4">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
                     <div className="lg:col-span-4 space-y-2 min-w-0">
                         <Label className="text-foreground">Tên</Label>
-                        <Input
-                            value={form.name}
-                            onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                            className="bg-input border-border text-foreground w-full"
-                            placeholder="VD: Standard, VIP..."
-                        />
+                        <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="bg-input border-border text-foreground w-full" placeholder="VD: Standard, VIP..." />
                     </div>
                     <div className="lg:col-span-6 space-y-2 min-w-0">
                         <Label className="text-foreground">Mô tả</Label>
-                        <Input
-                            value={form.description}
-                            onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                            className="bg-input border-border text-foreground w-full"
-                            placeholder="Mô tả ngắn"
-                        />
+                        <Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="bg-input border-border text-foreground w-full" placeholder="Mô tả ngắn" />
                     </div>
                     <div className="lg:col-span-2 flex flex-wrap items-end gap-2 justify-end">
                         <Button type="button" className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={onSubmit} disabled={loading}>
                             <Plus className="w-4 h-4 mr-2" />
                             {form.id ? "Cập nhật" : "Thêm mới"}
                         </Button>
-                        {form.id && (
-                            <Button type="button" variant="outline" onClick={resetForm} disabled={loading}>
-                                Hủy
-                            </Button>
-                        )}
+                        {form.id && (<Button type="button" variant="outline" onClick={resetForm} disabled={loading}>Hủy</Button>)}
                     </div>
                 </div>
             </Card>
 
-            {/* ---- Filters Card ---- */}
-            {/* Function: Search & narrow list by active status. */}
-            {/* Output: Updates search, statusFilter; triggers useMemo & useEffect. */}
-            {/* Input: search text, statusFilter selection; loading display. */}
+            {/* Card Filters: Dùng để tìm kiếm và lọc danh sách */}
             <Card className="bg-card border border-border/60 rounded-md shadow-sm p-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2 min-w-0">
                         <Label className="text-sm text-foreground">Tìm kiếm</Label>
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <Input
-                                value={search}
-                                onChange={e => setSearch(e.target.value)}
-                                placeholder="Tìm theo tên hoặc mô tả..."
-                                className="pl-10 bg-input border-border text-foreground w-full"
-                            />
+                            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Tìm theo tên hoặc mô tả..." className="pl-10 bg-input border-border text-foreground w-full" />
                         </div>
                     </div>
                     <div className="space-y-2">
                         <Label className="text-sm text-foreground">Trạng thái</Label>
                         <Select value={statusFilter} onValueChange={v => setStatusFilter(v as any)}>
-                            <SelectTrigger className="bg-input border-border text-foreground">
-                                <SelectValue placeholder="Tất cả" />
-                            </SelectTrigger>
+                            <SelectTrigger className="bg-input border-border text-foreground"><SelectValue placeholder="Tất cả" /></SelectTrigger>
                             <SelectContent className="bg-popover border-border">
                                 <SelectItem value="all">Tất cả</SelectItem>
                                 <SelectItem value="active">Hoạt động</SelectItem>
@@ -249,10 +224,7 @@ export default function RoomTypesManager() {
                 </div>
             </Card>
 
-            {/* ---- Table Card ---- */}
-            {/* Function: Display filtered room types with actions (edit/toggle/delete). */}
-            {/* Output: Rows reflect current filter; buttons call handlers. */}
-            {/* Input: filtered list; handler functions; loading state for empty message. */}
+            {/* Card Table: Hiển thị danh sách các loại phòng đã được lọc */}
             <Card className="bg-card border border-border/60 rounded-md shadow-sm p-4">
                 <Table>
                     <TableHeader>
@@ -272,51 +244,29 @@ export default function RoomTypesManager() {
                             </TableRow>
                         ) : (
                             filtered.map(it => {
-                                const active = (it as any).active ?? ((it as any).status === "active") // CHANGED
+                                const active = (it as any).active ?? ((it as any).status === "active")
                                 return (
                                     <TableRow key={it.id} className="border-border">
                                         <TableCell className="text-foreground break-words">{it.name}</TableCell>
                                         <TableCell className="text-foreground break-words">{it.description || "-"}</TableCell>
                                         <TableCell>
-                                            <Badge
-                                                variant={active ? "default" : "secondary"} // CHANGED
-                                                className={active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"} // CHANGED
-                                            >
-                                                {active ? "Hoạt động" : "Không hoạt động"} {/* CHANGED */}
+                                            <Badge variant={active ? "default" : "secondary"} className={active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}>
+                                                {active ? "Hoạt động" : "Không hoạt động"}
                                             </Badge>
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex flex-wrap gap-2">
-                                                {/* Function: Enter edit mode for the selected item. */}
-                                                {/* Output: Pre-fills form via onEdit. */}
-                                                {/* Input: it (current row). */}
                                                 <Button type="button" size="sm" variant="ghost" onClick={() => onEdit(it)} className="hover:bg-muted">
                                                     <Pencil className="w-4 h-4" />
                                                 </Button>
-                                                {/* Function: Toggle active flag for selected item. */}
-                                                {/* Output: Calls activate/deactivate then refresh list. */}
-                                                {/* Input: it.id and active flag. */}
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() => onToggle(it.id, active)} // CHANGED
-                                                    className="hover:bg-muted"
-                                                >
-                                                    {active ? "Tắt" : "Bật"} {/* CHANGED */}
+                                                <Button type="button" size="sm" variant="ghost" onClick={() => onToggle(it.id, active)} className="hover:bg-muted">
+                                                    {active ? "Tắt" : "Bật"}
                                                 </Button>
-                                                {/* Function: Delete selected item. */}
-                                                {/* Output: Removes item and refreshes list. */}
-                                                {/* Input: it.id. */}
-                                                {/*<Button*/}
-                                                {/*    type="button"*/}
-                                                {/*    size="sm"*/}
-                                                {/*    variant="ghost"*/}
-                                                {/*    onClick={() => onDelete(it.id)}*/}
-                                                {/*    className="text-destructive hover:bg-destructive/10"*/}
-                                                {/*>*/}
-                                                {/*    <Trash2 className="w-4 h-4" />*/}
-                                                {/*</Button>*/}
+                                                {/* Nút xóa đã bị vô hiệu hóa trong UI, vì vậy hàm onDelete không được sử dụng.
+                                                <Button type="button" size="sm" variant="ghost" onClick={() => onDelete(it.id)} className="text-destructive hover:bg-destructive/10">
+                                                    <Trash2 className="w-4 h-4" />
+                                                </Button>
+                                                */}
                                             </div>
                                         </TableCell>
                                     </TableRow>

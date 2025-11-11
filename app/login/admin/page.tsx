@@ -17,8 +17,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
-
-const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL
+import { BACKEND_BASE_URL } from "@/src/utils/config"
 
 // Helper function to check if token is valid (not expired)
 const isTokenValid = (token: string | null): boolean => {
@@ -50,6 +49,16 @@ export default function LoginPage() {
             sessionStorage.removeItem("fromLogout")
             // Don't auto-redirect after logout
             return
+        }
+
+        // Check if token expired and show notification
+        const tokenExpired = sessionStorage.getItem("tokenExpired")
+        const expiredMessage = sessionStorage.getItem("expiredMessage")
+        if (tokenExpired === "true" && expiredMessage) {
+            toast.error(expiredMessage)
+            // Clear the flags
+            sessionStorage.removeItem("tokenExpired")
+            sessionStorage.removeItem("expiredMessage")
         }
 
         const token = localStorage.getItem("accessToken")
@@ -126,7 +135,7 @@ export default function LoginPage() {
                 localStorage.setItem("roleName", JSON.stringify(data.data.roleName))
                 localStorage.setItem("email", data.data.email)
 
-                toast.success(data.message)
+                toast.success("Đăng nhập thành công")
                 console.log("Admin redirecting based on role:", roles) // Debug log
                 
                 // Redirect based on role immediately

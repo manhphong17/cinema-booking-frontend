@@ -9,8 +9,7 @@ import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { LockKeyhole, Eye, EyeOff } from "lucide-react"
 import { friendlyFromPayload, type ApiEnvelope } from "../../src/utils/server-error"
-
-const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL
+import { BACKEND_BASE_URL } from "@/src/utils/config"
 
 export default function ResetPasswordPage() {
     const [password, setPassword] = useState("")

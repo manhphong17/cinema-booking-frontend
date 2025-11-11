@@ -80,10 +80,10 @@ export default function CustomerInfoCard({ onChange }: Props) {
     };
 
     return (
-        <Card className="shadow-xl border-2 border-blue-200 rounded-xl bg-white hover:shadow-2xl transition-all duration-300">
-            <CardHeader className="bg-gradient-to-r from-blue-50 via-white to-blue-50 border-b-2 border-blue-200 rounded-t-xl">
+        <Card className="shadow-xl border-2 rounded-xl bg-white hover:shadow-2xl transition-all duration-300" style={{ borderColor: '#B3E0FF' }} onMouseEnter={(e) => e.currentTarget.style.borderColor = '#3BAEF0'} onMouseLeave={(e) => e.currentTarget.style.borderColor = '#B3E0FF'}>
+            <CardHeader className="border-b-2 rounded-t-xl" style={{ background: 'linear-gradient(to right, #E6F5FF, white, #E6F5FF)', borderColor: '#B3E0FF' }}>
                 <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                  <div className="w-1 h-6 bg-gradient-to-b from-blue-500 to-blue-300 rounded-full"></div>
+                  <div className="w-1 h-6 rounded-full" style={{ background: 'linear-gradient(to bottom, #3BAEF0, #38AAEC)' }}></div>
                   Thông tin khách hàng
                 </CardTitle>
             </CardHeader>
@@ -106,8 +106,8 @@ export default function CustomerInfoCard({ onChange }: Props) {
                     </div>
                 </div>
 
-                <div className="border p-4 rounded-lg bg-blue-50 border-blue-200 space-y-3">
-                    <h6 className="font-semibold text-primary text-lg">
+                <div className="border p-4 rounded-lg space-y-3" style={{ backgroundColor: '#E6F5FF', borderColor: '#B3E0FF' }}>
+                    <h6 className="font-semibold text-lg" style={{ color: '#3BAEF0' }}>
                         Quy đổi điểm thành viên
                     </h6>
 
@@ -136,7 +136,8 @@ export default function CustomerInfoCard({ onChange }: Props) {
 
                             <Button
                                 onClick={handleApplyPoint}
-                                className="bg-orange-600 text-white font-bold shadow-lg hover:bg-orange-700 transition-all duration-200"
+                                style={{ backgroundColor: '#38AAEC' }}
+                                className="text-white font-bold shadow-lg hover:opacity-90 transition-all duration-200"
                             >
                                 Áp dụng
                             </Button>

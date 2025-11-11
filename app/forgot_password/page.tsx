@@ -9,8 +9,7 @@ import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { Mail } from "lucide-react"
 import { friendlyFromPayload, type ApiEnvelope } from "../../src/utils/server-error"
-
-const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL
+import { BACKEND_BASE_URL } from "@/src/utils/config"
 const EMAIL_RE =
     /^(?=.{1,64}@)[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$/;
 

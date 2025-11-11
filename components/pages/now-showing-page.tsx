@@ -157,7 +157,7 @@ export function NowShowingPageContent() {
     return (
         <div className="min-h-screen bg-white">
             {/* Hero Section */}
-            <section className="py-24 bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 relative overflow-hidden">
+            <section className="py-24 relative overflow-hidden" style={{ background: 'linear-gradient(to right, #3BAEF0, #38AAEC, #3BAEF0)' }}>
                 {/* Background Pattern */}
                 <div className="absolute inset-0 opacity-10">
                     <div className="absolute inset-0" style={{
@@ -166,17 +166,12 @@ export function NowShowingPageContent() {
                     }}></div>
                 </div>
                 <div className="container mx-auto px-4 text-center relative z-10">
-                    <div className="inline-block mb-4">
-                        <div className="text-[11px] font-bold text-blue-100 uppercase tracking-wider mb-2 px-3 py-1 bg-blue-500/30 rounded-md backdrop-blur-sm">
-                            Now Showing
-                        </div>
-                    </div>
                     <h1 className="text-5xl md:text-6xl font-black text-white mb-6 tracking-tight">
-                        <span className="bg-gradient-to-r from-white via-blue-50 to-white bg-clip-text text-transparent drop-shadow-lg">
+                        <span className="bg-gradient-to-r from-white via-[#E6F5FF] to-white bg-clip-text text-transparent drop-shadow-lg">
                             Phim Đang Chiếu
                         </span>
                     </h1>
-                    <p className="text-xl text-blue-50 max-w-2xl mx-auto font-medium">
+                    <p className="text-xl max-w-2xl mx-auto font-medium" style={{ color: '#E6F5FF' }}>
                         Khám phá những bộ phim hay nhất đang được chiếu tại rạp của chúng tôi
                     </p>
                     <div className="flex items-center justify-center gap-2 mt-6">
@@ -207,7 +202,10 @@ export function NowShowingPageContent() {
                                             placeholder="Tìm kiếm phim..."
                                             value={filters.search}
                                             onChange={handleSearchChange}
-                                            className="pl-10 h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                                            className="pl-10 h-11 border-gray-300"
+                                            style={{ '--tw-ring-color': '#3BAEF0' } as React.CSSProperties}
+                                            onFocus={(e) => e.currentTarget.style.borderColor = '#3BAEF0'}
+                                            onBlur={(e) => e.currentTarget.style.borderColor = '#d1d5db'}
                                         />
                                     </div>
                                 </div>
@@ -264,14 +262,15 @@ export function NowShowingPageContent() {
                             {(filters.search || selectedGenre) && (
                                 <div className="mt-4 flex flex-wrap gap-2">
                                     {filters.search && (
-                                        <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                                        <Badge variant="secondary" style={{ backgroundColor: '#E6F5FF', color: '#3BAEF0' }}>
                                             Tìm kiếm: "{filters.search}"
                                             <button
                                                 onClick={() => {
                                                     const newFilters = { ...filters, search: "" }
                                                     setFilters(newFilters)
                                                 }}
-                                                className="ml-2 hover:text-blue-600"
+                                                className="ml-2"
+                                                style={{ color: '#3BAEF0' }}
                                             >
                                                 <X className="h-3 w-3" />
                                             </button>
@@ -300,29 +299,26 @@ export function NowShowingPageContent() {
                 {/* Background Pattern */}
                 <div className="absolute inset-0 opacity-5">
                     <div className="absolute inset-0" style={{
-                        backgroundImage: 'radial-gradient(circle at 2px 2px, #3b82f6 1px, transparent 0)',
+                        backgroundImage: 'radial-gradient(circle at 2px 2px, #3BAEF0 1px, transparent 0)',
                         backgroundSize: '40px 40px'
                     }}></div>
                 </div>
                 
                 {/* Decorative Border Top */}
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-blue-400 to-blue-500"></div>
+                <div className="absolute top-0 left-0 right-0 h-1" style={{ backgroundColor: '#3BAEF0' }}></div>
                 
                 <div className="movie-carousel-container container mx-auto px-4 max-w-7xl relative z-10">
                     <div className="flex items-center justify-between mb-12 gap-4 flex-wrap">
                         <div className="relative">
-                            <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-blue-300 rounded-full"></div>
-                            <div className="text-[11px] font-bold text-blue-600 uppercase tracking-wider mb-2 px-2 py-1 bg-blue-50 rounded-md inline-block">
-                                Now Showing
-                            </div>
+                            <div className="absolute -left-4 top-0 bottom-0 w-1 rounded-full" style={{ background: 'linear-gradient(to bottom, #3BAEF0, #38AAEC)' }}></div>
                             <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-3 tracking-tight leading-tight">
-                                <span className="bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
+                                <span style={{ color: '#3BAEF0' }}>
                                     Phim đang chiếu
                                 </span>
                             </h2>
                             <div className="flex items-center gap-2">
-                                <div className="h-1.5 w-20 rounded-full bg-gradient-to-r from-blue-500 to-blue-300"></div>
-                                <div className="h-1.5 w-2 rounded-full bg-blue-400"></div>
+                                <div className="h-1.5 w-20 rounded-full" style={{ background: 'linear-gradient(to right, #3BAEF0, #38AAEC)' }}></div>
+                                <div className="h-1.5 w-2 rounded-full" style={{ backgroundColor: '#3BAEF0' }}></div>
                             </div>
                         </div>
                     </div>
@@ -383,7 +379,8 @@ export function NowShowingPageContent() {
                                 <Button
                                     onClick={handleShowMore}
                                     disabled={loadingMore}
-                                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    style={{ backgroundColor: '#38AAEC' }}
+                                    className="hover:opacity-90 text-white px-8 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {loadingMore ? 'Đang tải...' : 'Xem thêm 8 phim'}
                                 </Button>
@@ -437,8 +434,8 @@ export function NowShowingPageContent() {
             </section>
 
             {/* Section Divider */}
-            <div className="relative h-2 bg-gradient-to-r from-transparent via-blue-300/50 to-transparent">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/30 via-blue-400/50 to-blue-500/30"></div>
+            <div className="relative h-2" style={{ background: 'linear-gradient(to right, transparent, rgba(59, 174, 240, 0.5), transparent)' }}>
+                <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgba(59, 174, 240, 0.3), rgba(56, 170, 236, 0.5), rgba(59, 174, 240, 0.3))' }}></div>
             </div>
 
             {/* Features Section */}
@@ -446,23 +443,23 @@ export function NowShowingPageContent() {
                 {/* Background Pattern */}
                 <div className="absolute inset-0 opacity-5">
                     <div className="absolute inset-0" style={{
-                        backgroundImage: 'radial-gradient(circle at 2px 2px, #3b82f6 1px, transparent 0)',
+                        backgroundImage: 'radial-gradient(circle at 2px 2px, #3BAEF0 1px, transparent 0)',
                         backgroundSize: '40px 40px'
                     }}></div>
                 </div>
                 
                 {/* Decorative Border Top */}
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-blue-400 to-blue-500"></div>
+                <div className="absolute top-0 left-0 right-0 h-1" style={{ backgroundColor: '#3BAEF0' }}></div>
                 
                 <div className="container mx-auto px-4 relative z-10">
                     <div className="text-center mb-16 relative">
                         <div className="inline-block mb-4">
-                            <div className="text-[11px] font-bold text-blue-600 uppercase tracking-wider mb-2 px-3 py-1 bg-blue-50 rounded-md">
+                            <div className="text-[11px] font-bold uppercase tracking-wider mb-2 px-3 py-1 rounded-md" style={{ color: '#3BAEF0', backgroundColor: '#E6F5FF' }}>
                                 Features
                             </div>
                         </div>
                         <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4">
-                            <span className="bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
+                            <span style={{ color: '#3BAEF0' }}>
                                 Tại Sao Chọn Chúng Tôi?
                             </span>
                         </h2>
@@ -470,16 +467,16 @@ export function NowShowingPageContent() {
                             Trải nghiệm xem phim tuyệt vời với công nghệ hiện đại và dịch vụ chuyên nghiệp
                         </p>
                         <div className="flex items-center justify-center gap-2 mt-4">
-                            <div className="h-1.5 w-24 rounded-full bg-gradient-to-r from-blue-500 to-blue-300"></div>
-                            <div className="h-1.5 w-2 rounded-full bg-blue-400"></div>
+                            <div className="h-1.5 w-24 rounded-full" style={{ background: 'linear-gradient(to right, #3BAEF0, #38AAEC)' }}></div>
+                            <div className="h-1.5 w-2 rounded-full" style={{ backgroundColor: '#3BAEF0' }}></div>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                         <Card className="text-center p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
                             <CardContent>
-                                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                                    <Film className="h-8 w-8 text-blue-600" />
+                                <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6" style={{ backgroundColor: '#E6F5FF' }}>
+                                    <Film className="h-8 w-8" style={{ color: '#3BAEF0' }} />
                                 </div>
                                 <h3 className="text-xl font-bold text-gray-900 mb-4">
                                     Công Nghệ 4K
@@ -492,8 +489,8 @@ export function NowShowingPageContent() {
 
                         <Card className="text-center p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
                             <CardContent>
-                                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                                    <Calendar className="h-8 w-8 text-green-600" />
+                                <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6" style={{ backgroundColor: '#E6F5FF' }}>
+                                    <Calendar className="h-8 w-8" style={{ color: '#3BAEF0' }} />
                                 </div>
                                 <h3 className="text-xl font-bold text-gray-900 mb-4">
                                     Đặt Vé Dễ Dàng
@@ -506,8 +503,8 @@ export function NowShowingPageContent() {
 
                         <Card className="text-center p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
                             <CardContent>
-                                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                                    <Users className="h-8 w-8 text-purple-600" />
+                                <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6" style={{ backgroundColor: '#E6F5FF' }}>
+                                    <Users className="h-8 w-8" style={{ color: '#3BAEF0' }} />
                                 </div>
                                 <h3 className="text-xl font-bold text-gray-900 mb-4">
                                     Dịch Vụ Chuyên Nghiệp

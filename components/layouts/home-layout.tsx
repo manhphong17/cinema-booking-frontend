@@ -1,7 +1,7 @@
 "use client"
 
 import type { ReactNode } from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -31,40 +31,40 @@ export function HomeLayout({ children }: HomeLayoutProps) {
   const [userName, setUserName] = useState<string>("KH")
   const router = useRouter()
 
-  useEffect(() => {
-    setMounted(true)
-    
-    const checkAuth = () => {
-      const accessToken = localStorage.getItem("accessToken");
-      if (!accessToken) {
-          setIsAuthenticated(false);
-          console.log("Không có token, chưa đăng nhập");
-          return;
-      }
-
-      try {
-          const decoded = jwtDecode(accessToken);
-          const currentTime = Math.floor(Date.now() / 1000);
-
-          if (typeof decoded.exp === "number" && decoded.exp < currentTime) {
-              setIsAuthenticated(false);
-              console.log("Token đã hết hạn");
-              // Clear expired token
-              localStorage.removeItem("accessToken");
-              localStorage.removeItem("auth");
-          } else {
-              setIsAuthenticated(true);
-              console.log("Đã đăng nhập:", decoded);
-          }
-      } catch (error) {
-          console.error("Token không hợp lệ:", error);
-          setIsAuthenticated(false);
-          // Clear invalid token
-          localStorage.removeItem("accessToken");
-          localStorage.removeItem("auth");
-      }
+  // Define checkAuth function using useCallback so it can be used in event listeners
+  const checkAuth = useCallback(() => {
+    const accessToken = localStorage.getItem("accessToken");
+    if (!accessToken) {
+        setIsAuthenticated(false);
+        console.log("Không có token, chưa đăng nhập");
+        return;
     }
 
+    try {
+        const decoded = jwtDecode(accessToken);
+        const currentTime = Math.floor(Date.now() / 1000);
+
+        if (typeof decoded.exp === "number" && decoded.exp < currentTime) {
+            setIsAuthenticated(false);
+            console.log("Token đã hết hạn");
+            // Clear expired token
+            localStorage.removeItem("accessToken");
+            localStorage.removeItem("auth");
+        } else {
+            setIsAuthenticated(true);
+            console.log("Đã đăng nhập:", decoded);
+        }
+    } catch (error) {
+        console.error("Token không hợp lệ:", error);
+        setIsAuthenticated(false);
+        // Clear invalid token
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("auth");
+    }
+  }, [])
+
+  useEffect(() => {
+    setMounted(true)
     checkAuth()
 
     // Load user avatar and name from localStorage
@@ -85,9 +85,14 @@ export function HomeLayout({ children }: HomeLayoutProps) {
 
     // Listen for storage changes (for logout from other tabs and avatar updates)
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'accessToken' && !e.newValue) {
-        setIsAuthenticated(false)
-        setDropdownOpen(false)
+      if (e.key === 'accessToken') {
+        if (!e.newValue) {
+          setIsAuthenticated(false)
+          setDropdownOpen(false)
+        } else {
+          // Token was added, re-check authentication
+          checkAuth()
+        }
       }
       if (e.key === 'userAvatar' && e.newValue) {
         setUserAvatar(e.newValue)
@@ -97,12 +102,19 @@ export function HomeLayout({ children }: HomeLayoutProps) {
       }
     }
 
+    // Listen for custom event when token is set in same tab (OAuth callback)
+    const handleTokenSet = () => {
+      checkAuth()
+    }
+
     window.addEventListener('storage', handleStorageChange)
+    window.addEventListener('tokenSet', handleTokenSet)
     
     return () => {
       window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('tokenSet', handleTokenSet)
     }
-  }, [])
+  }, [checkAuth])
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -281,26 +293,18 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                                 </span>
                                 <div className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 transition-all duration-300 group-hover:w-full rounded-full"></div>
                             </button>
-                            <button
-                                onClick={() => handleMenuClick("/vouchers")}
-                                className="relative text-foreground hover:text-blue-600 transition-all duration-300 font-medium text-base py-3 px-4 rounded-lg group hover:bg-blue-50"
-                            >
-                                <span className="relative z-10 flex items-center gap-2">
-                                    <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                                    Voucher
-                                </span>
-                                <div className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 transition-all duration-300 group-hover:w-full rounded-full"></div>
-                            </button>
-                            <button
-                                onClick={() => handleMenuClick("/news")}
-                                className="relative text-foreground hover:text-blue-600 transition-all duration-300 font-medium text-base py-3 px-4 rounded-lg group hover:bg-blue-50"
-                            >
-                                <span className="relative z-10 flex items-center gap-2">
-                                    <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                                    Tin tức
-                                </span>
-                                <div className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 transition-all duration-300 group-hover:w-full rounded-full"></div>
-                            </button>
+                            {isAuthenticated && (
+                                <button
+                                    onClick={() => handleMenuClick("/customer?section=orders")}
+                                    className="relative text-foreground hover:text-blue-600 transition-all duration-300 font-medium text-base py-3 px-4 rounded-lg group hover:bg-blue-50"
+                                >
+                                    <span className="relative z-10 flex items-center gap-2">
+                                        <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                        Đơn hàng
+                                    </span>
+                                    <div className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 transition-all duration-300 group-hover:w-full rounded-full"></div>
+                                </button>
+                            )}
                         </div>
 
                         {/* Desktop Auth Section */}
@@ -523,25 +527,18 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                                         </div>
                                         <span className="font-medium text-sm">Sắp chiếu</span>
                                     </button>
-                                    <button
-                                        onClick={() => handleMenuClick("/vouchers")}
-                                        className="relative flex flex-col items-center py-4 px-3 rounded-xl hover:bg-primary/5 hover:text-primary transition-all duration-300 group border border-transparent hover:border-primary/20"
-                                    >
-                                        <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center mb-2 group-hover:bg-primary/20 transition-colors duration-300">
-                                            <div className="w-3 h-3 bg-primary rounded-full"></div>
-                                        </div>
-                                        <span className="font-medium text-sm">Voucher</span>
-                                    </button>
+                                    {isAuthenticated && (
+                                        <button
+                                            onClick={() => handleMenuClick("/customer?section=orders")}
+                                            className="relative flex flex-col items-center py-4 px-3 rounded-xl hover:bg-primary/5 hover:text-primary transition-all duration-300 group border border-transparent hover:border-primary/20"
+                                        >
+                                            <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center mb-2 group-hover:bg-primary/20 transition-colors duration-300">
+                                                <ShoppingBag className="w-4 h-4 text-primary" />
+                                            </div>
+                                            <span className="font-medium text-sm">Đơn hàng</span>
+                                        </button>
+                                    )}
                                 </div>
-                                <button
-                                    onClick={() => handleMenuClick("/news")}
-                                    className="relative w-full flex items-center justify-center py-3 px-4 rounded-xl hover:bg-primary/5 hover:text-primary transition-all duration-300 group border border-transparent hover:border-primary/20"
-                                >
-                                    <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center mr-3 group-hover:bg-primary/20 transition-colors duration-300">
-                                        <div className="w-2 h-2 bg-primary rounded-full"></div>
-                                    </div>
-                                    <span className="font-medium">Tin tức</span>
-                                </button>
                             </div>
                         </div>
                     )}
@@ -637,18 +634,14 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                                         <span className="text-sm">Phim sắp chiếu</span>
                                     </Link>
                                 </li>
-                                <li>
-                                    <Link href="/vouchers" className="group flex items-center gap-3 text-gray-300 hover:text-white transition-colors duration-300">
-                                        <div className="w-1 h-1 bg-gray-500 group-hover:bg-red-500 rounded-full transition-colors duration-300"></div>
-                                        <span className="text-sm">Voucher</span>
-                                    </Link>
-                                </li>
-                                <li>
-                                    <Link href="/news" className="group flex items-center gap-3 text-gray-300 hover:text-white transition-colors duration-300">
-                                        <div className="w-1 h-1 bg-gray-500 group-hover:bg-red-500 rounded-full transition-colors duration-300"></div>
-                                        <span className="text-sm">Tin tức</span>
-                                    </Link>
-                                </li>
+                                {isAuthenticated && (
+                                    <li>
+                                        <Link href="/customer?section=orders" className="group flex items-center gap-3 text-gray-300 hover:text-white transition-colors duration-300">
+                                            <div className="w-1 h-1 bg-gray-500 group-hover:bg-red-500 rounded-full transition-colors duration-300"></div>
+                                            <span className="text-sm">Đơn hàng</span>
+                                        </Link>
+                                    </li>
+                                )}
                                 <li>
                                     <Link href="/home#about" className="group flex items-center gap-3 text-gray-300 hover:text-white transition-colors duration-300">
                                         <div className="w-1 h-1 bg-gray-500 group-hover:bg-red-500 rounded-full transition-colors duration-300"></div>

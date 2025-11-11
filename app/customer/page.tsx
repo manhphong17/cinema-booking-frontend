@@ -40,6 +40,8 @@ export default function CustomerPage() {
             } catch (error) {
                 console.error('Error decoding token:', error)
             }
+            // Dispatch custom event to notify HomeLayout that token was set
+            window.dispatchEvent(new Event('tokenSet'))
             // Remove token from URL for security
             router.replace('/customer', { scroll: false })
         }
