@@ -429,31 +429,15 @@ export function CustomerProfile() {
             <div className="container mx-auto px-4 py-8 max-w-7xl relative z-10">
 
             {/* Header Section */}
-            <div className="mb-12 relative">
-                <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-blue-300 rounded-full"></div>
-                <div className="inline-block mb-4">
-                    <div className="text-[11px] font-bold text-blue-600 uppercase tracking-wider mb-2 px-3 py-1 bg-blue-50 rounded-md">
-                        Profile
-                    </div>
-                </div>
+            <div className="mb-8">
                 <div className="flex items-center justify-between flex-wrap gap-4">
-                    <div className="flex items-center gap-4">
-                        <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tight">
-                            <span className="bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
-                                Thông tin cá nhân
-                            </span>
-                        </h1>
-                        {!isEditing && (
-                            <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-2 border-emerald-400 shadow-lg">
-                                <Shield className="h-3 w-3 mr-1 text-white" />
-                                Đã xác thực
-                            </Badge>
-                        )}
-                    </div>
+                    <h1 className="text-2xl font-bold text-foreground">
+                        Thông tin cá nhân
+                    </h1>
                     {!isEditing ? (
                         <Button 
                             onClick={() => setIsEditing(true)} 
-                            className="flex items-center gap-2 bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 hover:from-blue-700 hover:via-blue-600 hover:to-blue-700 text-white font-bold shadow-xl hover:shadow-blue-500/50 transition-all duration-300 hover:scale-105 border-2 border-blue-400"
+                            className="flex items-center gap-2 bg-[#38AAEC] text-white hover:bg-[#3BAEF0] hover:opacity-90 transition-all duration-200 hover:-translate-y-0.5 font-medium"
                         >
                             <Edit className="h-4 w-4" />
                             Chỉnh sửa
@@ -464,7 +448,7 @@ export function CustomerProfile() {
                                 id="btnSaveProfile"
                                 disabled={loading}
                                 onClick={handleSave}
-                                className="flex items-center gap-2 bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-600 hover:from-emerald-700 hover:via-emerald-600 hover:to-emerald-700 text-white font-bold shadow-xl hover:shadow-emerald-500/50 transition-all duration-300 hover:scale-105 border-2 border-emerald-400"
+                                className="flex items-center gap-2 bg-[#38AAEC] text-white hover:bg-[#3BAEF0] hover:opacity-90 transition-all duration-200 hover:-translate-y-0.5 font-medium"
                             >
                                 {loading ? (
                                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -477,17 +461,13 @@ export function CustomerProfile() {
                                 id="btnCancelProfile"
                                 variant="outline"
                                 onClick={() => setIsEditing(false)}
-                                className="flex items-center gap-2 border-2 hover:bg-gray-50"
+                                className="flex items-center gap-2 bg-transparent text-[#38AAEC] border border-[#38AAEC] hover:bg-[#38AAEC] hover:text-white transition-all duration-200 font-medium"
                             >
                                 <X className="h-4 w-4" />
                                 Hủy
                             </Button>
                         </div>
                     )}
-                </div>
-                <div className="flex items-center gap-2 mt-4">
-                    <div className="h-1.5 w-24 rounded-full bg-gradient-to-r from-blue-500 to-blue-300"></div>
-                    <div className="h-1.5 w-2 rounded-full bg-blue-400"></div>
                 </div>
             </div>
 
@@ -534,7 +514,7 @@ export function CustomerProfile() {
                                             type="button"
                                             variant="outline"
                                             onClick={() => document.getElementById('avatar-upload')?.click()}
-                                            className="text-sm w-full md:w-auto border-2 border-blue-300 hover:bg-blue-50 hover:border-blue-400"
+                                            className="text-sm w-full md:w-auto bg-transparent text-[#38AAEC] border border-[#38AAEC] hover:bg-[#38AAEC] hover:text-white transition-all duration-200 font-medium"
                                         >
                                             Chọn ảnh
                                         </Button>
@@ -743,7 +723,7 @@ export function CustomerProfile() {
                             </p>
                             <Button
                                 onClick={() => setShowPasswordForm(true)}
-                                className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 hover:from-blue-700 hover:via-blue-600 hover:to-blue-700 text-white font-bold shadow-xl hover:shadow-blue-500/50 transition-all duration-300 hover:scale-105 border-2 border-blue-400"
+                                className="bg-[#38AAEC] text-white hover:bg-[#3BAEF0] hover:opacity-90 transition-all duration-200 hover:-translate-y-0.5 font-medium"
                             >
                                 Đổi mật khẩu
                             </Button>
@@ -759,6 +739,7 @@ export function CustomerProfile() {
                                         setShowPasswordForm(false)
                                         setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" })
                                     }}
+                                    className="bg-transparent text-[#38AAEC] border border-[#38AAEC] hover:bg-[#38AAEC] hover:text-white transition-all duration-200 font-medium"
                                 >
                                     <X className="h-4 w-4 mr-1" />
                                     Hủy
@@ -819,7 +800,7 @@ export function CustomerProfile() {
                                     id="btnChangePassword"
                                     disabled={passwordLoading.change}
                                     onClick={handleChangePassword}
-                                    className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 hover:from-blue-700 hover:via-blue-600 hover:to-blue-700 text-white font-bold shadow-xl hover:shadow-blue-500/50 transition-all duration-300 hover:scale-105 border-2 border-blue-400"
+                                    className="bg-[#38AAEC] text-white hover:bg-[#3BAEF0] hover:opacity-90 transition-all duration-200 hover:-translate-y-0.5 font-medium"
                                 >
                                     {passwordLoading.change ? (
                                         <>
@@ -833,7 +814,7 @@ export function CustomerProfile() {
                                 <Button
                                     variant="outline"
                                     onClick={() => setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" })}
-                                    className="border-2 hover:bg-gray-50"
+                                    className="bg-transparent text-[#38AAEC] border border-[#38AAEC] hover:bg-[#38AAEC] hover:text-white transition-all duration-200 font-medium"
                                 >
                                     Xóa thông tin
                                 </Button>

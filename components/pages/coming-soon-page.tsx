@@ -537,11 +537,10 @@ export function ComingSoonPageContent() {
                 
                 <div className="container mx-auto px-4 relative z-10">
                     <div className="text-center mb-10 relative">
-                        <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
-                            <span style={{ color: '#2563eb' }}>
-                                Lợi Ích Khi Đặt Vé Sớm
-                            </span>
+                        <h2 className="text-4xl font-bold text-foreground mb-4">
+                            Lợi Ích Khi Đặt Vé Sớm
                         </h2>
+                        <div className="w-16 h-1 bg-black mx-auto mb-8"></div>
                         <p className="text-lg text-gray-600 max-w-2xl mx-auto font-medium">
                             Đặt vé trước để tận hưởng nhiều ưu đãi và đảm bảo chỗ ngồi tốt nhất
                         </p>

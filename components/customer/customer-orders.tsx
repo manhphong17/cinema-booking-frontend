@@ -113,25 +113,10 @@ export function CustomerOrders() {
       
       <div className="container mx-auto px-4 py-8 max-w-7xl relative z-10 space-y-6">
         {/* Header Section */}
-        <div className="mb-12 relative">
-          <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-blue-300 rounded-full"></div>
-          <div className="inline-block mb-4">
-            <div className="text-[11px] font-bold text-blue-600 uppercase tracking-wider mb-2 px-3 py-1 bg-blue-50 rounded-md">
-              Orders
-            </div>
-          </div>
-          <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-3 tracking-tight">
-            <span className="bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
-              Lịch sử đơn hàng
-            </span>
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-foreground">
+            Lịch sử đơn hàng
           </h1>
-          <p className="text-lg text-gray-600 font-medium">
-            Theo dõi tất cả các đơn hàng và giao dịch của bạn
-          </p>
-          <div className="flex items-center gap-2 mt-4">
-            <div className="h-1.5 w-24 rounded-full bg-gradient-to-r from-blue-500 to-blue-300"></div>
-            <div className="h-1.5 w-2 rounded-full bg-blue-400"></div>
-          </div>
         </div>
 
       <div className="mb-6">
