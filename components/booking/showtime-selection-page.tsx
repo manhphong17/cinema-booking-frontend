@@ -591,71 +591,10 @@ export default function ShowtimeSelectionPage({ movieId }: ShowtimeSelectionPage
             )}
 
             {/* Summary */}
-            {selectedTime && selectedHall && (
-              <Card className="shadow-xl border-2 border-blue-200 bg-gradient-to-r from-blue-50 via-white to-blue-50">
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
-                      <Play className="h-4 w-4" />
-                    </div>
-                    <span className="font-bold text-lg text-gray-900">Suất chiếu đã chọn</span>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div className="bg-white rounded-lg p-3 border border-blue-200">
-                      <div className="text-xs text-gray-500 mb-1 font-medium">Ngày</div>
-                      <div className="font-bold text-gray-900">
-                        {days.find((d) => d.date === selectedDate)?.label}
-                      </div>
-                      <div className="text-xs text-gray-600">{selectedDate}</div>
-                    </div>
-                    <div className="bg-white rounded-lg p-3 border border-blue-200">
-                      <div className="text-xs text-gray-500 mb-1 font-medium">Phòng</div>
-                      <div className="font-bold text-gray-900">{selectedHall}</div>
-                    </div>
-                    <div className="bg-white rounded-lg p-3 border border-blue-200">
-                      <div className="text-xs text-gray-500 mb-1 font-medium">Thời gian</div>
-                      <div className="font-bold text-gray-900">
-                        {selectedTime} - {(() => {
-                          const selectedRoom = rooms.find((room) => room.roomName === selectedHall)
-                          return selectedRoom
-                            ? new Date(selectedRoom.endTime).toLocaleTimeString("vi-VN", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                hour12: false
-                              })
-                            : "--:--"
-                        })()}
-                      </div>
-                    </div>
-                  </div>
-                  {(() => {
-                    const selectedRoom = rooms.find((room) => room.roomName === selectedHall)
-                    if (!selectedRoom) return null
-                    return (
-                      <div className="mt-4 pt-4 border-t-2 border-blue-200">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="bg-white rounded-lg p-3 border border-blue-200">
-                            <div className="text-xs text-gray-500 mb-1 font-medium">Loại phòng</div>
-                            <div className="font-bold text-gray-900">{selectedRoom.roomType}</div>
-                          </div>
-                          <div className="bg-white rounded-lg p-3 border border-blue-200">
-                            <div className="text-xs text-gray-500 mb-1 font-medium">Ghế trống</div>
-                            <div className="font-bold text-blue-600">
-                              {selectedRoom.totalSeatAvailable}/{selectedRoom.totalSeat}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })()}
-                </CardContent>
-              </Card>
-            )}
 
             {/* Continue */}
             {selectedTime && (
-              <Card className="shadow-xl border-2 border-blue-200 bg-white">
-                <CardContent className="p-6">
+              <div>
                   {(() => {
                     const selectedRoom = rooms.find((room) => room.roomName === selectedHall)
                     const isSoldOut = selectedRoom?.totalSeatAvailable === 0
@@ -665,28 +604,27 @@ export default function ShowtimeSelectionPage({ movieId }: ShowtimeSelectionPage
                       <Button
                         onClick={handleContinue}
                         disabled={isDisabled}
-                        className="w-full bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 hover:from-blue-700 hover:via-blue-600 hover:to-blue-700 text-white font-bold py-4 shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 hover:scale-105 border-2 border-blue-400 active:scale-95 rounded-xl text-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 relative overflow-hidden group"
-                      >
-                        <div className="absolute inset-0 bg-gradient-to-r from-white/20 via-transparent to-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                        <span className="relative z-10">
-                          {isNavigating ? (
-                            <div className="flex items-center gap-2">
-                              <Loader2 className="h-5 w-5 animate-spin" />
-                              <span>Đang chuyển trang...</span>
-                            </div>
-                          ) : isSoldOut ? (
-                            "⚠️ Phòng này đã hết vé"
-                          ) : selectedHall ? (
-                            "Tiếp tục chọn ghế →"
-                          ) : (
-                            "Vui lòng chọn phòng chiếu"
-                          )}
-                        </span>
+                        className="w-full bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 hover:from-blue-700 hover:via-blue-600 hover:to-blue-700 text-white font-bold py-4 shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 hover:scale-105 border-2 border-blue-400 active:scale-95 rounded-xl text-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 overflow-hidden "
+                       >
+                        {/*<div className="absolute inset-0 bg-gradient-to-r from-white/20 via-transparent to-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>*/}
+                        {/*    <span className="relative z-10">*/}
+                                {isNavigating ? (
+                                    <div className="flex items-center gap-2">
+                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                        <span>Đang chuyển trang...</span>
+                                    </div>) :
+                                isSoldOut ? (
+                                    "⚠️ Phòng này đã hết vé"
+                                ) : selectedHall ? (
+                                    "Tiếp tục chọn ghế →"
+                                ) : (
+                                "Vui lòng chọn phòng chiếu"
+                                )}
+                            {/*</span>*/}
                       </Button>
                     )
                   })()}
-                </CardContent>
-              </Card>
+              </div>
             )}
           </div>
         </div>
