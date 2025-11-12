@@ -5,13 +5,14 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Star, Clock, Calendar, Bell, Film, Search, Filter, X, ChevronDown } from "lucide-react"
+import { Star, Clock, Calendar, Bell, Film, Search, Filter, X, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react"
 import { 
   getComingSoonMoviesPaginated,
   type Movie
 } from "../../src/api/movies"
 import { useRouter } from "next/navigation"
 import apiClient from "../../src/api/interceptor"
+import Image from "next/image"
 
 interface Genre {
   id: number
@@ -49,6 +50,11 @@ export function ComingSoonPageContent() {
     const [isLoadingGenres, setIsLoadingGenres] = useState(true)
     const [showGenreDropdown, setShowGenreDropdown] = useState(false)
     const [selectedGenre, setSelectedGenre] = useState<Genre | null>(null)
+
+    // Banner state
+    const [banners, setBanners] = useState<Array<{ id: string; bannerUrl: string }>>([])
+    const [currentSlide, setCurrentSlide] = useState(0)
+    const [isLoadingBanner, setIsLoadingBanner] = useState(true)
 
     const fetchMovies = async (page: number = 1, append: boolean = false) => {
         try {
@@ -102,6 +108,56 @@ export function ComingSoonPageContent() {
         fetchGenres()
     }, [])
 
+    // Fetch banners từ API
+    useEffect(() => {
+        const fetchBanners = async () => {
+            try {
+                setIsLoadingBanner(true)
+                const response = await apiClient.get('/movies/banners')
+                if (response.data.status === 200 && response.data.data && response.data.data.length > 0) {
+                    // Transform banner data
+                    const transformedBanners = response.data.data.map((banner: any) => ({
+                        id: banner.movieId?.toString() || Math.random().toString(),
+                        bannerUrl: banner.bannerUrl
+                    })).filter((banner: any) => banner.bannerUrl)
+                    setBanners(transformedBanners)
+                }
+            } catch (error) {
+                console.error("Failed to fetch banners:", error)
+            } finally {
+                setIsLoadingBanner(false)
+            }
+        }
+        fetchBanners()
+    }, [])
+
+    // Auto-play carousel
+    useEffect(() => {
+        if (banners.length <= 1) return
+
+        const timer = setInterval(() => {
+            setCurrentSlide((prev) => (prev + 1) % banners.length)
+        }, 5000) // Change slide every 5 seconds
+
+        return () => clearInterval(timer)
+    }, [banners.length])
+
+    // Navigation functions
+    const nextSlide = () => {
+        if (banners.length <= 1) return
+        setCurrentSlide((prev) => (prev + 1) % banners.length)
+    }
+
+    const prevSlide = () => {
+        if (banners.length <= 1) return
+        setCurrentSlide((prev) => (prev - 1 + banners.length) % banners.length)
+    }
+
+    const goToSlide = (index: number) => {
+        if (banners.length <= 1) return
+        setCurrentSlide(index)
+    }
+
     useEffect(() => {
         setCurrentPage(1)
         fetchMovies(1, false)
@@ -147,27 +203,95 @@ export function ComingSoonPageContent() {
 
     return (
         <div className="min-h-screen bg-white">
-            {/* Hero Section */}
-            <section className="py-16 relative overflow-hidden" style={{ background: 'linear-gradient(to right, #3BAEF0, #38AAEC, #3BAEF0)' }}>
-                {/* Background Pattern */}
-                <div className="absolute inset-0 opacity-10">
-                    <div className="absolute inset-0" style={{
-                        backgroundImage: 'radial-gradient(circle at 2px 2px, #ffffff 1px, transparent 0)',
-                        backgroundSize: '40px 40px'
-                    }}></div>
-                </div>
-                <div className="container mx-auto px-4 text-center relative z-10">
-                    <h1 className="text-5xl md:text-6xl font-black text-white mb-6 tracking-tight">
-                        <span className="bg-gradient-to-r from-white via-[#E6F5FF] to-white bg-clip-text text-transparent drop-shadow-lg">
-                            Phim Sắp Chiếu
-                        </span>
-                    </h1>
-                    <p className="text-xl max-w-2xl mx-auto font-medium" style={{ color: '#E6F5FF' }}>
-                        Những bộ phim hấp dẫn sắp ra mắt - Đặt vé ngay để không bỏ lỡ
-                    </p>
-                    <div className="flex items-center justify-center gap-2 mt-6">
-                        <div className="h-1.5 w-24 rounded-full bg-white/50"></div>
-                        <div className="h-1.5 w-2 rounded-full bg-white"></div>
+            {/* Hero Section - Banner Carousel with Container */}
+            <section className="py-6 md:py-8 lg:py-10 bg-white">
+                <div className="container mx-auto px-4 max-w-7xl">
+                    <div className="relative overflow-hidden rounded-2xl shadow-2xl h-[35vh] md:h-[40vh] lg:h-[45vh]">
+                        {/* Loading Placeholder */}
+                        {isLoadingBanner && (
+                            <div className="absolute inset-0 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse">
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="text-gray-400">
+                                        <Film className="w-16 h-16 animate-pulse" />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Banner Carousel */}
+                        {!isLoadingBanner && banners.length > 0 ? (
+                            <>
+                                {banners.map((banner, index) => (
+                                    <div
+                                        key={banner.id}
+                                        className={`absolute inset-0 transition-opacity duration-500 ease-in-out ${
+                                            index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'
+                                        }`}
+                                    >
+                                        <Image
+                                            src={banner.bannerUrl}
+                                            alt={`Movie Banner ${index + 1}`}
+                                            fill
+                                            className="object-cover"
+                                            priority={index === currentSlide}
+                                            quality={90}
+                                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 100vw, 1280px"
+                                            onError={(e) => {
+                                                console.error(`Failed to load banner ${index + 1}`)
+                                            }}
+                                        />
+                                    </div>
+                                ))}
+
+                                {/* Navigation Arrows - chỉ hiện khi có nhiều hơn 1 banner */}
+                                {banners.length > 1 && (
+                                    <>
+                                        <button
+                                            onClick={prevSlide}
+                                            className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-black/30 hover:bg-black/50 backdrop-blur-sm text-white p-2 rounded-full transition-all duration-300 hover:scale-110 shadow-lg"
+                                            aria-label="Previous banner"
+                                        >
+                                            <ChevronLeft className="w-5 h-5" />
+                                        </button>
+                                        <button
+                                            onClick={nextSlide}
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-black/30 hover:bg-black/50 backdrop-blur-sm text-white p-2 rounded-full transition-all duration-300 hover:scale-110 shadow-lg"
+                                            aria-label="Next banner"
+                                        >
+                                            <ChevronRight className="w-5 h-5" />
+                                        </button>
+                                    </>
+                                )}
+
+                                {/* Dots Indicator - chỉ hiện khi có nhiều hơn 1 banner */}
+                                {banners.length > 1 && (
+                                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+                                        {banners.map((_, index) => (
+                                            <button
+                                                key={index}
+                                                onClick={() => goToSlide(index)}
+                                                className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                                                    index === currentSlide
+                                                        ? 'bg-white w-8 shadow-lg'
+                                                        : 'bg-white/50 hover:bg-white/75'
+                                                }`}
+                                                aria-label={`Go to slide ${index + 1}`}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+                            </>
+                        ) : !isLoadingBanner && (
+                            <>
+                                {/* Fallback gradient nếu không có banner */}
+                                <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-blue-500 via-blue-400 to-blue-500 flex items-center justify-center">
+                                    <div className="text-center text-white/80">
+                                        <Film className="w-20 h-20 mx-auto mb-4 opacity-50" />
+                                        <p className="text-lg font-medium">Không có banner</p>
+                                    </div>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             </section>
@@ -183,13 +307,12 @@ export function ComingSoonPageContent() {
                 </div>
                 
                 <div className="movie-carousel-container container mx-auto px-4 max-w-7xl relative z-10">
-                    {/* Title Section */}
-                    <div className="mb-6">
-                        <h2 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">
-                            <span style={{ color: '#2563eb' }}>
-                                Phim sắp chiếu
-                            </span>
+                    {/* Title Section - Centered */}
+                    <div className="text-center mb-12">
+                        <h2 className="text-4xl font-bold text-foreground mb-4">
+                            PHIM SẮP CHIẾU
                         </h2>
+                        <div className="w-16 h-1 bg-black mx-auto mb-8"></div>
                     </div>
 
                     {/* Filter Section */}

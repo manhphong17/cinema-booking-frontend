@@ -32,20 +32,12 @@ export function HomeNowShowingCarousel() {
         return (
             <section className="py-20 bg-white">
                 <div className="container mx-auto px-4 max-w-7xl">
-                    <div className="flex items-center justify-between mb-12 gap-4 flex-wrap">
-                        <div>
-                            <h2 className="text-2xl md:text-3xl font-bold mb-3" style={{ color: '#2563eb' }}>
-                                Phim đang chiếu
-                            </h2>
-                        </div>
-                        <Button
-                            variant="outline"
-                            style={{ borderColor: '#38AAEC', color: '#38AAEC' }}
-                            className="border-2 hover:bg-[#38AAEC] hover:text-white rounded-xl px-8 py-3 font-bold transition-colors"
-                            onClick={() => router.push("/movies/now-showing")}
-                        >
-                            Xem tất cả
-                        </Button>
+                    {/* Title Section - Centered */}
+                    <div className="text-center mb-12">
+                        <h2 className="text-4xl font-bold text-foreground mb-4">
+                            PHIM ĐANG CHIẾU
+                        </h2>
+                        <div className="w-16 h-1 bg-black mx-auto mb-8"></div>
                     </div>
 
                     <div className="home-movie-grid-compact">
@@ -66,20 +58,12 @@ export function HomeNowShowingCarousel() {
     return (
         <section className="py-20 bg-white">
             <div className="container mx-auto px-4 max-w-7xl">
-                <div className="flex items-center justify-between mb-12 gap-4 flex-wrap">
-                    <div>
-                        <h2 className="text-2xl md:text-3xl font-bold mb-3" style={{ color: '#2563eb' }}>
-                            Phim đang chiếu
-                        </h2>
-                    </div>
-                    <Button
-                        variant="outline"
-                        style={{ borderColor: '#38AAEC', color: '#38AAEC' }}
-                        className="border-2 hover:bg-[#38AAEC] hover:text-white rounded-xl px-8 py-3 font-bold transition-colors"
-                        onClick={() => router.push("/movies/now-showing")}
-                    >
-                        Xem tất cả
-                    </Button>
+                {/* Title Section - Centered */}
+                <div className="text-center mb-12">
+                    <h2 className="text-4xl font-bold text-foreground mb-4">
+                        PHIM ĐANG CHIẾU
+                    </h2>
+                    <div className="w-16 h-1 bg-black mx-auto mb-8"></div>
                 </div>
 
                 <div className="relative">
@@ -141,6 +125,20 @@ export function HomeNowShowingCarousel() {
                         </div>
                     )}
                 </div>
+
+                {/* View All Button - Right aligned below movies */}
+                {movies.length > 0 && (
+                    <div className="flex justify-end mt-8">
+                        <Button
+                            variant="outline"
+                            style={{ borderColor: '#38AAEC', color: '#38AAEC' }}
+                            className="border-2 hover:bg-[#38AAEC] hover:text-white rounded-xl px-8 py-3 font-bold transition-colors"
+                            onClick={() => router.push("/movies/now-showing")}
+                        >
+                            Xem tất cả
+                        </Button>
+                    </div>
+                )}
             </div>
 
             {/* VIỀN PHÂN CÁCH GIỮA 2 SECTION */}
@@ -176,20 +174,12 @@ export function HomeComingSoonCarousel() {
         return (
             <section className="py-20 bg-gradient-to-br from-amber-50/30 to-orange-50/20">
                 <div className="container mx-auto px-4 max-w-7xl">
-                    <div className="flex items-center justify-between mb-12 gap-4 flex-wrap">
-                        <div>
-                            <h2 className="text-2xl md:text-3xl font-bold mb-3" style={{ color: '#2563eb' }}>
-                                Phim sắp chiếu
-                            </h2>
-                        </div>
-                        <Button
-                            variant="outline"
-                            style={{ borderColor: '#38AAEC', color: '#38AAEC' }}
-                            className="border-2 hover:bg-[#38AAEC] hover:text-white rounded-xl px-8 py-3 font-bold transition-colors"
-                            onClick={() => router.push("/movies/coming-soon")}
-                        >
-                            Xem tất cả
-                        </Button>
+                    {/* Title Section - Centered */}
+                    <div className="text-center mb-12">
+                        <h2 className="text-4xl font-bold text-foreground mb-4">
+                            PHIM SẮP CHIẾU
+                        </h2>
+                        <div className="w-16 h-1 bg-black mx-auto mb-8"></div>
                     </div>
 
                     <div className="home-movie-grid-compact">
@@ -210,20 +200,12 @@ export function HomeComingSoonCarousel() {
     return (
         <section className="py-20 bg-gradient-to-br from-amber-50/30 to-orange-50/20">
             <div className="container mx-auto px-4 max-w-7xl">
-                <div className="flex items-center justify-between mb-12 gap-4 flex-wrap">
-                    <div>
-                        <h2 className="text-2xl md:text-3xl font-bold mb-3" style={{ color: '#2563eb' }}>
-                            Phim sắp chiếu
-                        </h2>
-                    </div>
-                    <Button
-                        variant="outline"
-                        style={{ borderColor: '#38AAEC', color: '#38AAEC' }}
-                        className="border-2 hover:bg-[#38AAEC] hover:text-white rounded-xl px-8 py-3 font-bold transition-colors"
-                        onClick={() => router.push("/movies/coming-soon")}
-                    >
-                        Xem tất cả
-                    </Button>
+                {/* Title Section - Centered */}
+                <div className="text-center mb-12">
+                    <h2 className="text-4xl font-bold text-foreground mb-4">
+                        PHIM SẮP CHIẾU
+                    </h2>
+                    <div className="w-16 h-1 bg-black mx-auto mb-8"></div>
                 </div>
 
                 <div className="relative">
@@ -285,6 +267,20 @@ export function HomeComingSoonCarousel() {
                         </div>
                     )}
                 </div>
+
+                {/* View All Button - Right aligned below movies */}
+                {movies.length > 0 && (
+                    <div className="flex justify-end mt-8">
+                        <Button
+                            variant="outline"
+                            style={{ borderColor: '#38AAEC', color: '#38AAEC' }}
+                            className="border-2 hover:bg-[#38AAEC] hover:text-white rounded-xl px-8 py-3 font-bold transition-colors"
+                            onClick={() => router.push("/movies/coming-soon")}
+                        >
+                            Xem tất cả
+                        </Button>
+                    </div>
+                )}
             </div>
         </section>
     );

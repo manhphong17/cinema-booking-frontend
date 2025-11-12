@@ -213,8 +213,24 @@ export default function LoginPage() {
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter className="flex justify-end gap-2">
-                        <Button variant="outline" onClick={() => setShowVerifyModal(false)}>Đóng</Button>
-                        <Button onClick={handleResendVerification}>Gửi lại email</Button>
+                        <Button 
+                            variant="outline" 
+                            onClick={() => setShowVerifyModal(false)}
+                            style={{ borderColor: '#38AAEC', color: '#38AAEC' }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#E6F5FF'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >
+                            Đóng
+                        </Button>
+                        <Button 
+                            onClick={handleResendVerification}
+                            className="text-white transition-all duration-300"
+                            style={{ backgroundColor: '#38AAEC' }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#38AAEC'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#38AAEC'}
+                        >
+                            Gửi lại email
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -223,15 +239,24 @@ export default function LoginPage() {
             <div
                 className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-200 to-gray-300 flex items-center justify-center p-4">
                 <Card className="w-full max-w-md shadow-2xl bg-white/90 backdrop-blur-sm rounded-xl border-0">
-                    <CardHeader className="text-center space-y-4">
-                        <div className="flex justify-center mb-4">
-                            <div
-                                className="bg-gradient-to-r from-primary to-purple-600 text-white p-4 rounded-full shadow-lg">
-                                <Film className="h-8 w-8"/>
+                    <CardHeader className="space-y-4">
+                        <div className="flex justify-center items-center gap-3 mb-4">
+                            <div className="relative">
+                                <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 text-white p-3 rounded-xl shadow-lg">
+                                    <Film className="h-6 w-6"/>
+                                </div>
+                                <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full animate-pulse"></div>
+                            </div>
+                            <div className="flex flex-col items-start">
+                                <span className="text-2xl font-black text-gray-900">
+                                    <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                                        Cinema
+                                    </span>
+                                </span>
+                                <span className="text-xs text-gray-500 font-medium -mt-1">Premium Experience</span>
                             </div>
                         </div>
-                        <CardTitle className="text-3xl font-bold text-gray-900">PHT Cinema VietNam</CardTitle>
-                        <CardDescription className="text-gray-600">Chào mừng quay lại</CardDescription>
+                        <CardDescription className="text-center text-gray-600">Chào mừng quay lại</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <form onSubmit={handleLogin} className="space-y-4">
@@ -273,13 +298,23 @@ export default function LoginPage() {
                                 <Button
                                     type="button"
                                     variant="link"
-                                    className="text-sm text-primary hover:text-primary/80"
+                                    className="text-sm"
+                                    style={{ color: '#38AAEC' }}
+                                    onMouseEnter={(e) => e.currentTarget.style.color = '#38AAEC'}
+                                    onMouseLeave={(e) => e.currentTarget.style.color = '#38AAEC'}
                                     onClick={handleForgotPassword}
                                 >
                                     Quên mật khẩu?
                                 </Button>
                             </div>
-                            <Button type="submit" className="w-full" disabled={isLoading}>
+                            <Button 
+                                type="submit" 
+                                className="w-full text-white transition-all duration-300" 
+                                style={{ backgroundColor: '#38AAEC' }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#38AAEC'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#38AAEC'}
+                                disabled={isLoading}
+                            >
                                 {isLoading ? "Đang đăng nhập..." : "Đăng nhập"}
                             </Button>
                         </form>

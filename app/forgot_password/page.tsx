@@ -70,14 +70,25 @@ export default function VerifyMailPage() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-200 to-gray-300 flex items-center justify-center p-4">
             <Card className="w-full max-w-md shadow-2xl bg-white/90 backdrop-blur-sm rounded-xl border-0">
-                <CardHeader className="text-center space-y-4">
-                    <div className="flex justify-center mb-4">
-                        <div className="bg-gradient-to-r from-primary to-purple-600 text-white p-4 rounded-full shadow-lg">
-                            <Mail className="h-8 w-8" />
+                <CardHeader className="space-y-4">
+                    <div className="flex justify-center items-center gap-3 mb-4">
+                        <div className="relative">
+                            <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 text-white p-3 rounded-xl shadow-lg">
+                                <Mail className="h-6 w-6"/>
+                            </div>
+                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full animate-pulse"></div>
+                        </div>
+                        <div className="flex flex-col items-start">
+                            <span className="text-2xl font-black text-gray-900">
+                                <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                                    Cinema
+                                </span>
+                            </span>
+                            <span className="text-xs text-gray-500 font-medium -mt-1">Premium Experience</span>
                         </div>
                     </div>
-                    <CardTitle className="text-3xl font-bold text-gray-900">Xác nhận Email</CardTitle>
-                    <CardDescription className="text-gray-600">
+                    <CardTitle className="text-center text-3xl font-bold text-gray-900">Xác nhận Email</CardTitle>
+                    <CardDescription className="text-center text-gray-600">
                         Nhập email của bạn, chúng tôi sẽ gửi cho bạn một mã xác thực để đặt lại mật khẩu.
                     </CardDescription>
                 </CardHeader>
@@ -88,16 +99,30 @@ export default function VerifyMailPage() {
                             <Input
                                 id="email" type="email" placeholder="username@email.com"
                                 value={email} onChange={(e) => setEmail(e.target.value)} required
-                                className="border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/50"
+                                className="border-gray-300 focus:border-[#38AAEC] focus:ring-2 focus:ring-[#38AAEC]/50"
                             />
                         </div>
 
-                        <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-white py-2 rounded-lg transition-all" disabled={isLoading}>
+                        <Button 
+                            type="submit" 
+                            className="w-full text-white py-2 rounded-lg transition-all duration-300" 
+                            style={{ backgroundColor: '#38AAEC' }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#38AAEC'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#38AAEC'}
+                            disabled={isLoading}
+                        >
                             {isLoading ? "Đang gửi..." : "Gửi mã xác nhận"}
                         </Button>
 
                         <div className="text-center">
-                            <button type="button" onClick={() => router.push("/")} className="text-sm text-gray-600 hover:text-primary underline transition-colors">
+                            <button 
+                                type="button" 
+                                onClick={() => router.push("/")} 
+                                className="text-sm text-gray-600 hover:underline transition-colors"
+                                style={{ color: '#38AAEC' }}
+                                onMouseEnter={(e) => e.currentTarget.style.color = '#38AAEC'}
+                                onMouseLeave={(e) => e.currentTarget.style.color = '#38AAEC'}
+                            >
                                 Quay lại trang chủ
                             </button>
                         </div>
