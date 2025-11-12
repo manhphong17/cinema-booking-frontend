@@ -1,14 +1,15 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-    title: 'Quản lý vận hành',
-    description: 'Trang quản lý vận hành hệ thống PHT Cinema.',
+    title: 'Chọn ghế',
+    description: 'Chọn ghế ngồi ưa thích của bạn tại PHT Cinema.',
 }
 
-export default function OperatorManagerLayout({
+export default function SeatsLayout({
     children,
 }: {
     children: React.ReactNode
 }) {
     return <>{children}</>
 }
+
