@@ -547,11 +547,10 @@ export function NowShowingPageContent() {
                 
                 <div className="container mx-auto px-4 relative z-10">
                     <div className="text-center mb-10 relative">
-                        <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
-                            <span style={{ color: '#2563eb' }}>
-                                Tại Sao Chọn Chúng Tôi?
-                            </span>
+                        <h2 className="text-4xl font-bold text-foreground mb-4">
+                            Tại Sao Chọn Chúng Tôi?
                         </h2>
+                        <div className="w-16 h-1 bg-black mx-auto mb-8"></div>
                         <p className="text-lg text-gray-600 max-w-2xl mx-auto font-medium">
                             Trải nghiệm xem phim tuyệt vời với công nghệ hiện đại và dịch vụ chuyên nghiệp
                         </p>

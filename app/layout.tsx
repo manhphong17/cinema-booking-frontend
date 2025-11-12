@@ -1,6 +1,7 @@
 import {Analytics} from '@vercel/analytics/next'
 import './globals.css'
 import '../styles/home.css'
+import '../styles/operator.css'
 import {Toaster as SonnerToaster} from "sonner"
 import {Toaster as ShadcnToaster} from "@/components/ui/toaster"
 import {Inter, JetBrains_Mono} from "next/font/google"

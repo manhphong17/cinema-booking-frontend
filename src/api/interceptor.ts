@@ -140,6 +140,18 @@ apiClient.interceptors.response.use(
             return Promise.reject(error)
         }
 
+        // Skip redirect for public endpoints (theater details should be publicly accessible)
+        if ((originalRequest.url?.includes('/theater_details') || originalRequest.url?.includes('/api/theater_details')) && 
+            originalRequest.method?.toLowerCase() === 'get') {
+            return Promise.reject(error)
+        }
+
+        // Skip redirect for public endpoints (theater details should be publicly accessible)
+        if ((originalRequest.url?.includes('/theater_details') || originalRequest.url?.includes('/api/theater_details')) && 
+            originalRequest.method?.toLowerCase() === 'get') {
+            return Promise.reject(error)
+        }
+
         // Nếu lỗi 401 và chưa retry
         if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true

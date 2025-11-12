@@ -47,21 +47,22 @@ export interface UpdateTheaterRequest {
 
 // API functions
 export async function fetchTheaterDetails(): Promise<TheaterDetails> {
-    console.log('🔍 Calling API: GET /theater_details');
-    console.log('🔑 Token in localStorage:', localStorage.getItem('accessToken') ? 'EXISTS' : 'MISSING');
-    console.log('👤 Role in localStorage:', localStorage.getItem('roleName'));
+    console.log('🔍 Calling API: GET /api/theater_details');
+    console.log('🔑 Token in localStorage:', typeof window !== 'undefined' && localStorage.getItem('accessToken') ? 'EXISTS' : 'MISSING');
+    console.log('👤 Role in localStorage:', typeof window !== 'undefined' && localStorage.getItem('roleName'));
     
-    const { data } = await apiClient.get<ResponseData<TheaterDetails>>("http://localhost:8885/api/theater_details");
+    const { data } = await apiClient.get<ResponseData<TheaterDetails>>("/api/theater_details");
     console.log('✅ API Response:', data);
     return data.data;
 }
 
 export async function updateTheaterDetails(payload: UpdateTheaterRequest): Promise<TheaterDetails> {
     console.log('💾 Updating theater details:', payload);
-    const { data } = await apiClient.put<ResponseData<TheaterDetails>>("http://localhost:8885/api/theater_details", payload);
+    const { data } = await apiClient.put<ResponseData<TheaterDetails>>("/api/theater_details", payload);
     console.log('✅ Update Response:', data);
     return data.data;
 }
+
 
 // Upload banner image
 export async function uploadBanner(file: File): Promise<string> {
@@ -70,7 +71,7 @@ export async function uploadBanner(file: File): Promise<string> {
     formData.append('file', file);
 
     const { data } = await apiClient.post<ResponseData<string>>(
-        "http://localhost:8885/api/theater_banner",
+        "/api/theater_banner",
         formData,
         {
             headers: {
