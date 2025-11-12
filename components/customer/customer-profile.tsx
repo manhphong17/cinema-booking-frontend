@@ -6,12 +6,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Edit, Loader2, Save, Star, X, User, MapPin, Shield, Mail } from "lucide-react"
 import { getMe, updateMe } from "../../src/api/user"
 import axios from "axios"
 import { useRouter } from "next/navigation"
+import { BACKEND_BASE_URL } from "@/src/utils/config"
 
 const getStoredEmail = () => {
     if (typeof window === "undefined") {
@@ -240,7 +240,7 @@ export function CustomerProfile() {
             }
 
             const response = await axios.put(
-                `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/users/me`,
+                `${BACKEND_BASE_URL}/users/me`,
                 requestBody,
                 {
                     headers: {
@@ -327,7 +327,7 @@ export function CustomerProfile() {
             }
 
             const response = await axios.post(
-                `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/accounts/${userId}/change-password`,
+                `${BACKEND_BASE_URL}/accounts/${userId}/change-password`,
                 {
                     currentPassword: trimmed.currentPassword,
                     newPassword: trimmed.newPassword,
@@ -383,7 +383,7 @@ export function CustomerProfile() {
             formData.append('file', file)
 
             // Upload avatar to backend
-            const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/users/me/avatar`, {
+            const response = await fetch(`${BACKEND_BASE_URL}/users/me/avatar`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${accessToken}`
@@ -696,10 +696,8 @@ export function CustomerProfile() {
                                     )}
                                 </div>
                             </div>
-                        </div>
                     </div>
-
-                    <Separator className="my-6" />
+                </div>
 
                     {/* Loyalty Points Section */}
                     <div className="bg-gradient-to-r from-blue-50 via-blue-50 to-indigo-50 rounded-xl p-6 border-2 border-blue-200 shadow-lg">

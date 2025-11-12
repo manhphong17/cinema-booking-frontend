@@ -163,7 +163,7 @@ export function HeroCarousel() {
 
                 return (
                     <div key={banner.id} className={getSlideClasses(index)}>
-                        <div 
+                        <div
                             className="hero-banner-70 relative w-full h-full overflow-hidden cursor-pointer"
                             onClick={() => router.push(`/movie/${banner.id}`)}
                         >

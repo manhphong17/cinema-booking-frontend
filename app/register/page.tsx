@@ -11,8 +11,7 @@ import {Alert, AlertDescription} from "@/components/ui/alert"
 import {Eye, EyeOff, Film} from "lucide-react"
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
 import {toast} from "sonner"
-
-const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL
+import { BACKEND_BASE_URL } from "@/src/utils/config"
 
 
 export default function RegisterPage() {
@@ -121,15 +120,24 @@ export default function RegisterPage() {
         <div
             className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-200 to-gray-300 flex items-center justify-center p-4">
             <Card className="w-full max-w-md shadow-2xl bg-white/90 backdrop-blur-sm rounded-xl border-0">
-                <CardHeader className="text-center space-y-4">
-                    <div className="flex justify-center mb-4">
-                        <div
-                            className="bg-gradient-to-r from-primary to-purple-600 text-white p-4 rounded-full shadow-lg">
-                            <Film className="h-8 w-8"/>
+                <CardHeader className="space-y-4">
+                    <div className="flex justify-center items-center gap-3 mb-4">
+                        <div className="relative">
+                            <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 text-white p-3 rounded-xl shadow-lg">
+                                <Film className="h-6 w-6"/>
+                            </div>
+                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full animate-pulse"></div>
+                        </div>
+                        <div className="flex flex-col items-start">
+                            <span className="text-2xl font-black text-gray-900">
+                                <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                                    Cinema
+                                </span>
+                            </span>
+                            <span className="text-xs text-gray-500 font-medium -mt-1">Premium Experience</span>
                         </div>
                     </div>
-                    <CardTitle className="text-3xl font-bold text-gray-900">PHT Cinema Vietnam</CardTitle>
-                    <CardDescription className="text-gray-600">Trở thành thành viên ngay hôm nay</CardDescription>
+                    <CardDescription className="text-center text-gray-600">Trở thành thành viên ngay hôm nay</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <form onSubmit={handleRegister} className="space-y-4">
@@ -257,7 +265,10 @@ export default function RegisterPage() {
 
                         <Button
                             type="submit"
-                            className="w-full bg-primary hover:bg-primary/90 text-white py-2 rounded-lg transition-all"
+                            className="w-full text-white py-2 rounded-lg transition-all duration-300"
+                            style={{ backgroundColor: '#38AAEC' }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#38AAEC'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#38AAEC'}
                             disabled={isLoading}
                         >
                             {isLoading ? "Đang đăng ký..." : "Đăng ký"}
@@ -300,7 +311,10 @@ export default function RegisterPage() {
                                 <a
                                     href="#"
                                     onClick={handleLoginRedirect}
-                                    className="text-primary hover:text-primary/80 font-medium underline transition-colors"
+                                    className="font-medium underline transition-colors"
+                                    style={{ color: '#38AAEC' }}
+                                    onMouseEnter={(e) => e.currentTarget.style.color = '#38AAEC'}
+                                    onMouseLeave={(e) => e.currentTarget.style.color = '#38AAEC'}
                                 >
                                     Đăng nhập tại đây
                                 </a>

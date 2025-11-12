@@ -258,15 +258,15 @@ export default function PaymentPage({
   return (
     <div className="min-h-screen bg-white relative overflow-hidden">
       {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-5">
+      <div className="absolute inset-0 opacity-5 pointer-events-none">
         <div className="absolute inset-0" style={{
-          backgroundImage: 'radial-gradient(circle at 2px 2px, #3b82f6 1px, transparent 0)',
+          backgroundImage: 'radial-gradient(circle at 2px 2px, #3BAEF0 1px, transparent 0)',
           backgroundSize: '40px 40px'
         }}></div>
       </div>
       
       {/* Decorative Border Top */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-blue-400 to-blue-500"></div>
+      <div className="absolute top-0 left-0 right-0 h-1" style={{ backgroundColor: '#3BAEF0' }}></div>
       
       <div className="container mx-auto px-4 py-8 max-w-7xl relative z-10">
 
@@ -283,7 +283,7 @@ export default function PaymentPage({
         </div>
 
         {/* RIGHT - Order Summary */}
-        <div className="lg:col-span-1 lg:sticky lg:top-8 lg:h-fit space-y-6">
+        <div className="lg:col-span-1 space-y-6">
           <BookingOrderSummary
             movieInfo={movieInfo}
             seats={seatsInfo}
@@ -302,7 +302,8 @@ export default function PaymentPage({
           <button
             disabled={isProcessing}
             onClick={handlePayment}
-            className="-mt-3 w-full py-4 rounded-xl bg-orange-600 hover:bg-orange-700  text-white font-semibold text-lg shadow-lg hover:shadow-gray-900/50 transition-all duration-300 hover:scale-105 border-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ backgroundColor: '#38AAEC' }}
+            className="-mt-3 w-full py-4 rounded-xl hover:opacity-90 text-white font-semibold text-lg shadow-lg transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
             {isProcessing
               ? "Đang xử lý..."
