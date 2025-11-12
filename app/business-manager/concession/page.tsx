@@ -435,32 +435,6 @@ export default function ConcessionPage() {
     };
 
 
-    const handleAddStock = async () => {
-        if (!selectedProductId) return toast.error("Không có sản phẩm nào được chọn!")
-
-        const amount = Number(stockAmount)
-        if (isNaN(amount) || amount < 1 || amount > 999) {
-            return toast.error("Số lượng phải là số nguyên từ 1 đến 999!");
-        }
-        try {
-            const res = await apiClient.put(
-                `/concession/${selectedProductId}/stock`,
-                null,
-                { params: { quantityToAdd: amount } }
-            )
-
-            toast.success("Cập nhật số lượng thành công!")
-
-            // Reload danh sách (gọi lại fetchConcessions)
-            await fetchConcessions(currentPage - 1, itemsPerPage)
-            setIsAddStockDialogOpen(false)
-            setStockAmount("")
-        } catch (error: any) {
-            console.error(" Lỗi khi thêm hàng:", error)
-            toast.error(error.response?.data?.message || "Không thể thêm số lượng hàng!")
-        }
-    }
-
     const handleDeleteProduct = async (id: number) => {
         try {
             //  Gọi API xóa
@@ -577,79 +551,9 @@ export default function ConcessionPage() {
                 {/* Header */}
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900">Quản lý Bắp Nước</h1>
-                    <p className="text-gray-600 mt-2">Quản lý sản phẩm concession và theo dõi hiệu suất bán hàng</p>
+                    <p className="text-gray-600 mt-2">Quản lý sản phẩm và theo dõi hiệu suất bán hàng</p>
                 </div>
 
-                {/* Best Seller Section */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Top Product Highlight */}
-                    <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 shadow-md">
-                        <CardHeader>
-                            <CardTitle className="text-gray-900">Sản phẩm bán chạy nhất</CardTitle>
-                            <CardDescription className="text-gray-700">
-                                Top 1 trong {timeFilter === "week" ? "tuần" : "tháng"} này
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex items-center gap-4">
-                                <div className="w-20 h-20 bg-blue-200 rounded-xl flex items-center justify-center shadow-sm">
-                                    <Package className="w-10 h-10 text-blue-700" />
-                                </div>
-                                <div className="flex-1">
-                                    <h3 className="text-2xl font-bold text-gray-900">{topProduct.name}</h3>
-                                    <p className="text-3xl font-bold text-blue-600 mt-2">{topProduct.value} đơn</p>
-                                    <p className="text-sm text-gray-600 mt-1">Số lượng đã bán</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Pie Chart */}
-                    <Card className="bg-white border-blue-100 shadow-md">
-                        <CardHeader>
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <CardTitle className="text-gray-900">Top 3 Sản phẩm</CardTitle>
-                                    <CardDescription className="text-gray-600">Phân bổ doanh số theo sản phẩm</CardDescription>
-                                </div>
-                                <Select value={timeFilter} onValueChange={(value: TimeFilter) => setTimeFilter(value)}>
-                                    <SelectTrigger className="w-32 border-blue-200">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="week">Tuần</SelectItem>
-                                        <SelectItem value="month">Tháng</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="h-64">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                        <Pie
-                                            data={bestSellers}
-                                            cx="50%"
-                                            cy="50%"
-                                            labelLine={false}
-                                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                                            outerRadius={80}
-                                            fill="#8884d8"
-                                            dataKey="value"
-                                        >
-                                            {bestSellers.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={entry.color} />
-                                            ))}
-                                        </Pie>
-                                        <RechartsTooltip content={<CustomChartTooltip />} />
-
-                                        <Legend />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
 
 
                 {/* Filter Bar */}
@@ -762,6 +666,7 @@ export default function ConcessionPage() {
                                     <TableHead>Ảnh</TableHead>
                                     <TableHead>Số lượng</TableHead>
                                     <TableHead>Status</TableHead>
+                                    <TableHead>Chỉnh sửa</TableHead>
                                     <TableHead className="text-right">Thao tác</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -859,21 +764,6 @@ export default function ConcessionPage() {
                                                         <TooltipContent side="top">Xóa</TooltipContent>
                                                     </Tooltip>
 
-                                                    {/* Nút Thêm hàng */}
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                                                onClick={() => openAddStockDialog(product.id)}
-                                                                disabled={product.concessionStatus === "INACTIVE"}
-                                                            >
-                                                                <Package className="w-4 h-4" />
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent side="top">Thêm hàng</TooltipContent>
-                                                    </Tooltip>
 
                                                     {/* Nút Bật/Tắt kinh doanh */}
                                                     <Tooltip>
@@ -1253,37 +1143,6 @@ export default function ConcessionPage() {
                     </DialogContent>
                 </Dialog>
 
-                {/* Add Stock Dialog */}
-                <Dialog open={isAddStockDialogOpen} onOpenChange={setIsAddStockDialogOpen}>
-                    <DialogContent className="sm:max-w-lg">
-                        <DialogHeader>
-                            <DialogTitle>Thêm số lượng hàng</DialogTitle>
-                            <DialogDescription>Nhập số lượng hàng bạn muốn thêm vào kho</DialogDescription>
-                        </DialogHeader>
-
-                        <div className="space-y-3 mt-4">
-                            <Label htmlFor="add-stock">Số lượng cần thêm</Label>
-                            <Input
-                                id="add-stock"
-                                type="number"
-                                min="1"
-                                placeholder="Nhập số lượng..."
-                                value={stockAmount}
-                                onChange={(e) => setStockAmount(e.target.value)}
-                                className="border-blue-200"
-                            />
-                        </div>
-
-                        <DialogFooter>
-                            <Button variant="outline" onClick={() => setIsAddStockDialogOpen(false)} className="border-blue-200">
-                                Hủy
-                            </Button>
-                            <Button onClick={handleAddStock} className="bg-blue-600 hover:bg-blue-700">
-                                Xác nhận
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
 
                 {/* Concession Status Dialog */}
                 <Dialog open={isToggleDialogOpen} onOpenChange={setIsToggleDialogOpen}>
