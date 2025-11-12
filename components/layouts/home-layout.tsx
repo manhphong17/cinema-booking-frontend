@@ -4,7 +4,7 @@ import type { ReactNode } from "react"
 import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Film, User, ShoppingBag, Gift, LogOut, Mail, Phone, MapPin, Facebook, Instagram, Youtube, Menu, X, Clock } from "lucide-react"
+import { Film, User, ShoppingBag, LogOut, Mail, Phone, MapPin, Facebook, Instagram, Youtube, Menu, X, Clock } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { jwtDecode } from "jwt-decode"
@@ -196,12 +196,11 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                                 { path: "/home", label: "Trang chủ" },
                                 { path: "/movies/now-showing", label: "Phim đang chiếu" },
                                 { path: "/movies/coming-soon", label: "Phim sắp chiếu" },
-                                { path: "/vouchers", label: "Voucher" },
-                                { path: "/news", label: "Tin tức" },
+                                ...(isAuthenticated ? [{ path: "/customer?section=orders", label: "Đơn hàng", isOrder: true }] : []),
                             ].map((item) => (
                                 <button
                                     key={item.path}
-                                    onClick={() => handleMenuClick(item.path)}
+                                    onClick={() => item.isOrder ? handleNavigate("orders") : handleMenuClick(item.path)}
                                     className="relative text-foreground hover:text-blue-600 transition-all duration-300 font-medium text-base py-3 px-4 rounded-lg group hover:bg-blue-50"
                                 >
                                     <span>{item.label}</span>
@@ -210,22 +209,21 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                         </div>
 
                         {/* Auth */}
-                        <div className="hidden md:flex items-center gap-3">
+                        <div className="hidden md:flex items-center gap-2">
                             {!isAuthenticated ? (
                                 <>
-                                    <Button
-                                        variant="outline"
+                                    <button
                                         onClick={() => router.push("/register")}
-                                        className="border-blue-500/30 text-blue-600 hover:bg-gradient-to-r hover:from-blue-600 hover:to-purple-600 hover:text-white"
+                                        className="font-medium text-base py-3 px-6 rounded-lg bg-transparent text-[#38AAEC] border border-[#38AAEC] hover:bg-[#38AAEC] hover:text-white transition-all duration-200"
                                     >
                                         Đăng ký
-                                    </Button>
-                                    <Button
+                                    </button>
+                                    <button
                                         onClick={() => router.push("/login")}
-                                        className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:to-pink-700 text-white"
+                                        className="font-medium text-base py-3 px-6 rounded-lg bg-[#38AAEC] text-white hover:bg-[#3BAEF0] hover:opacity-90 transition-all duration-200 hover:-translate-y-0.5"
                                     >
                                         Đăng nhập
-                                    </Button>
+                                    </button>
                                 </>
                             ) : (
                                 <div className="relative" data-dropdown>
@@ -244,9 +242,6 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                                             <button onClick={() => handleNavigate("orders")} className="flex items-center px-4 py-2 text-sm hover:bg-gray-100 w-full">
                                                 <ShoppingBag className="mr-2 h-4 w-4" /> Đơn hàng của tôi
                                             </button>
-                                            <button onClick={() => handleNavigate("vouchers")} className="flex items-center px-4 py-2 text-sm hover:bg-gray-100 w-full">
-                                                <Gift className="mr-2 h-4 w-4" /> Voucher của tôi
-                                            </button>
                                             <button onClick={handleLogout} className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full">
                                                 <LogOut className="mr-2 h-4 w-4" /> Đăng xuất
                                             </button>
@@ -257,7 +252,7 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                         </div>
 
                         {/* Mobile Menu Toggle */}
-                        <Button variant="ghost" size="sm" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+                        <Button variant="ghost" size="sm" className="md:hidden" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
                             {mobileMenuOpen ? <X className="h-5 w-5 text-primary" /> : <Menu className="h-5 w-5 text-gray-600" />}
                         </Button>
                     </div>
@@ -266,16 +261,43 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                     {mobileMenuOpen && (
                         <div className="md:hidden border-t border-border bg-white animate-in slide-in-from-top-2 duration-300">
                             <div className="px-4 py-6 grid grid-cols-2 gap-3">
-                                {["/home", "/movies/now-showing", "/movies/coming-soon", "/vouchers", "/news"].map((p) => (
+                                {[
+                                    { path: "/home", label: "Trang chủ" },
+                                    { path: "/movies/now-showing", label: "Phim đang chiếu" },
+                                    { path: "/movies/coming-soon", label: "Phim sắp chiếu" },
+                                    ...(isAuthenticated ? [{ path: "/customer?section=orders", label: "Đơn hàng", isOrder: true }] : []),
+                                ].map((item) => (
                                     <button
-                                        key={p}
-                                        onClick={() => handleMenuClick(p)}
+                                        key={item.path}
+                                        onClick={() => item.isOrder ? handleNavigate("orders") : handleMenuClick(item.path)}
                                         className="flex flex-col items-center py-4 px-3 rounded-xl hover:bg-primary/5 hover:text-primary transition-all"
                                     >
-                                        <span className="font-medium text-sm">{p.includes("home") ? "Trang chủ" : p.split("/")[2]}</span>
+                                        <span className="font-medium text-sm">{item.label}</span>
                                     </button>
                                 ))}
                             </div>
+                            {!isAuthenticated && (
+                                <div className="px-4 pb-4 border-t pt-4 flex gap-2">
+                                    <button
+                                        onClick={() => {
+                                            router.push("/register")
+                                            setMobileMenuOpen(false)
+                                        }}
+                                        className="flex-1 py-3 px-4 rounded-lg text-sm font-medium bg-transparent text-[#38AAEC] border border-[#38AAEC] hover:bg-[#38AAEC] hover:text-white transition-all duration-200"
+                                    >
+                                        Đăng ký
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            router.push("/login")
+                                            setMobileMenuOpen(false)
+                                        }}
+                                        className="flex-1 py-3 px-4 rounded-lg text-sm font-medium bg-[#38AAEC] text-white hover:bg-[#3BAEF0] hover:opacity-90 transition-all duration-200"
+                                    >
+                                        Đăng nhập
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

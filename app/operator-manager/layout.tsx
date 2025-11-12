@@ -10,5 +10,7 @@ export default function OperatorManagerLayout({
 }: {
     children: React.ReactNode
 }) {
+    // Không wrap children với OperatorLayout vì mỗi page đã tự wrap
     return <>{children}</>
 }
+
