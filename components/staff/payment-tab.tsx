@@ -1,15 +1,14 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { Button } from "@/components/ui/button"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Label } from "@/components/ui/label"
 import { Loader2, CheckCircle2, QrCode } from "lucide-react"
 import { toast } from "sonner"
 import BookingOrderSummary, { SeatInfo, ConcessionInfo } from "@/components/booking/booking-order-summary"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-
-type PaymentMethod = "cash" | "vnpay"
+import CustomerInfoCard, { CustomerInfo } from "@/components/booking/customer-info-card"
+import PaymentMethodCard from "@/components/booking/payment-method-card"
+import { apiClient } from "@/src/api/interceptor"
 
 interface PaymentTabProps {
   seats: SeatInfo[]
@@ -17,22 +16,144 @@ interface PaymentTabProps {
   concessions: ConcessionInfo[]
   concessionsTotal: number
   total: number
-  onPaymentSuccess: () => void
+  onPaymentSuccess: (paymentMethod: string, isCallback?: boolean, discount?: number, earnedPoints?: number) => void
   onNavigateToTickets?: () => void // Callback để chuyển về tab tickets
+  showtimeId?: number | null
+  userId?: number | null
 }
 
-export function PaymentTab({ seats, seatsTotal, concessions, concessionsTotal, total, onPaymentSuccess, onNavigateToTickets }: PaymentTabProps) {
-  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("cash")
+type TicketResponse = {
+  ticketId: number;
+  seatCode: string;
+  seatType: string;
+  ticketPrice: number;
+  roomName: string;
+  roomType: string;
+  hall: string;
+  showtimeId: number;
+  showDate: string;
+  showTime: string;
+  movieName: string;
+  posterUrl: string;
+}
+
+export function PaymentTab({ seats, seatsTotal, concessions, concessionsTotal, total, onPaymentSuccess, onNavigateToTickets, showtimeId, userId }: PaymentTabProps) {
+  const [selectedPaymentCode, setSelectedPaymentCode] = useState<string>("CASH")
   const [isProcessing, setIsProcessing] = useState(false)
   const [cashConfirmed, setCashConfirmed] = useState(false)
   const [vnpayUrl, setVnpayUrl] = useState<string | null>(null)
   const [vnpayQrCode, setVnpayQrCode] = useState<string | null>(null)
   const [vnpayTransactionId, setVnpayTransactionId] = useState<string | null>(null)
   const [vnpayPaid, setVnpayPaid] = useState(false)
+  const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({
+    name: "",
+    email: "",
+    loyalPoint: 0,
+  })
+  const [discountValue, setDiscountValue] = useState(0)
+  const [seatData, setSeatData] = useState<TicketResponse[]>([])
+  const [concessionsData, setConcessionsData] = useState<any[]>([])
+  const [comboQty, setComboQty] = useState<Record<string, number>>({})
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  const handleMethodSelect = (method: PaymentMethod) => {
-    setSelectedMethod(method)
+  // Fetch order session from Redis (giống customer page)
+  useEffect(() => {
+    async function fetchOrderSession() {
+      if (!showtimeId || !userId) return;
+
+      try {
+        // Gọi API lấy OrderSession trong Redis
+        const res = await apiClient.get(`/bookings/order-session`, {
+          params: { showtimeId, userId }
+        });
+        const session = res.data.data;
+        console.log("[PaymentTab] Order session from Redis:", session);
+
+        // Lưu ticketIds & concessionOrders
+        const ticketIds = session.ticketIds || [];
+        const concessionOrders = session.concessionOrders || [];
+
+        // Fetch ticket theo ticketIds
+        if (ticketIds.length > 0) {
+          const seatRes = await apiClient.get(`/bookings/tickets/details`, {
+            params: { ids: ticketIds.join(",") }
+          });
+          const tickets = seatRes.data.data || [];
+          setSeatData(tickets);
+        }
+
+        // Fetch concessions theo comboId
+        if (concessionOrders.length > 0) {
+          const comboIds = concessionOrders.map((c: any) => c.comboId);
+          const consRes = await apiClient.get(`/concession/list-by-ids`, {
+            params: { ids: comboIds.join(",") }
+          });
+          setConcessionsData(consRes.data.data || []);
+
+          // Gắn map {comboId: quantity} cho dễ xử lý
+          setComboQty(() => {
+            const map: Record<string, number> = {};
+            concessionOrders.forEach((c: any) => {
+              map[c.comboId] = c.quantity;
+            });
+            return map;
+          });
+        }
+      } catch (err) {
+        console.error("[PaymentTab] Failed to fetch order session:", err);
+        toast.error("Không thể tải thông tin đơn hàng");
+      }
+    }
+
+    fetchOrderSession();
+  }, [showtimeId, userId]);
+
+  // Calculate totals from API data (giống customer page)
+  const calculateTicketTotal = seatData.reduce((sum, seat) => sum + (seat.ticketPrice || 0), 0);
+  
+  const seatsInfo: SeatInfo[] = seatData.map(seat => ({
+    id: seat.seatCode,
+    type: seat.seatType.toLowerCase(),
+    price: seat.ticketPrice
+  }));
+
+  const concessionsInfo: ConcessionInfo[] = concessionsData
+    .filter((item) => comboQty[item.concessionId] > 0)
+    .map((item) => ({
+      id: item.concessionId,
+      name: item.name,
+      quantity: comboQty[item.concessionId] || 0,
+      price: item.price,
+    }));
+
+  const combosTotal = concessionsInfo.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0
+  );
+
+  // Movie info (từ ticketDetails đầu tiên) - giống customer page
+  const movieInfo = seatData.length > 0 ? {
+    title: seatData[0].movieName,
+    poster: seatData[0].posterUrl,
+    date: seatData[0].showDate,
+    time: seatData[0].showTime,
+    hall: seatData[0].hall,
+  } : undefined;
+
+  // Use API data if available, otherwise fallback to props
+  const actualSeatsTotal = seatData.length > 0 ? calculateTicketTotal : seatsTotal;
+  const actualConcessionsTotal = concessionsData.length > 0 ? combosTotal : concessionsTotal;
+  const actualSeats = seatData.length > 0 ? seatsInfo : seats;
+  const actualConcessions = concessionsData.length > 0 ? concessionsInfo : concessions;
+  const actualTotal = actualSeatsTotal + actualConcessionsTotal;
+
+  // Calculate total with discount
+  const finalTotal = actualTotal - discountValue
+  const earnedPoints = Math.floor(finalTotal / 10000)
+
+  const handleMethodSelect = useCallback((methodCode: string) => {
+    console.log("[PaymentTab] Method selected:", methodCode)
+    setSelectedPaymentCode(methodCode)
     setCashConfirmed(false)
     setVnpayUrl(null)
     setVnpayQrCode(null)
@@ -43,7 +164,7 @@ export function PaymentTab({ seats, seatsTotal, concessions, concessionsTotal, t
       clearInterval(pollingIntervalRef.current)
       pollingIntervalRef.current = null
     }
-  }
+  }, [])
 
   // Cleanup polling khi component unmount
   useEffect(() => {
@@ -69,9 +190,9 @@ export function PaymentTab({ seats, seatsTotal, concessions, concessionsTotal, t
       // Cleanup URL params
       window.history.replaceState({}, "", window.location.pathname)
       
-      // Gọi callback sau 1 giây
+      // Gọi callback sau 1 giây với paymentMethod "vnpay" và isCallback = true
       setTimeout(() => {
-        onPaymentSuccess()
+        onPaymentSuccess("VNPAY", true, discountValue, earnedPoints)
         // Reset state
         setVnpayQrCode(null)
         setVnpayUrl(null)
@@ -85,7 +206,7 @@ export function PaymentTab({ seats, seatsTotal, concessions, concessionsTotal, t
         }
       }, 1000)
     }
-  }, [onPaymentSuccess, onNavigateToTickets])
+  }, [onPaymentSuccess, onNavigateToTickets, discountValue, earnedPoints])
 
   // Polling để kiểm tra trạng thái thanh toán VNPay (nếu có transaction ID)
   useEffect(() => {
@@ -130,60 +251,20 @@ export function PaymentTab({ seats, seatsTotal, concessions, concessionsTotal, t
   const handleVnpayPayment = async () => {
     try {
       setIsProcessing(true)
+      console.log("[PaymentTab] Starting VNPay payment with code:", selectedPaymentCode)
       
-      // Generate transaction ID
-      const txnRef = `TXN${Date.now()}`
-      setVnpayTransactionId(txnRef)
+      // Call onPaymentSuccess with payment method code and data from API
+      // The parent component will handle the API call and redirect
+      // Cần await để bắt lỗi nếu có
+      await onPaymentSuccess(selectedPaymentCode, false, discountValue, earnedPoints)
       
-      // DEMO: Tạo QR code demo trực tiếp từ API QR generator
-      // Trong production, sẽ gọi API backend để tạo payment
-      const currentUrl = window.location.origin + window.location.pathname
-      const returnUrl = `${currentUrl}?payment=vnpay&txnRef=${txnRef}`
-      
-      const demoPaymentUrl = `https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?amount=${total}&command=pay&createDate=${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}&currCode=VND&locale=vn&returnUrl=${encodeURIComponent(returnUrl)}&txnRef=${txnRef}`
-      
-      // Tạo QR code từ URL demo
-      const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(demoPaymentUrl)}`
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      
-      // DEMO: Set QR code và URL
-      setVnpayQrCode(qrImageUrl)
-      setVnpayUrl(demoPaymentUrl)
-      
-      toast.success("Đã tạo mã QR thanh toán VNPay (Demo)")
-      toast.info("Sau khi thanh toán, hệ thống sẽ tự động cập nhật")
-      
-      // PRODUCTION CODE (đã comment):
-      // Gọi API để tạo payment với VNPay
-      // const res = await fetch("/api/payment/vnpay", {
-      //   method: "POST",
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //   },
-      //   body: JSON.stringify({
-      //     total: total,
-      //     returnUrl: returnUrl,
-      //   }),
-      // })
-      // if (!res.ok) {
-      //   throw new Error("Không thể tạo thanh toán VNPay")
-      // }
-      // const data = await res.json()
-      // setVnpayTransactionId(data.transactionId || data.txnRef)
-      // if (data.qrCode) {
-      //   setVnpayQrCode(data.qrCode)
-      // } else if (data.paymentUrl) {
-      //   setVnpayUrl(data.paymentUrl)
-      // } else {
-      //   throw new Error("Dữ liệu thanh toán không hợp lệ")
-      // }
-    } catch (error: any) {
-      console.error("VNPay payment error:", error)
-      toast.error(error?.message || "Lỗi khi tạo thanh toán VNPay")
+      // Note: If VNPay, the parent will redirect immediately, 
+      // nên code này sẽ không chạy nếu redirect thành công
+      // Nếu đến đây nghĩa là không redirect (có thể là CASH hoặc lỗi)
       setIsProcessing(false)
-    } finally {
+    } catch (error: any) {
+      console.error("[PaymentTab] Payment error:", error)
+      toast.error(error?.message || "Lỗi khi tạo thanh toán")
       setIsProcessing(false)
     }
   }
@@ -192,53 +273,24 @@ export function PaymentTab({ seats, seatsTotal, concessions, concessionsTotal, t
     try {
       setIsProcessing(true)
       
-      // DEMO: Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500))
+      // Call onPaymentSuccess with "CASH" payment method and data from API
+      // The parent component will handle the API call
+      await onPaymentSuccess("CASH", false, discountValue, earnedPoints)
       
-      // DEMO: Mock booking creation
-      console.log("DEMO: Creating booking with:", {
-        seats,
-        concessions,
-        total,
-        paymentMethod: "cash"
-      })
-      
+      // If successful, show success screen
       setCashConfirmed(true)
       
-      // Gọi callback sau khi hiển thị success screen 2 giây
+      // Reset state after showing success screen
       setTimeout(() => {
-        onPaymentSuccess()
-        // Reset state để sẵn sàng cho lần thanh toán tiếp theo
         setCashConfirmed(false)
-        setSelectedMethod("cash")
+        setSelectedPaymentCode("CASH")
         setVnpayUrl(null)
         setVnpayQrCode(null)
+        setIsProcessing(false)
       }, 2000)
-      
-      // PRODUCTION CODE (đã comment):
-      // Tạo booking với phương thức thanh toán tiền mặt
-      // const bookingData = {
-      //   seats: seats.map(s => s.id),
-      //   concessions: concessions.map(c => ({ id: c.id, quantity: c.quantity })),
-      //   total: total,
-      //   paymentMethod: "cash"
-      // }
-      // const response = await apiClient.post("/bookings/create", bookingData)
-      // if (response.data.status === 200) {
-      //   setCashConfirmed(true)
-      //   toast.success("Đã xác nhận thanh toán tiền mặt")
-      //   setTimeout(() => {
-      //     onPaymentSuccess()
-      //     setCashConfirmed(false)
-      //     setSelectedMethod("cash")
-      //   }, 1000)
-      // } else {
-      //   throw new Error("Không thể tạo booking")
-      // }
     } catch (error: any) {
       console.error("Cash payment error:", error)
       toast.error(error?.message || "Lỗi khi xác nhận thanh toán")
-    } finally {
       setIsProcessing(false)
     }
   }
@@ -356,7 +408,7 @@ export function PaymentTab({ seats, seatsTotal, concessions, concessionsTotal, t
               </h3>
               <p className="text-base text-muted-foreground mb-1">Đã nhận được phản hồi từ VNPay</p>
               <p className="text-lg font-semibold text-foreground">
-                Tổng tiền: {total.toLocaleString("vi-VN")}đ
+                Tổng tiền: {finalTotal.toLocaleString("vi-VN")}đ
               </p>
               <div className="mt-4 pt-4 border-t">
                 <p className="text-sm text-muted-foreground animate-in fade-in delay-500">
@@ -385,7 +437,7 @@ export function PaymentTab({ seats, seatsTotal, concessions, concessionsTotal, t
               </h3>
               <p className="text-base text-muted-foreground mb-1">Đã xác nhận nhận tiền mặt</p>
               <p className="text-lg font-semibold text-foreground">
-                Tổng tiền: {total.toLocaleString("vi-VN")}đ
+                Tổng tiền: {finalTotal.toLocaleString("vi-VN")}đ
               </p>
               <div className="mt-4 pt-4 border-t">
                 <p className="text-sm text-muted-foreground animate-in fade-in delay-500">
@@ -400,34 +452,25 @@ export function PaymentTab({ seats, seatsTotal, concessions, concessionsTotal, t
 
     // Chọn phương thức thanh toán
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Chọn phương thức thanh toán</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <RadioGroup value={selectedMethod} onValueChange={(value) => handleMethodSelect(value as PaymentMethod)}>
-            <div className="flex items-center space-x-2 p-4 rounded-lg border-2 hover:bg-muted/50 transition-colors">
-              <RadioGroupItem value="cash" id="cash" />
-              <Label htmlFor="cash" className="flex-1 cursor-pointer flex items-center gap-3">
-                <img src="/cash.png" alt="Tiền mặt" className="w-8 h-8" />
-                <span className="font-semibold">Tiền mặt</span>
-              </Label>
-            </div>
-            
-            <div className="flex items-center space-x-2 p-4 rounded-lg border-2 hover:bg-muted/50 transition-colors">
-              <RadioGroupItem value="vnpay" id="vnpay" />
-              <Label htmlFor="vnpay" className="flex-1 cursor-pointer flex items-center gap-3">
-                <img src="/vnpay-logo.png" alt="VNPay" className="w-8 h-8" />
-                <span className="font-semibold">VNPay</span>
-              </Label>
-            </div>
-          </RadioGroup>
+      <div className="space-y-6">
+        <CustomerInfoCard
+          onChange={(info, discount) => {
+            setCustomerInfo(info)
+            setDiscountValue(discount)
+          }}
+        />
+        
+        <PaymentMethodCard onSelect={handleMethodSelect} includeCash={true} />
 
-          {selectedMethod === "cash" && (
-            <div className="pt-4 border-t">
+        <Card>
+          <CardHeader>
+            <CardTitle>Xác nhận thanh toán</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {selectedPaymentCode === "CASH" ? (
               <Button
                 onClick={handleCashConfirm}
-                disabled={isProcessing || total === 0}
+                disabled={isProcessing || finalTotal <= 0}
                 className="w-full"
                 size="lg"
               >
@@ -437,36 +480,32 @@ export function PaymentTab({ seats, seatsTotal, concessions, concessionsTotal, t
                     Đang xử lý...
                   </>
                 ) : (
-                  "Xác nhận đã nhận tiền mặt"
+                  `Xác nhận đã nhận tiền mặt - ${finalTotal.toLocaleString("vi-VN")}đ`
                 )}
               </Button>
-            </div>
-          )}
-
-          {selectedMethod === "vnpay" && (
-            <div className="pt-4 border-t">
+            ) : (
               <Button
                 onClick={handleVnpayPayment}
-                disabled={isProcessing || total === 0}
+                disabled={isProcessing || finalTotal <= 0}
                 className="w-full"
                 size="lg"
               >
                 {isProcessing ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Đang tạo mã QR...
+                    Đang tạo thanh toán...
                   </>
                 ) : (
                   <>
                     <QrCode className="w-4 h-4 mr-2" />
-                    Tạo mã QR thanh toán
+                    Thanh toán {finalTotal.toLocaleString("vi-VN")}đ
                   </>
                 )}
               </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     )
   }
 
@@ -478,13 +517,18 @@ export function PaymentTab({ seats, seatsTotal, concessions, concessionsTotal, t
 
       <div className="shrink-0 w-80">
         <BookingOrderSummary
-          seats={seats}
-          seatsTotal={seatsTotal}
-          concessions={concessions}
-          concessionsTotal={concessionsTotal}
-          total={total}
+          movieInfo={movieInfo}
+          seats={actualSeats}
+          seatsTotal={actualSeatsTotal}
+          concessions={actualConcessions}
+          concessionsTotal={actualConcessionsTotal}
+          total={finalTotal}
+          discount={discountValue}
+          earnedPoints={earnedPoints}
           title="Đơn hàng"
           showSeatTypeStats={false}
+          showtimeId={showtimeId}
+          userId={userId}
         />
       </div>
     </div>

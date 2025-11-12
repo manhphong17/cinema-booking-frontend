@@ -1,9 +1,16 @@
-import "@/styles/operator.css"
+import type { Metadata } from 'next'
 
-export default function OperatorLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  return children
+export const metadata: Metadata = {
+    title: 'Quản lý vận hành',
+    description: 'Trang quản lý vận hành hệ thống PHT Cinema.',
 }
+
+export default function OperatorManagerLayout({
+    children,
+}: {
+    children: React.ReactNode
+}) {
+    // Không wrap children với OperatorLayout vì mỗi page đã tự wrap
+    return <>{children}</>
+}
+

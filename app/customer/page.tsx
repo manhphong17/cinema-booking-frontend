@@ -40,6 +40,8 @@ export default function CustomerPage() {
             } catch (error) {
                 console.error('Error decoding token:', error)
             }
+            // Dispatch custom event to notify HomeLayout that token was set
+            window.dispatchEvent(new Event('tokenSet'))
             // Remove token from URL for security
             router.replace('/customer', { scroll: false })
         }
@@ -68,6 +70,11 @@ export default function CustomerPage() {
         { id: "profile", label: "Hồ sơ", icon: User, description: "Quản lý thông tin cá nhân", color: "blue" },
         { id: "orders", label: "Đơn hàng", icon: ShoppingBag, description: "Xem lịch sử đặt vé", color: "green" },
     ]
+
+    const handleSectionChange = (sectionId: string) => {
+        setActiveSection(sectionId)
+        router.push(`/customer?section=${sectionId}`, { scroll: false })
+    }
 
 
     return (
@@ -98,7 +105,7 @@ export default function CustomerPage() {
                                                        'bg-purple-600 text-white shadow-lg')
                                                     : "hover:bg-gray-100"
                                             }`}
-                                            onClick={() => setActiveSection(item.id)}
+                                            onClick={() => handleSectionChange(item.id)}
                                         >
                                             <div className="flex flex-col items-center gap-2">
                                                 <Icon className="h-5 w-5" />
@@ -137,7 +144,7 @@ export default function CustomerPage() {
                                                                'bg-purple-600 text-white shadow-lg')
                                                             : "hover:bg-gray-50 hover:text-gray-900"
                                                     }`}
-                                                    onClick={() => setActiveSection(item.id)}
+                                                    onClick={() => handleSectionChange(item.id)}
                                                 >
                                                     <div className="flex items-center gap-3">
                                                         <Icon className="h-5 w-5" />

@@ -8,8 +8,7 @@ import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { KeyRound } from "lucide-react"
 import { friendlyFromPayload, type ApiEnvelope } from "../../src/utils/server-error"
-
-const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL
+import { BACKEND_BASE_URL } from "@/src/utils/config"
 const EMAIL_RE =
     /^(?=.{1,64}@)[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$/;
 
@@ -137,14 +136,25 @@ export default function VerifyOtpPage() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-200 to-gray-300 flex items-center justify-center p-4">
             <Card className="w-full max-w-md shadow-2xl bg-white/90 backdrop-blur-sm rounded-xl border-0">
-                <CardHeader className="text-center space-y-4">
-                    <div className="flex justify-center mb-4">
-                        <div className="bg-gradient-to-r from-primary to-purple-600 text-white p-4 rounded-full shadow-lg">
-                            <KeyRound className="h-8 w-8" />
+                <CardHeader className="space-y-4">
+                    <div className="flex justify-center items-center gap-3 mb-4">
+                        <div className="relative">
+                            <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 text-white p-3 rounded-xl shadow-lg">
+                                <KeyRound className="h-6 w-6" />
+                            </div>
+                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full animate-pulse"></div>
+                        </div>
+                        <div className="flex flex-col items-start">
+                            <span className="text-2xl font-black text-gray-900">
+                                <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                                    Cinema
+                                </span>
+                            </span>
+                            <span className="text-xs text-gray-500 font-medium -mt-1">Premium Experience</span>
                         </div>
                     </div>
-                    <CardTitle className="text-3xl font-bold text-gray-900">Nhập Mã Xác Nhận</CardTitle>
-                    <CardDescription className="text-gray-600">
+                    <CardTitle className="text-center text-3xl font-bold text-gray-900">Nhập Mã Xác Nhận</CardTitle>
+                    <CardDescription className="text-center text-gray-600">
                         Một mã 6 chữ số đã được gửi tới <span className="font-semibold break-all">{email}</span>. Nhập mã để tiếp tục đặt lại mật khẩu.
                     </CardDescription>
                 </CardHeader>
@@ -155,28 +165,63 @@ export default function VerifyOtpPage() {
                                 type="text" inputMode="numeric" maxLength={6}
                                 placeholder="Nhập mã OTP 6 chữ số"
                                 value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                                className="text-center text-xl tracking-widest border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/50"
+                                className="text-center text-xl tracking-widest border-gray-300 focus:border-[#38AAEC] focus:ring-2 focus:ring-[#38AAEC]/50"
                             />
                         </div>
 
                         <div className="flex gap-2">
-                            <Button type="submit" className="flex-1 bg-primary hover:bg-primary/90 text-white" disabled={isLoading}>
+                            <Button 
+                                type="submit" 
+                                className="flex-1 text-white transition-all duration-300" 
+                                style={{ backgroundColor: '#38AAEC' }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#38AAEC'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#38AAEC'}
+                                disabled={isLoading}
+                            >
                                 {isLoading ? "Đang xác nhận..." : "Xác nhận mã"}
                             </Button>
-                            <Button type="button" variant="outline" className="flex-1" onClick={() => router.push("/forgot_password")}>
+                            <Button 
+                                type="button" 
+                                variant="outline" 
+                                className="flex-1 transition-all duration-300"
+                                style={{ borderColor: '#38AAEC', color: '#38AAEC' }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#38AAEC'
+                                    e.currentTarget.style.color = 'white'
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'transparent'
+                                    e.currentTarget.style.color = '#38AAEC'
+                                }}
+                                onClick={() => router.push("/forgot_password")}
+                            >
                                 Thay đổi email
                             </Button>
                         </div>
 
                         <div className="text-center text-sm text-gray-600">
                             Không nhận được mã?{" "}
-                            <button type="button" onClick={handleResend} className="text-primary hover:underline font-medium">
+                            <button 
+                                type="button" 
+                                onClick={handleResend} 
+                                className="font-medium transition-colors hover:underline"
+                                style={{ color: '#38AAEC' }}
+                                onMouseEnter={(e) => e.currentTarget.style.color = '#38AAEC'}
+                                onMouseLeave={(e) => e.currentTarget.style.color = '#38AAEC'}
+                            >
                                 Gửi Lại
                             </button>
                         </div>
 
                         <div className="text-center">
-                            <button type="button" onClick={() => router.push("/")} className="text-sm text-gray-500 hover:underline">
+                            <button 
+                                type="button" 
+                                onClick={() => router.push("/")} 
+                                className="text-sm transition-colors hover:underline"
+                                style={{ color: '#38AAEC' }}
+                                onMouseEnter={(e) => e.currentTarget.style.color = '#38AAEC'}
+                                onMouseLeave={(e) => e.currentTarget.style.color = '#38AAEC'}
+                            >
                                 Quay lại trang chủ
                             </button>
                         </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import "@/styles/staff.css"
 import { CinemaNavbar } from "@/components/staff/cinema-navbar"
 import { TicketSelection } from "@/components/staff/ticket-selection"
@@ -10,6 +10,8 @@ import { RevenueDashboard } from "@/components/staff/revenue-dashboard"
 import BookingOrderSummary, { SeatInfo, ConcessionInfo } from "@/components/booking/booking-order-summary"
 import { PaymentTab } from "@/components/staff/payment-tab"
 import { toast } from "sonner"
+import { apiClient } from "@/src/api/interceptor"
+import { jwtDecode } from "jwt-decode"
 
 interface CartItem {
   id: string
@@ -20,11 +22,27 @@ interface CartItem {
   details?: string
   showtimeId?: number // Track showtimeId to sync with selectedSeats
   seatTypes?: Record<string, string> // Map seatId to seat type (vip/standard)
+  ticketIds?: number[] // Store ticketIds for API calls
+  seatIds?: string[] // Store seatIds for display
 }
 
 export default function CinemaManagement() {
   const [activeTab, setActiveTab] = useState("tickets")
   const [cartItems, setCartItems] = useState<CartItem[]>([])
+  const [userId, setUserId] = useState<number | null>(null)
+
+  // Get userId from token
+  useEffect(() => {
+    try {
+      const token = localStorage.getItem('accessToken')
+      if (token) {
+        const decoded: any = jwtDecode(token)
+        setUserId(decoded.userId)
+      }
+    } catch (error) {
+      console.error('Error decoding token:', error)
+    }
+  }, [])
 
   const addToCart = (item: Omit<CartItem, "id">) => {
     const existingItem = cartItems.find((cartItem) => cartItem.name === item.name && cartItem.details === item.details)
@@ -53,20 +71,127 @@ export default function CinemaManagement() {
   }
 
 
-  const handlePaymentSuccess = async () => {
+  const handlePaymentSuccess = async (paymentMethod: string = "CASH", isCallback: boolean = false, discount: number = 0, earnedPoints: number = 0) => {
     try {
-      // TODO: Gọi API tạo booking với dữ liệu từ cartItems
-      // const bookingData = {
-      //   seats: seats,
-      //   concessions: concessions,
-      //   total: total,
-      //   paymentMethod: "cash" | "vnpay"
-      // }
-      // await apiClient.post("/bookings/create", bookingData)
+      // If this is a callback from VNPay, booking is already created
+      // Just show success and clear cart
+      if (isCallback && paymentMethod !== "CASH") {
+        const finalTotal = total - discount
+        toast.success("Thanh toán thành công!", {
+          description: `Đã thanh toán ${finalTotal.toLocaleString("vi-VN")}đ`,
+          duration: 5000,
+        })
+        
+        // Clear cart sau khi thanh toán thành công
+        setCartItems([])
+        
+        // Tự động chuyển về tab chọn vé để bắt đầu đơn mới
+        setTimeout(() => {
+          setActiveTab("tickets")
+        }, 2000)
+        return
+      }
+
+      if (!userId) {
+        toast.error("Không tìm thấy thông tin người dùng")
+        return
+      }
+
+      // Get ticket item from cart to get showtimeId
+      const ticketItem = cartItems.find(item => item.type === "ticket")
+      if (!ticketItem || !ticketItem.showtimeId) {
+        toast.error("Vui lòng chọn ghế trước khi thanh toán")
+        return
+      }
+
+      // Gọi API lấy OrderSession từ Redis (giống customer page)
+      const res = await apiClient.get(`/bookings/order-session`, {
+        params: { showtimeId: ticketItem.showtimeId, userId }
+      });
+      const session = res.data.data;
       
-      // Thông báo thành công với thông tin chi tiết
+      if (!session) {
+        toast.error("Không tìm thấy thông tin đơn hàng")
+        return
+      }
+
+      // Lấy ticketIds và concessionOrders từ order session
+      const ticketIds = session.ticketIds || [];
+      const concessionOrders = session.concessionOrders || [];
+
+      if (ticketIds.length === 0) {
+        toast.error("Vui lòng chọn ghế trước khi thanh toán")
+        return
+      }
+
+      // Prepare concessions data từ order session
+      const concessionsData = concessionOrders.map((c: any) => ({
+        concessionId: c.comboId,
+        quantity: c.quantity
+      }));
+
+      // Fetch ticket details để tính totalPrice
+      let totalPrice = 0;
+      if (ticketIds.length > 0) {
+        const seatRes = await apiClient.get(`/bookings/tickets/details`, {
+          params: { ids: ticketIds.join(",") }
+        });
+        const tickets = seatRes.data.data || [];
+        totalPrice = tickets.reduce((sum: number, seat: any) => sum + (seat.ticketPrice || 0), 0);
+      }
+
+      // Calculate concessions total
+      let concessionsTotalPrice = 0;
+      if (concessionOrders.length > 0) {
+        const comboIds = concessionOrders.map((c: any) => c.comboId);
+        const consRes = await apiClient.get(`/concession/list-by-ids`, {
+          params: { ids: comboIds.join(",") }
+        });
+        const concessions = consRes.data.data || [];
+        concessionsTotalPrice = concessionOrders.reduce((sum: number, order: any) => {
+          const concession = concessions.find((c: any) => c.concessionId === order.comboId);
+          return sum + (concession?.price || 0) * order.quantity;
+        }, 0);
+      }
+
+      // Calculate final total with discount
+      const finalTotal = totalPrice + concessionsTotalPrice - discount
+
+      // Prepare payload for API (giống customer page)
+      const payload = {
+        userId,
+        ticketIds: ticketIds,
+        concessions: concessionsData,
+        totalPrice: totalPrice + concessionsTotalPrice,
+        discount: discount,
+        amount: finalTotal,
+        paymentCode: paymentMethod,
+        showtimeId: ticketItem.showtimeId.toString(),
+      }
+
+      // Call API to create booking
+      const response = await apiClient.post("/payment/checkout", payload)
+      
+      console.log("[Staff] Payment response:", response.data)
+      console.log("[Staff] Payment method:", paymentMethod)
+      
+      // If not CASH, redirect to payment URL
+      if (paymentMethod !== "CASH" && paymentMethod.toUpperCase() !== "CASH") {
+        const payUrl = response.data?.data || response.data?.payUrl
+        if (payUrl) {
+          console.log("[Staff] Redirecting to payment URL:", payUrl)
+          window.location.href = payUrl
+          return
+        } else {
+          console.error("[Staff] No payment URL in response:", response.data)
+          toast.error("Không nhận được URL thanh toán từ server")
+          return
+        }
+      }
+
+      // For cash payment, show success message
       toast.success("Thanh toán thành công!", {
-        description: `Đã thanh toán ${total.toLocaleString("vi-VN")}đ`,
+        description: `Đã thanh toán ${finalTotal.toLocaleString("vi-VN")}đ${earnedPoints > 0 ? ` - Nhận được ${earnedPoints} điểm` : ""}`,
         duration: 5000,
       })
       
@@ -75,12 +200,11 @@ export default function CinemaManagement() {
       
       // Tự động chuyển về tab chọn vé để bắt đầu đơn mới
       setTimeout(() => {
-        // Optional: có thể tự động chuyển tab nếu muốn
-        // setActiveTab("tickets")
+        setActiveTab("tickets")
       }, 2000)
     } catch (error: any) {
       console.error("Payment success error:", error)
-      toast.error(error?.message || "Lỗi khi xử lý thanh toán")
+      toast.error(error?.response?.data?.message || error?.message || "Lỗi khi xử lý thanh toán")
     }
   }
 
@@ -165,7 +289,7 @@ export default function CinemaManagement() {
   }
 
   // Sync selected seats to cart (called from TicketSelection)
-  const syncTicketsToCart = (showtimeId: number | null, movieName: string | null, showtimeInfo: string | null, selectedSeats: string[], seatPrices: Record<string, number>, seatTypes?: Record<string, string>) => {
+  const syncTicketsToCart = (showtimeId: number | null, movieName: string | null, showtimeInfo: string | null, selectedSeats: string[], seatPrices: Record<string, number>, seatTypes?: Record<string, string>, ticketIds?: number[]) => {
     if (!showtimeId || !movieName || !showtimeInfo || selectedSeats.length === 0) {
       // If no seats selected, remove the ticket item for this showtime
       setCartItems(prev => prev.filter(item => 
@@ -196,7 +320,9 @@ export default function CinemaManagement() {
               price: totalPrice, 
               quantity: selectedSeats.length,
               details: ticketDetails,
-              seatTypes: seatTypes
+              seatTypes: seatTypes,
+              ticketIds: ticketIds || [],
+              seatIds: selectedSeats
             }
           : item
       ))
@@ -210,7 +336,9 @@ export default function CinemaManagement() {
         quantity: selectedSeats.length,
         details: ticketDetails,
         showtimeId: showtimeId,
-        seatTypes: seatTypes
+        seatTypes: seatTypes,
+        ticketIds: ticketIds || [],
+        seatIds: selectedSeats
       }
       setCartItems(prev => [...prev, newItem])
     }
@@ -223,6 +351,9 @@ export default function CinemaManagement() {
       case "concessions":
         return <ConcessionsSelection onAddToCart={addToCart} onSyncConcessionsToCart={syncConcessionsToCart} />
       case "payment":
+        // Get showtimeId from ticket item
+        const ticketItem = cartItems.find(item => item.type === "ticket")
+        
         return (
           <PaymentTab
             seats={seats}
@@ -230,8 +361,10 @@ export default function CinemaManagement() {
             concessions={concessions}
             concessionsTotal={concessionsTotal}
             total={total}
-            onPaymentSuccess={handlePaymentSuccess}
+            onPaymentSuccess={(paymentMethod, isCallback, discount, earnedPoints) => handlePaymentSuccess(paymentMethod, isCallback, discount, earnedPoints)}
             onNavigateToTickets={() => setActiveTab("tickets")}
+            showtimeId={ticketItem?.showtimeId || null}
+            userId={userId}
           />
         )
       case "eticket":

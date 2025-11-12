@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import { Calendar, Clock, MapPin, Ticket, CreditCard, User, QrCode, Loader2, RefreshCw } from "lucide-react"
 import { OrderDetail, generateQRCode } from "@/src/api/orders"
@@ -136,8 +135,6 @@ export function OrderDetailModal({ open, onOpenChange, orderDetail, loading, onQ
               </div>
             </div>
 
-            <Separator />
-
             {/* Movie Info */}
             {orderDetail.movieName && (
               <>
@@ -194,7 +191,6 @@ export function OrderDetailModal({ open, onOpenChange, orderDetail, loading, onQ
                     )}
                   </div>
                 </div>
-                <Separator />
               </>
             )}
 
@@ -239,7 +235,6 @@ export function OrderDetailModal({ open, onOpenChange, orderDetail, loading, onQ
             </div>
 
             {/* QR Code Section */}
-            <Separator />
             <div className="space-y-3">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <QrCode className="h-5 w-5 text-blue-600" />
