@@ -283,7 +283,7 @@ export default function PaymentPage({
         </div>
 
         {/* RIGHT - Order Summary */}
-        <div className="lg:col-span-1 lg:sticky lg:top-8 lg:h-fit space-y-6">
+        <div className="lg:col-span-1 space-y-6">
           <BookingOrderSummary
             movieInfo={movieInfo}
             seats={seatsInfo}

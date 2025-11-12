@@ -37,10 +37,15 @@ export default function HomePage() {
             } catch (error) {
                 console.error('Error decoding token:', error)
             }
-            // Dispatch custom event to notify HomeLayout that token was set
-            window.dispatchEvent(new Event('tokenSet'))
-            // Remove token from URL for security
+            
+            // Remove token from URL for security first
             router.replace('/home', { scroll: false })
+            
+            // Dispatch custom event after router replace to ensure HomeLayout is ready
+            // Use setTimeout to ensure the event is processed after the route change
+            setTimeout(() => {
+                window.dispatchEvent(new Event('tokenSet'))
+            }, 100)
         }
     }, [searchParams, router])
 

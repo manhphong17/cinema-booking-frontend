@@ -34,10 +34,7 @@ export function HomeNowShowingCarousel() {
                 <div className="container mx-auto px-4 max-w-7xl">
                     <div className="flex items-center justify-between mb-12 gap-4 flex-wrap">
                         <div>
-                            <div className="text-[11px] font-bold uppercase tracking-wider mb-2 px-2 py-1 rounded-md inline-block" style={{ color: '#3BAEF0', backgroundColor: '#E6F5FF' }}>
-                                Now Showing
-                            </div>
-                            <h2 className="text-4xl md:text-5xl font-black mb-3" style={{ color: '#3BAEF0' }}>
+                            <h2 className="text-2xl md:text-3xl font-bold mb-3" style={{ color: '#2563eb' }}>
                                 Phim đang chiếu
                             </h2>
                         </div>
@@ -71,7 +68,7 @@ export function HomeNowShowingCarousel() {
             <div className="container mx-auto px-4 max-w-7xl">
                 <div className="flex items-center justify-between mb-12 gap-4 flex-wrap">
                     <div>
-                        <h2 className="text-4xl md:text-5xl font-black mb-3" style={{ color: '#3BAEF0' }}>
+                        <h2 className="text-2xl md:text-3xl font-bold mb-3" style={{ color: '#2563eb' }}>
                             Phim đang chiếu
                         </h2>
                     </div>
@@ -181,7 +178,7 @@ export function HomeComingSoonCarousel() {
                 <div className="container mx-auto px-4 max-w-7xl">
                     <div className="flex items-center justify-between mb-12 gap-4 flex-wrap">
                         <div>
-                            <h2 className="text-4xl md:text-5xl font-black mb-3" style={{ color: '#3BAEF0' }}>
+                            <h2 className="text-2xl md:text-3xl font-bold mb-3" style={{ color: '#2563eb' }}>
                                 Phim sắp chiếu
                             </h2>
                         </div>
@@ -215,7 +212,7 @@ export function HomeComingSoonCarousel() {
             <div className="container mx-auto px-4 max-w-7xl">
                 <div className="flex items-center justify-between mb-12 gap-4 flex-wrap">
                     <div>
-                        <h2 className="text-4xl md:text-5xl font-black mb-3" style={{ color: '#3BAEF0' }}>
+                        <h2 className="text-2xl md:text-3xl font-bold mb-3" style={{ color: '#2563eb' }}>
                             Phim sắp chiếu
                         </h2>
                     </div>

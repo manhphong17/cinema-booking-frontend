@@ -190,20 +190,37 @@ export default function LoginPage() {
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter className="flex justify-end gap-2">
-                        <Button variant="outline" onClick={() => setShowVerifyModal(false)}>Đóng</Button>
-                        <Button onClick={handleResendVerification}>Gửi lại email</Button>
+                        <Button 
+                            variant="outline" 
+                            onClick={() => setShowVerifyModal(false)}
+                            style={{ borderColor: '#3BAEF0', color: '#3BAEF0' }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#E6F5FF'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >
+                            Đóng
+                        </Button>
+                        <Button 
+                            onClick={handleResendVerification}
+                            className="text-white transition-all duration-300"
+                            style={{ backgroundColor: '#3BAEF0' }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#38AAEC'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#3BAEF0'}
+                        >
+                            Gửi lại email
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
             {/* Form đăng nhập */}
             <div
-                className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-200 to-gray-300 flex items-center justify-center p-4">
+                className="min-h-screen flex items-center justify-center p-4"
+                style={{ background: 'linear-gradient(135deg, oklch(0.98 0.005 240) 0%, oklch(0.96 0.01 260) 100%)' }}>
                 <Card className="w-full max-w-md shadow-2xl bg-white/90 backdrop-blur-sm rounded-xl border-0">
                     <CardHeader className="text-center space-y-4">
                         <div className="flex justify-center mb-4">
                             <div
-                                className="bg-gradient-to-r from-primary to-purple-600 text-white p-4 rounded-full shadow-lg">
+                                className="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 text-white p-4 rounded-full shadow-lg">
                                 <Film className="h-8 w-8"/>
                             </div>
                         </div>
@@ -250,13 +267,21 @@ export default function LoginPage() {
                                 <Button
                                     type="button"
                                     variant="link"
-                                    className="text-sm text-primary hover:text-primary/80"
+                                    className="text-sm"
+                                    style={{ color: '#3BAEF0' }}
                                     onClick={handleForgotPassword}
                                 >
                                     Quên mật khẩu?
                                 </Button>
                             </div>
-                            <Button type="submit" className="w-full" disabled={isLoading}>
+                            <Button 
+                                type="submit" 
+                                className="w-full text-white transition-all duration-300 hover:scale-105" 
+                                style={{ backgroundColor: '#3BAEF0' }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#38AAEC'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#3BAEF0'}
+                                disabled={isLoading}
+                            >
                                 {isLoading ? "Đang đăng nhập..." : "Đăng nhập"}
                             </Button>
                         </form>
@@ -265,7 +290,18 @@ export default function LoginPage() {
                             <Button
                                 type="button"
                                 variant="outline"
-                                className="w-full flex items-center justify-center gap-2"
+                                className="w-full flex items-center justify-center gap-2 transition-all duration-300"
+                                style={{ borderColor: '#3BAEF0', color: '#3BAEF0' }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#3BAEF0'
+                                    e.currentTarget.style.color = 'white'
+                                    e.currentTarget.style.borderColor = '#3BAEF0'
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'transparent'
+                                    e.currentTarget.style.color = '#3BAEF0'
+                                    e.currentTarget.style.borderColor = '#3BAEF0'
+                                }}
                                 onClick={handleGoogleSignIn}
                                 disabled={isLoading}
                             >
@@ -292,7 +328,10 @@ export default function LoginPage() {
                                     <a
                                         href="/register"
                                         onClick={handleRegister}
-                                        className="text-primary hover:text-primary/80 font-medium underline"
+                                        className="font-medium underline transition-colors"
+                                        style={{ color: '#3BAEF0' }}
+                                        onMouseEnter={(e) => e.currentTarget.style.color = '#38AAEC'}
+                                        onMouseLeave={(e) => e.currentTarget.style.color = '#3BAEF0'}
                                     >
                                         Đăng ký ngay
                                     </a>

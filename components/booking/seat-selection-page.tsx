@@ -814,7 +814,7 @@ export default function SeatSelectionPage() {
           </div>
 
           {/* Booking Summary */}
-          <div className="lg:col-span-1 lg:sticky lg:top-8 lg:h-fit">
+          <div className="lg:col-span-1">
             <BookingOrderSummary
               movieInfo={movieInfo}
               seats={seatsInfo}
