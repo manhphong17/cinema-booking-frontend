@@ -383,3 +383,5 @@ export function HomeComingSoonCarousel() {
         </section>
     )
 }
+
+export default ContactCard
