@@ -208,7 +208,7 @@ export default function ShowtimeSelectionPage({ movieId }: ShowtimeSelectionPage
 
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                     {/* Left: Movie info */}
-                    <div className="lg:col-span-1 lg:sticky lg:top-8 lg:h-fit">
+                    <div className="lg:col-span-1">
                         <Card className="shadow-sm border border-gray-200 bg-white">
                             <CardContent className="p-4">
                                 <div className="text-center">
