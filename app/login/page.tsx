@@ -329,9 +329,9 @@ export default function LoginPage() {
                                         href="/register"
                                         onClick={handleRegister}
                                         className="font-medium underline transition-colors"
-                                        style={{ color: '#3BAEF0' }}
+                                        style={{ color: '#38AAEC' }}
                                         onMouseEnter={(e) => e.currentTarget.style.color = '#38AAEC'}
-                                        onMouseLeave={(e) => e.currentTarget.style.color = '#3BAEF0'}
+                                        onMouseLeave={(e) => e.currentTarget.style.color = '#38AAEC'}
                                     >
                                         Đăng ký ngay
                                     </a>

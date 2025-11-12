@@ -366,14 +366,14 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                                             setMobileMenuOpen(false)
                                         }}
                                         className="transition-all duration-300 hover:scale-105"
-                                        style={{ borderColor: '#3BAEF0', color: '#3BAEF0' }}
+                                        style={{ borderColor: '#38AAEC', color: '#38AAEC' }}
                                         onMouseEnter={(e) => {
-                                            e.currentTarget.style.backgroundColor = '#3BAEF0'
+                                            e.currentTarget.style.backgroundColor = '#38AAEC'
                                             e.currentTarget.style.color = 'white'
                                         }}
                                         onMouseLeave={(e) => {
                                             e.currentTarget.style.backgroundColor = 'transparent'
-                                            e.currentTarget.style.color = '#3BAEF0'
+                                            e.currentTarget.style.color = '#38AAEC'
                                         }}
                                     >
                                         Đăng ký
@@ -461,14 +461,14 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                                         }}
                                         size="sm"
                                         className="text-xs px-3 transition-all duration-300"
-                                        style={{ borderColor: '#3BAEF0', color: '#3BAEF0' }}
+                                        style={{ borderColor: '#38AAEC', color: '#38AAEC' }}
                                         onMouseEnter={(e) => {
-                                            e.currentTarget.style.backgroundColor = '#3BAEF0'
+                                            e.currentTarget.style.backgroundColor = '#38AAEC'
                                             e.currentTarget.style.color = 'white'
                                         }}
                                         onMouseLeave={(e) => {
                                             e.currentTarget.style.backgroundColor = 'transparent'
-                                            e.currentTarget.style.color = '#3BAEF0'
+                                            e.currentTarget.style.color = '#38AAEC'
                                         }}
                                     >
                                         Đăng ký
