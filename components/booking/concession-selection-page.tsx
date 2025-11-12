@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Minus, ShoppingCart, Loader2, Image as ImageIcon } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useMemo, useState, useEffect, useCallback, useRef } from "react"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { apiClient } from "@/src/api/interceptor"
 import BookingOrderSummary, { SeatInfo, ConcessionInfo, MovieInfo } from "./booking-order-summary"
 import { jwtDecode } from "jwt-decode"
@@ -34,20 +34,10 @@ type ShowtimeSeatResponse = {
 }
 
 type ConcessionSelectionPageProps = {
-  movieId: string | null
-  seats: string | null
-  date: string | null
-  time: string | null
-  hall: string | null
   showtimeId: string | null
 }
 
 export default function ConcessionSelectionPage({ 
-  movieId,
-  seats,
-  date,
-  time,
-  hall,
   showtimeId
 }: ConcessionSelectionPageProps) {
   const router = useRouter()
@@ -62,8 +52,9 @@ export default function ConcessionSelectionPage({
   // Seat data
   const [seatData, setSeatData] = useState<TicketResponse[]>([])
   const [loadingSeats, setLoadingSeats] = useState(false)
+  const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([])
+  const [movieId, setMovieId] = useState<string | null>(null)
 
-  const { toast } = useToast()
   
   // Get userId from token
   useEffect(() => {
@@ -110,20 +101,92 @@ export default function ConcessionSelectionPage({
     fetchConcessions()
   }, [])
 
-  // Fetch seat data
+  // Fetch seat data and restore from order session
   useEffect(() => {
-    const fetchSeatData = async () => {
-      if (!showtimeId) return
+    const fetchAndRestore = async () => {
+      if (!showtimeId || !userId) return
 
       try {
         setLoadingSeats(true)
+        
+        // Fetch seat data
         const response = await apiClient.get<ShowtimeSeatResponse>(
           `/bookings/show-times/${showtimeId}/seats`
         )
 
+        let ticketResponses: TicketResponse[] = []
         if (response.data?.status === 200 && response.data?.data?.length > 0) {
           const data = response.data.data[0]
-          setSeatData(data.ticketResponses)
+          ticketResponses = data.ticketResponses
+          setSeatData(ticketResponses)
+        }
+        
+        // Fetch order session to restore selected seats and concessions
+        try {
+          const orderSessionResponse = await apiClient.get(
+            `/bookings/order-session`,
+            { params: { showtimeId: parseInt(showtimeId), userId } }
+          )
+          
+          if (orderSessionResponse.data?.status === 200 && orderSessionResponse.data?.data) {
+            const orderSession = orderSessionResponse.data.data
+            
+            // Restore selected seats from ticketIds
+            if (orderSession.ticketIds && Array.isArray(orderSession.ticketIds) && ticketResponses.length > 0) {
+              const seatIds = orderSession.ticketIds.map((ticketId: number) => {
+                const ticket = ticketResponses.find((t: TicketResponse) => t.ticketId === ticketId)
+                if (ticket) {
+                  const rowLabel = String.fromCharCode(65 + ticket.rowIdx)
+                  const seatNumber = ticket.columnInx + 1
+                  return `${rowLabel}${seatNumber}`
+                }
+                return null
+              }).filter((id: string | null) => id !== null) as string[]
+              setSelectedSeatIds(seatIds)
+            }
+            
+            // Restore selected concessions
+            if (orderSession.concessionOrders && Array.isArray(orderSession.concessionOrders)) {
+              const restoredConcessions: {[key: string]: number} = {}
+              orderSession.concessionOrders.forEach((concession: any) => {
+                if (concession.comboId && concession.quantity) {
+                  restoredConcessions[concession.comboId.toString()] = concession.quantity
+                }
+              })
+              if (Object.keys(restoredConcessions).length > 0) {
+                setSelectedConcessions(restoredConcessions)
+              }
+            }
+          }
+        } catch (error: any) {
+          // Order session not found - try seat hold as fallback
+          if (ticketResponses.length > 0) {
+            try {
+              const seatHoldResponse = await apiClient.get(
+                `/bookings/show-times/${showtimeId}/users/${userId}/seat-hold`
+              )
+              if (seatHoldResponse.data?.status === 200 && seatHoldResponse.data?.data) {
+                const seatHold = seatHoldResponse.data.data
+                if (seatHold.movieId) {
+                  setMovieId(seatHold.movieId.toString())
+                }
+                if (seatHold.seats && Array.isArray(seatHold.seats)) {
+                  const seatIds = seatHold.seats.map((seat: any) => {
+                    const ticket = ticketResponses.find((t: TicketResponse) => t.ticketId === seat.ticketId)
+                    if (ticket) {
+                      const rowLabel = String.fromCharCode(65 + ticket.rowIdx)
+                      const seatNumber = ticket.columnInx + 1
+                      return `${rowLabel}${seatNumber}`
+                    }
+                    return null
+                  }).filter((id: string | null) => id !== null) as string[]
+                  setSelectedSeatIds(seatIds)
+                }
+              }
+            } catch (error2) {
+              console.log('[Concession Selection] No order session or seat hold found')
+            }
+          }
         }
       } catch (error) {
         console.error("Error fetching seat data:", error)
@@ -132,8 +195,8 @@ export default function ConcessionSelectionPage({
       }
     }
 
-    fetchSeatData()
-  }, [showtimeId])
+    fetchAndRestore()
+  }, [showtimeId, userId])
 
   // Helper functions
   const updateConcessionQuantity = (comboId: string, quantity: number) => {
@@ -176,8 +239,8 @@ export default function ConcessionSelectionPage({
   }
 
   const getSeatTotal = () => {
-    if (!seats) return 0
-    return seats.split(',').reduce((total, seatId) => {
+    if (!selectedSeatIds || selectedSeatIds.length === 0) return 0
+    return selectedSeatIds.reduce((total, seatId) => {
       return total + getSeatPrice(seatId.trim())
     }, 0)
   }
@@ -195,8 +258,8 @@ export default function ConcessionSelectionPage({
 
   // Prepare data for BookingOrderSummary component
   const seatsInfo: SeatInfo[] = useMemo(() => {
-    if (!seats) return []
-    return seats.split(',').map(seatId => {
+    if (!selectedSeatIds || selectedSeatIds.length === 0) return []
+    return selectedSeatIds.map(seatId => {
       const trimmedSeatId = seatId.trim()
       return { 
         id: trimmedSeatId, 
@@ -204,7 +267,7 @@ export default function ConcessionSelectionPage({
         price: getSeatPrice(trimmedSeatId) 
       }
     })
-  }, [seats, seatData])
+  }, [selectedSeatIds, seatData])
 
   const concessionsInfo: ConcessionInfo[] = useMemo(() => {
     const result: ConcessionInfo[] = []
@@ -225,22 +288,14 @@ export default function ConcessionSelectionPage({
   }, [selectedConcessions, concessions])
 
   const movieInfo: MovieInfo | undefined = useMemo(() => {
-    // Chỉ hiển thị thông tin có sẵn từ URL params, không cần fetch movie
-    if (!date && !time && !hall) return undefined
-    return {
-      date: date || undefined,
-      time: time || undefined,
-      hall: hall || undefined
-    }
-  }, [date, time, hall])
+    // Movie info will be fetched from order session if needed
+    // For now, return undefined as we don't have date/time/hall from URL anymore
+    return undefined
+  }, [])
 
   const handleContinue = async () => {
     if (!showtimeId || !userId) {
-      toast({
-        title: " Lỗi",
-        description: "Thông tin đặt vé không hợp lệ",
-        variant: "destructive",
-      })
+      toast.error("Thông tin đặt vé không hợp lệ")
       return
     }
 
@@ -268,19 +323,11 @@ export default function ConcessionSelectionPage({
         // Navigate to payment page
           router.push(`/booking/payment?showtimeId=${showtimeId}`)
       } else {
-        toast({
-          title: " Lỗi",
-          description: "Không thể thêm sản phẩm vào đơn hàng. Vui lòng thử lại.",
-          variant: "destructive",
-        })
+        toast.error("Không thể thêm sản phẩm vào đơn hàng. Vui lòng thử lại.")
       }
     } catch (error) {
       console.error("Error adding concessions to order session:", error)
-      toast({
-        title: " Lỗi",
-        description: "Không thể thêm sản phẩm vào đơn hàng. Vui lòng thử lại.",
-        variant: "destructive",
-      })
+      toast.error("Không thể thêm sản phẩm vào đơn hàng. Vui lòng thử lại.")
     } finally {
       setIsSubmitting(false)
     }
@@ -294,9 +341,9 @@ export default function ConcessionSelectionPage({
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
           {/* Main Content - Combo Selection */}
           <div className="lg:col-span-3">
-            <Card className="shadow-2xl border-2 border-blue-200 bg-white hover:border-blue-400 hover:shadow-2xl transition-all duration-300">
-              <CardHeader className="bg-gradient-to-r from-blue-50 via-white to-blue-50 border-b-2 border-blue-200">
-                <CardTitle className="flex items-center gap-2 text-blue-600">
+            <Card className="shadow-2xl border-2 transition-colors duration-300" style={{ borderColor: '#B3E0FF' }} onMouseEnter={(e) => e.currentTarget.style.borderColor = '#3BAEF0'} onMouseLeave={(e) => e.currentTarget.style.borderColor = '#B3E0FF'}>
+              <CardHeader className="border-b-2" style={{ backgroundColor: '#E6F5FF', borderColor: '#B3E0FF' }}>
+                <CardTitle className="flex items-center gap-2" style={{ color: '#3BAEF0' }}>
                   <ShoppingCart className="h-5 w-5" />
                   Chọn sản phẩm
                 </CardTitle>
@@ -316,9 +363,9 @@ export default function ConcessionSelectionPage({
                     ))}
                   </div>
                 ) : concessions.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-20 text-center bg-blue-50 rounded-xl border-2 border-blue-200">
-                    <div className="relative w-32 h-32 rounded-full bg-blue-50 flex items-center justify-center mb-6 border-4 border-blue-300 shadow-lg">
-                      <ImageIcon className="w-16 h-16 text-blue-600" />
+                  <div className="flex flex-col items-center justify-center py-20 text-center rounded-xl border-2" style={{ backgroundColor: '#E6F5FF', borderColor: '#B3E0FF' }}>
+                    <div className="relative w-32 h-32 rounded-full flex items-center justify-center mb-6 border-4 shadow-lg" style={{ backgroundColor: '#E6F5FF', borderColor: '#B3E0FF' }}>
+                      <ImageIcon className="w-16 h-16" style={{ color: '#3BAEF0' }} />
                     </div>
                     <h3 className="text-2xl font-bold text-gray-900 mb-3">Không có sản phẩm</h3>
                     <p className="text-gray-600 max-w-md text-lg font-medium">
@@ -346,7 +393,7 @@ export default function ConcessionSelectionPage({
                               <ImageIcon className="w-16 h-16 text-gray-400" />
                             )}
                             <div className="absolute top-2 right-2">
-                              <Badge className="bg-blue-600 text-white">
+                              <Badge style={{ backgroundColor: '#3BAEF0' }} className="text-white">
                                 {item.price.toLocaleString('vi-VN')} ₫
                               </Badge>
                             </div>
@@ -379,7 +426,7 @@ export default function ConcessionSelectionPage({
                               </div>
                                 <div className="text-right">
                                 <div className="text-sm text-gray-500">Tổng</div>
-                                <div className="font-semibold text-blue-600">
+                                <div className="font-semibold" style={{ color: '#3BAEF0' }}>
                                     {(quantity * item.price).toLocaleString('vi-VN')} ₫
                                   </div>
                                 </div>
@@ -394,7 +441,7 @@ export default function ConcessionSelectionPage({
             </Card>
           </div>
           {/* Order Summary Sidebar */}
-          <div className="lg:col-span-1 lg:sticky lg:top-8 lg:h-fit">
+          <div className="lg:col-span-1">
             <BookingOrderSummary
               movieInfo={movieInfo}
               seats={seatsInfo}
@@ -410,7 +457,8 @@ export default function ConcessionSelectionPage({
                   onClick={handleContinue}
                   disabled={isSubmitting}
                   size="lg"
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-7 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed text-lg"
+                  style={{ backgroundColor: '#38AAEC' }}
+                  className="w-full hover:opacity-90 text-white font-bold px-8 py-7 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed text-lg transition-opacity"
                 >
                   <span className="flex items-center justify-center">
                     {isSubmitting ? (

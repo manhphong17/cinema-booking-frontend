@@ -18,9 +18,6 @@ export function AboutUs() {
           <div className="lg:col-span-3">
             <div className="mb-8 relative">
               <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-pink-500 to-pink-300 rounded-full"></div>
-              <div className="text-[11px] font-bold text-pink-600 uppercase tracking-wider mb-3 px-2 py-1 bg-pink-50 rounded-md inline-block">
-                About Us
-              </div>
               <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4 text-balance">
                 <span className="bg-gradient-to-r from-pink-600 to-rose-500 bg-clip-text text-transparent">
                   Giới thiệu rạp của chúng tôi

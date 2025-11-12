@@ -9,8 +9,7 @@ import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { LockKeyhole, Eye, EyeOff } from "lucide-react"
 import { friendlyFromPayload, type ApiEnvelope } from "../../src/utils/server-error"
-
-const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL
+import { BACKEND_BASE_URL } from "@/src/utils/config"
 
 export default function ResetPasswordPage() {
     const [password, setPassword] = useState("")
@@ -110,14 +109,25 @@ export default function ResetPasswordPage() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-200 to-gray-300 flex items-center justify-center p-4">
             <Card className="w-full max-w-md shadow-2xl bg-white/90 backdrop-blur-sm rounded-xl border-0">
-                <CardHeader className="text-center space-y-4">
-                    <div className="flex justify-center mb-4">
-                        <div className="bg-gradient-to-r from-primary to-purple-600 text-white p-4 rounded-full shadow-lg">
-                            <LockKeyhole className="h-8 w-8" />
+                <CardHeader className="space-y-4">
+                    <div className="flex justify-center items-center gap-3 mb-4">
+                        <div className="relative">
+                            <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 text-white p-3 rounded-xl shadow-lg">
+                                <LockKeyhole className="h-6 w-6" />
+                            </div>
+                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full animate-pulse"></div>
+                        </div>
+                        <div className="flex flex-col items-start">
+                            <span className="text-2xl font-black text-gray-900">
+                                <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                                    Cinema
+                                </span>
+                            </span>
+                            <span className="text-xs text-gray-500 font-medium -mt-1">Premium Experience</span>
                         </div>
                     </div>
-                    <CardTitle className="text-3xl font-bold text-gray-900">Đặt lại mật khẩu</CardTitle>
-                    <CardDescription className="text-gray-600">
+                    <CardTitle className="text-center text-3xl font-bold text-gray-900">Đặt lại mật khẩu</CardTitle>
+                    <CardDescription className="text-center text-gray-600">
                         Nhập mật khẩu mới cho tài khoản <span className="font-semibold">{email || "của bạn"}</span>.
                     </CardDescription>
                 </CardHeader>
@@ -130,7 +140,7 @@ export default function ResetPasswordPage() {
                                 <Input
                                     id="password" type={showPassword ? "text" : "password"}
                                     value={password} onChange={(e) => setPassword(e.target.value)}
-                                    placeholder="Nhập mật khẩu mới" required className="pr-10"
+                                    placeholder="Nhập mật khẩu mới" required className="pr-10 border-gray-300 focus:border-[#38AAEC] focus:ring-2 focus:ring-[#38AAEC]/50"
                                 />
                                 <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700" onClick={() => setShowPassword((prev) => !prev)}>
                                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -146,7 +156,7 @@ export default function ResetPasswordPage() {
                                 <Input
                                     id="confirmPassword" type={showConfirmPassword ? "text" : "password"}
                                     value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-                                    placeholder="Nhập lại mật khẩu" required className="pr-10"
+                                    placeholder="Nhập lại mật khẩu" required className="pr-10 border-gray-300 focus:border-[#38AAEC] focus:ring-2 focus:ring-[#38AAEC]/50"
                                 />
                                 <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700" onClick={() => setShowConfirmPassword((prev) => !prev)}>
                                     {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -155,12 +165,26 @@ export default function ResetPasswordPage() {
                             {cpwd && pwd !== cpwd && (<p className="text-xs text-red-600 mt-1">Mật khẩu nhập lại không khớp</p>)}
                         </div>
 
-                        <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-white" disabled={!canSubmit}>
+                        <Button 
+                            type="submit" 
+                            className="w-full text-white transition-all duration-300" 
+                            style={{ backgroundColor: '#38AAEC' }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#38AAEC'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#38AAEC'}
+                            disabled={!canSubmit}
+                        >
                             {isLoading ? "Đang xử lý..." : "Xác nhận đặt lại"}
                         </Button>
 
                         <div className="text-center">
-                            <button type="button" onClick={() => router.push("/")} className="text-sm text-gray-500 hover:underline">
+                            <button 
+                                type="button" 
+                                onClick={() => router.push("/")} 
+                                className="text-sm transition-colors hover:underline"
+                                style={{ color: '#38AAEC' }}
+                                onMouseEnter={(e) => e.currentTarget.style.color = '#38AAEC'}
+                                onMouseLeave={(e) => e.currentTarget.style.color = '#38AAEC'}
+                            >
                                 Quay lại trang chủ
                             </button>
                         </div>

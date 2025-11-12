@@ -5,13 +5,14 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Star, Clock, Calendar, Bell, Film, Search, Filter, X, ChevronDown } from "lucide-react"
+import { Star, Clock, Calendar, Bell, Film, Search, Filter, X, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react"
 import { 
   getComingSoonMoviesPaginated,
   type Movie
 } from "../../src/api/movies"
 import { useRouter } from "next/navigation"
 import apiClient from "../../src/api/interceptor"
+import Image from "next/image"
 
 interface Genre {
   id: number
@@ -49,6 +50,11 @@ export function ComingSoonPageContent() {
     const [isLoadingGenres, setIsLoadingGenres] = useState(true)
     const [showGenreDropdown, setShowGenreDropdown] = useState(false)
     const [selectedGenre, setSelectedGenre] = useState<Genre | null>(null)
+
+    // Banner state
+    const [banners, setBanners] = useState<Array<{ id: string; bannerUrl: string }>>([])
+    const [currentSlide, setCurrentSlide] = useState(0)
+    const [isLoadingBanner, setIsLoadingBanner] = useState(true)
 
     const fetchMovies = async (page: number = 1, append: boolean = false) => {
         try {
@@ -102,6 +108,56 @@ export function ComingSoonPageContent() {
         fetchGenres()
     }, [])
 
+    // Fetch banners từ API
+    useEffect(() => {
+        const fetchBanners = async () => {
+            try {
+                setIsLoadingBanner(true)
+                const response = await apiClient.get('/movies/banners')
+                if (response.data.status === 200 && response.data.data && response.data.data.length > 0) {
+                    // Transform banner data
+                    const transformedBanners = response.data.data.map((banner: any) => ({
+                        id: banner.movieId?.toString() || Math.random().toString(),
+                        bannerUrl: banner.bannerUrl
+                    })).filter((banner: any) => banner.bannerUrl)
+                    setBanners(transformedBanners)
+                }
+            } catch (error) {
+                console.error("Failed to fetch banners:", error)
+            } finally {
+                setIsLoadingBanner(false)
+            }
+        }
+        fetchBanners()
+    }, [])
+
+    // Auto-play carousel
+    useEffect(() => {
+        if (banners.length <= 1) return
+
+        const timer = setInterval(() => {
+            setCurrentSlide((prev) => (prev + 1) % banners.length)
+        }, 5000) // Change slide every 5 seconds
+
+        return () => clearInterval(timer)
+    }, [banners.length])
+
+    // Navigation functions
+    const nextSlide = () => {
+        if (banners.length <= 1) return
+        setCurrentSlide((prev) => (prev + 1) % banners.length)
+    }
+
+    const prevSlide = () => {
+        if (banners.length <= 1) return
+        setCurrentSlide((prev) => (prev - 1 + banners.length) % banners.length)
+    }
+
+    const goToSlide = (index: number) => {
+        if (banners.length <= 1) return
+        setCurrentSlide(index)
+    }
+
     useEffect(() => {
         setCurrentPage(1)
         fetchMovies(1, false)
@@ -147,174 +203,216 @@ export function ComingSoonPageContent() {
 
     return (
         <div className="min-h-screen bg-white">
-            {/* Hero Section */}
-            <section className="py-24 bg-gradient-to-r from-purple-600 via-purple-500 to-pink-600 relative overflow-hidden">
-                {/* Background Pattern */}
-                <div className="absolute inset-0 opacity-10">
-                    <div className="absolute inset-0" style={{
-                        backgroundImage: 'radial-gradient(circle at 2px 2px, #ffffff 1px, transparent 0)',
-                        backgroundSize: '40px 40px'
-                    }}></div>
-                </div>
-                <div className="container mx-auto px-4 text-center relative z-10">
-                    <div className="inline-block mb-4">
-                        <div className="text-[11px] font-bold text-purple-100 uppercase tracking-wider mb-2 px-3 py-1 bg-purple-500/30 rounded-md backdrop-blur-sm">
-                            Coming Soon
-                        </div>
-                    </div>
-                    <h1 className="text-5xl md:text-6xl font-black text-white mb-6 tracking-tight">
-                        <span className="bg-gradient-to-r from-white via-purple-50 to-pink-50 bg-clip-text text-transparent drop-shadow-lg">
-                            Phim Sắp Chiếu
-                        </span>
-                    </h1>
-                    <p className="text-xl text-purple-50 max-w-2xl mx-auto font-medium">
-                        Những bộ phim hấp dẫn sắp ra mắt - Đặt vé ngay để không bỏ lỡ
-                    </p>
-                    <div className="flex items-center justify-center gap-2 mt-6">
-                        <div className="h-1.5 w-24 rounded-full bg-white/50"></div>
-                        <div className="h-1.5 w-2 rounded-full bg-white"></div>
-                    </div>
-                </div>
-            </section>
-
-            {/* Filter Section */}
-            <section className="py-8 bg-white">
-                <div className="container mx-auto px-4">
-                    <Card className="bg-white border border-gray-200 shadow-sm">
-                        <CardContent className="p-6">
-                            <div className="flex items-center gap-2 mb-4">
-                                <Filter className="h-5 w-5 text-gray-600" />
-                                <h3 className="text-lg font-semibold text-gray-900">Bộ lọc phim</h3>
-                            </div>
-                            
-                            <div className="flex flex-col sm:flex-row gap-4">
-                                {/* Search Input */}
-                                <div className="flex-1">
-                                    <div className="relative">
-                                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                        <Input
-                                            type="text"
-                                            placeholder="Tìm kiếm phim..."
-                                            value={filters.search}
-                                            onChange={handleSearchChange}
-                                            className="pl-10 h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                                        />
+            {/* Hero Section - Banner Carousel with Container */}
+            <section className="py-6 md:py-8 lg:py-10 bg-white">
+                <div className="container mx-auto px-4 max-w-7xl">
+                    <div className="relative overflow-hidden rounded-2xl shadow-2xl h-[35vh] md:h-[40vh] lg:h-[45vh]">
+                        {/* Loading Placeholder */}
+                        {isLoadingBanner && (
+                            <div className="absolute inset-0 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse">
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="text-gray-400">
+                                        <Film className="w-16 h-16 animate-pulse" />
                                     </div>
                                 </div>
-
-                                {/* Genre Filter */}
-                                <div className="relative">
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => setShowGenreDropdown(!showGenreDropdown)}
-                                        className="h-11 px-4 border-gray-300 hover:bg-gray-50 min-w-[140px] justify-between"
-                                        disabled={isLoadingGenres}
-                                    >
-                                        {selectedGenre ? selectedGenre.name : "Tất cả thể loại"}
-                                        <ChevronDown className="h-4 w-4 ml-2" />
-                                    </Button>
-
-                                    {/* Genre Dropdown */}
-                                    {showGenreDropdown && (
-                                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
-                                            <button
-                                                onClick={() => {
-                                                    handleGenreRemove()
-                                                    setShowGenreDropdown(false)
-                                                }}
-                                                className="w-full text-left px-4 py-2 hover:bg-gray-50 border-b border-gray-100"
-                                            >
-                                                Tất cả thể loại
-                                            </button>
-                                            {genres.map((genre) => (
-                                                <button
-                                                    key={genre.id}
-                                                    onClick={() => handleGenreSelect(genre)}
-                                                    className="w-full text-left px-4 py-2 hover:bg-gray-50"
-                                                >
-                                                    {genre.name}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Clear Filters */}
-                                <Button
-                                    variant="outline"
-                                    onClick={handleClearFilters}
-                                    className="h-11 px-4 border-gray-300 hover:bg-gray-50"
-                                >
-                                    <X className="h-4 w-4 mr-2" />
-                                    Xóa bộ lọc
-                                </Button>
                             </div>
+                        )}
 
-                            {/* Active Filters Display */}
-                            {(filters.search || selectedGenre) && (
-                                <div className="mt-4 flex flex-wrap gap-2">
-                                    {filters.search && (
-                                        <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                                            Tìm kiếm: "{filters.search}"
+                        {/* Banner Carousel */}
+                        {!isLoadingBanner && banners.length > 0 ? (
+                            <>
+                                {banners.map((banner, index) => (
+                                    <div
+                                        key={banner.id}
+                                        className={`absolute inset-0 transition-opacity duration-500 ease-in-out ${
+                                            index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'
+                                        }`}
+                                    >
+                                        <Image
+                                            src={banner.bannerUrl}
+                                            alt={`Movie Banner ${index + 1}`}
+                                            fill
+                                            className="object-cover"
+                                            priority={index === currentSlide}
+                                            quality={90}
+                                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 100vw, 1280px"
+                                            onError={(e) => {
+                                                console.error(`Failed to load banner ${index + 1}`)
+                                            }}
+                                        />
+                                    </div>
+                                ))}
+
+                                {/* Navigation Arrows - chỉ hiện khi có nhiều hơn 1 banner */}
+                                {banners.length > 1 && (
+                                    <>
+                                        <button
+                                            onClick={prevSlide}
+                                            className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-black/30 hover:bg-black/50 backdrop-blur-sm text-white p-2 rounded-full transition-all duration-300 hover:scale-110 shadow-lg"
+                                            aria-label="Previous banner"
+                                        >
+                                            <ChevronLeft className="w-5 h-5" />
+                                        </button>
+                                        <button
+                                            onClick={nextSlide}
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-black/30 hover:bg-black/50 backdrop-blur-sm text-white p-2 rounded-full transition-all duration-300 hover:scale-110 shadow-lg"
+                                            aria-label="Next banner"
+                                        >
+                                            <ChevronRight className="w-5 h-5" />
+                                        </button>
+                                    </>
+                                )}
+
+                                {/* Dots Indicator - chỉ hiện khi có nhiều hơn 1 banner */}
+                                {banners.length > 1 && (
+                                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+                                        {banners.map((_, index) => (
                                             <button
-                                                onClick={() => {
-                                                    const newFilters = { ...filters, search: "" }
-                                                    setFilters(newFilters)
-                                                }}
-                                                className="ml-2 hover:text-blue-600"
-                                            >
-                                                <X className="h-3 w-3" />
-                                            </button>
-                                        </Badge>
-                                    )}
-                                    {selectedGenre && (
-                                        <Badge variant="secondary" className="bg-green-100 text-green-800">
-                                            Thể loại: {selectedGenre.name}
-                                            <button
-                                                onClick={handleGenreRemove}
-                                                className="ml-2 hover:text-green-600"
-                                            >
-                                                <X className="h-3 w-3" />
-                                            </button>
-                                        </Badge>
-                                    )}
+                                                key={index}
+                                                onClick={() => goToSlide(index)}
+                                                className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                                                    index === currentSlide
+                                                        ? 'bg-white w-8 shadow-lg'
+                                                        : 'bg-white/50 hover:bg-white/75'
+                                                }`}
+                                                aria-label={`Go to slide ${index + 1}`}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+                            </>
+                        ) : !isLoadingBanner && (
+                            <>
+                                {/* Fallback gradient nếu không có banner */}
+                                <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-blue-500 via-blue-400 to-blue-500 flex items-center justify-center">
+                                    <div className="text-center text-white/80">
+                                        <Film className="w-20 h-20 mx-auto mb-4 opacity-50" />
+                                        <p className="text-lg font-medium">Không có banner</p>
+                                    </div>
                                 </div>
-                            )}
-                        </CardContent>
-                    </Card>
+                            </>
+                        )}
+                    </div>
                 </div>
             </section>
 
             {/* Movies Section */}
-            <section className="py-20 bg-gradient-to-br from-purple-50/50 via-white to-pink-50/30 relative overflow-hidden">
+            <section className="py-8 bg-gradient-to-br from-purple-50/50 via-white to-pink-50/30 relative overflow-hidden">
                 {/* Background Pattern */}
                 <div className="absolute inset-0 opacity-5">
                     <div className="absolute inset-0" style={{
-                        backgroundImage: 'radial-gradient(circle at 2px 2px, #a855f7 1px, transparent 0)',
+                        backgroundImage: 'radial-gradient(circle at 2px 2px, #3BAEF0 1px, transparent 0)',
                         backgroundSize: '40px 40px'
                     }}></div>
                 </div>
                 
-                {/* Decorative Border Top */}
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-purple-400 to-purple-500"></div>
-                
                 <div className="movie-carousel-container container mx-auto px-4 max-w-7xl relative z-10">
-                    <div className="flex items-center justify-between mb-12 gap-4 flex-wrap">
-                        <div className="relative">
-                            <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-purple-500 to-purple-300 rounded-full"></div>
-                            <div className="text-[11px] font-bold text-purple-600 uppercase tracking-wider mb-2 px-2 py-1 bg-purple-50 rounded-md inline-block">
-                                Coming Soon
+                    {/* Title Section - Centered */}
+                    <div className="text-center mb-12">
+                        <h2 className="text-4xl font-bold text-foreground mb-4">
+                            PHIM SẮP CHIẾU
+                        </h2>
+                        <div className="w-16 h-1 bg-black mx-auto mb-8"></div>
+                    </div>
+
+                    {/* Filter Section */}
+                    <div className="mb-6">
+                        <div className="flex flex-col sm:flex-row gap-4">
+                            {/* Search Input */}
+                            <div className="flex-1">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                    <Input
+                                        type="text"
+                                        placeholder="Tìm kiếm phim..."
+                                        value={filters.search}
+                                        onChange={handleSearchChange}
+                                        className="pl-10 h-11 border-gray-300"
+                                        onFocus={(e) => e.currentTarget.style.borderColor = '#3BAEF0'}
+                                        onBlur={(e) => e.currentTarget.style.borderColor = '#d1d5db'}
+                                    />
+                                </div>
                             </div>
-                            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-3 tracking-tight leading-tight">
-                                <span className="bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent">
-                                    Phim sắp chiếu
-                                </span>
-                            </h2>
-                            <div className="flex items-center gap-2">
-                                <div className="h-1.5 w-20 rounded-full bg-gradient-to-r from-purple-500 to-pink-400"></div>
-                                <div className="h-1.5 w-2 rounded-full bg-purple-400"></div>
+
+                            {/* Genre Filter */}
+                            <div className="relative">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setShowGenreDropdown(!showGenreDropdown)}
+                                    className="h-11 px-4 border-gray-300 hover:bg-gray-50 min-w-[140px] justify-between"
+                                    disabled={isLoadingGenres}
+                                >
+                                    {selectedGenre ? selectedGenre.name : "Tất cả thể loại"}
+                                    <ChevronDown className="h-4 w-4 ml-2" />
+                                </Button>
+
+                                {/* Genre Dropdown */}
+                                {showGenreDropdown && (
+                                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+                                        <button
+                                            onClick={() => {
+                                                handleGenreRemove()
+                                                setShowGenreDropdown(false)
+                                            }}
+                                            className="w-full text-left px-4 py-2 hover:bg-gray-50 border-b border-gray-100"
+                                        >
+                                            Tất cả thể loại
+                                        </button>
+                                        {genres.map((genre) => (
+                                            <button
+                                                key={genre.id}
+                                                onClick={() => handleGenreSelect(genre)}
+                                                className="w-full text-left px-4 py-2 hover:bg-gray-50"
+                                            >
+                                                {genre.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
+
+                            {/* Clear Filters */}
+                            <Button
+                                variant="outline"
+                                onClick={handleClearFilters}
+                                className="h-11 px-4 border-gray-300 hover:bg-gray-50"
+                            >
+                                <X className="h-4 w-4 mr-2" />
+                                Xóa bộ lọc
+                            </Button>
                         </div>
+
+                        {/* Active Filters Display */}
+                        {(filters.search || selectedGenre) && (
+                            <div className="mt-4 flex flex-wrap gap-2">
+                                {filters.search && (
+                                    <Badge variant="secondary" style={{ backgroundColor: '#E6F5FF', color: '#3BAEF0' }}>
+                                        Tìm kiếm: "{filters.search}"
+                                        <button
+                                            onClick={() => {
+                                                const newFilters = { ...filters, search: "" }
+                                                setFilters(newFilters)
+                                            }}
+                                            className="ml-2"
+                                            style={{ color: '#3BAEF0' }}
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </Badge>
+                                )}
+                                {selectedGenre && (
+                                    <Badge variant="secondary" className="bg-green-100 text-green-800">
+                                        Thể loại: {selectedGenre.name}
+                                        <button
+                                            onClick={handleGenreRemove}
+                                            className="ml-2 hover:text-green-600"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </Badge>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     <div className="relative">
@@ -373,7 +471,8 @@ export function ComingSoonPageContent() {
                                 <Button
                                     onClick={handleShowMore}
                                     disabled={loadingMore}
-                                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    style={{ backgroundColor: '#38AAEC' }}
+                                    className="hover:opacity-90 text-white px-8 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {loadingMore ? 'Đang tải...' : 'Xem thêm 8 phim'}
                                 </Button>
@@ -426,50 +525,33 @@ export function ComingSoonPageContent() {
                 </div>
             </section>
 
-            {/* Section Divider */}
-            <div className="relative h-2 bg-gradient-to-r from-transparent via-purple-300/50 to-transparent">
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-500/30 via-purple-400/50 to-purple-500/30"></div>
-            </div>
-
             {/* Features Section */}
-            <section className="py-20 bg-gradient-to-br from-purple-50/30 via-white to-pink-50/20 relative overflow-hidden">
+            <section className="py-12 bg-gradient-to-br from-gray-50 via-white to-slate-50 relative overflow-hidden">
                 {/* Background Pattern */}
                 <div className="absolute inset-0 opacity-5">
                     <div className="absolute inset-0" style={{
-                        backgroundImage: 'radial-gradient(circle at 2px 2px, #a855f7 1px, transparent 0)',
+                        backgroundImage: 'radial-gradient(circle at 2px 2px, #3BAEF0 1px, transparent 0)',
                         backgroundSize: '40px 40px'
                     }}></div>
                 </div>
                 
-                {/* Decorative Border Top */}
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-purple-400 to-purple-500"></div>
-                
                 <div className="container mx-auto px-4 relative z-10">
-                    <div className="text-center mb-16 relative">
-                        <div className="inline-block mb-4">
-                            <div className="text-[11px] font-bold text-purple-600 uppercase tracking-wider mb-2 px-3 py-1 bg-purple-50 rounded-md">
-                                Benefits
-                            </div>
-                        </div>
-                        <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4">
-                            <span className="bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent">
+                    <div className="text-center mb-10 relative">
+                        <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
+                            <span style={{ color: '#2563eb' }}>
                                 Lợi Ích Khi Đặt Vé Sớm
                             </span>
                         </h2>
                         <p className="text-lg text-gray-600 max-w-2xl mx-auto font-medium">
                             Đặt vé trước để tận hưởng nhiều ưu đãi và đảm bảo chỗ ngồi tốt nhất
                         </p>
-                        <div className="flex items-center justify-center gap-2 mt-4">
-                            <div className="h-1.5 w-24 rounded-full bg-gradient-to-r from-purple-500 to-pink-400"></div>
-                            <div className="h-1.5 w-2 rounded-full bg-purple-400"></div>
-                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                         <Card className="text-center p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
                             <CardContent>
-                                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                                    <Star className="h-8 w-8 text-green-600" />
+                                <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6" style={{ backgroundColor: '#E6F5FF' }}>
+                                    <Star className="h-8 w-8" style={{ color: '#2563eb' }} />
                                 </div>
                                 <h3 className="text-xl font-bold text-gray-900 mb-4">
                                     Giảm Giá Sớm
@@ -482,8 +564,8 @@ export function ComingSoonPageContent() {
 
                         <Card className="text-center p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
                             <CardContent>
-                                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                                    <Film className="h-8 w-8 text-blue-600" />
+                                <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6" style={{ backgroundColor: '#E6F5FF' }}>
+                                    <Film className="h-8 w-8" style={{ color: '#2563eb' }} />
                                 </div>
                                 <h3 className="text-xl font-bold text-gray-900 mb-4">
                                     Chỗ Ngồi Tốt Nhất
@@ -496,8 +578,8 @@ export function ComingSoonPageContent() {
 
                         <Card className="text-center p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
                             <CardContent>
-                                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                                    <Bell className="h-8 w-8 text-purple-600" />
+                                <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6" style={{ backgroundColor: '#E6F5FF' }}>
+                                    <Bell className="h-8 w-8" style={{ color: '#2563eb' }} />
                                 </div>
                                 <h3 className="text-xl font-bold text-gray-900 mb-4">
                                     Thông Báo Sớm

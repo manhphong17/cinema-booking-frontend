@@ -15,7 +15,9 @@ interface PaymentMethod {
 
 interface PaymentMethodCardProps {
     onSelect: (methodCode: string) => void;
+    includeCash?: boolean; // For staff, allow CASH payment method
 }
+
 
 export default function PaymentMethodCard({ onSelect }: PaymentMethodCardProps) {
     const [mainMethods, setMainMethods] = useState<string[]>([]);
@@ -23,6 +25,7 @@ export default function PaymentMethodCard({ onSelect }: PaymentMethodCardProps) 
     const [selectedMain, setSelectedMain] = useState<string | null>(null);
     const [selectedBank, setSelectedBank] = useState<PaymentMethod | null>(null);
     const [dialogOpen, setDialogOpen] = useState(false);
+
 
     useEffect(() => {
         const fetchMainMethods = async () => {
@@ -35,6 +38,7 @@ export default function PaymentMethodCard({ onSelect }: PaymentMethodCardProps) 
         };
         fetchMainMethods();
     }, []);
+
 
     // Khi click 1 method => mở dialog chọn bank
     const handleSelectMain = async (methodName: string) => {
@@ -136,6 +140,7 @@ export default function PaymentMethodCard({ onSelect }: PaymentMethodCardProps) 
                                     className="flex items-center justify-center border border-gray-200 hover:border-blue-400
                              rounded-2xl p-6 bg-white shadow-sm hover:shadow-lg transition-all duration-200"
                                 >
+
                                     <img
                                         src={bank.imageUrl || "/payment-default.png"}
                                         alt={bank.paymentName}

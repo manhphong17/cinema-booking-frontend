@@ -57,7 +57,7 @@ interface TicketSelectionProps {
     quantity: number
     details?: string
   }) => void
-  onSyncTicketsToCart?: (showtimeId: number | null, movieName: string | null, showtimeInfo: string | null, selectedSeats: string[], seatPrices: Record<string, number>, seatTypes?: Record<string, string>) => void
+  onSyncTicketsToCart?: (showtimeId: number | null, movieName: string | null, showtimeInfo: string | null, selectedSeats: string[], seatPrices: Record<string, number>, seatTypes?: Record<string, string>, ticketIds?: number[]) => void
 }
 
 export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSelectionProps) {
@@ -388,17 +388,18 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
     // Build showtime info string
     const showtimeInfo = `${formatTime(currentShowtime.startTime)} - ${currentShowtime.roomName}`
 
-    // Sync to cart
+    // Sync to cart with ticketIds
     onSyncTicketsToCart(
       selectedShowtimeId,
       currentMovie.name,
       showtimeInfo,
       selectedSeats,
       seatPrices,
-      seatTypes
+      seatTypes,
+      selectedTicketIds
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSeats, selectedShowtimeId, currentMovie, currentShowtime, onSyncTicketsToCart, seatData])
+  }, [selectedSeats, selectedShowtimeId, currentMovie, currentShowtime, onSyncTicketsToCart, seatData, selectedTicketIds])
 
   const handleSeatSelect = (seatId: string, isOccupied: boolean, isHeld: boolean) => {
     console.log('[Staff handleSeatSelect] Called with:', { seatId, isOccupied, isHeld })

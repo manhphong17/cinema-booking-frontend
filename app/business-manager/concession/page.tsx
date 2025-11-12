@@ -41,7 +41,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip as RechartsTo
 import {Plus, Search, Edit, Trash2, Package, Power, ChevronLeft, ChevronRight, XCircle, PlayCircle} from "lucide-react"
 import {toast} from "sonner";
 import apiClient from "../../../src/api/interceptor";
-const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL;
+import { BACKEND_BASE_URL } from "@/src/utils/config";
 
 // ===============================
 // 2️⃣ TYPE DEFINITIONS
