@@ -183,9 +183,9 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                                 </div>
                             </div>
                             <div className="flex flex-col">
-                <span className="text-2xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-                  Cinema
-                </span>
+                                <span className="text-2xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                                    PHT Cinema
+                                </span>
                                 <span className="text-xs text-muted-foreground font-medium -mt-1">Premium Experience</span>
                             </div>
                         </div>
