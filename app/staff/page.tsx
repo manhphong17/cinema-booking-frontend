@@ -6,7 +6,6 @@ import { CinemaNavbar } from "@/components/staff/cinema-navbar"
 import { TicketSelection } from "@/components/staff/ticket-selection"
 import { ConcessionsSelection } from "@/components/staff/concessions-selection"
 import { ETicketScanner } from "@/components/staff/eticket-scanner"
-import { RevenueDashboard } from "@/components/staff/revenue-dashboard"
 import BookingOrderSummary, { SeatInfo, ConcessionInfo } from "@/components/booking/booking-order-summary"
 import { PaymentTab } from "@/components/staff/payment-tab"
 import { toast } from "sonner"
@@ -68,144 +67,6 @@ export default function CinemaManagement() {
 
   const removeFromCart = (id: string) => {
     setCartItems((prev) => prev.filter((item) => item.id !== id))
-  }
-
-
-  const handlePaymentSuccess = async (paymentMethod: string = "CASH", isCallback: boolean = false, discount: number = 0, earnedPoints: number = 0) => {
-    try {
-      // If this is a callback from VNPay, booking is already created
-      // Just show success and clear cart
-      if (isCallback && paymentMethod !== "CASH") {
-        const finalTotal = total - discount
-        toast.success("Thanh toán thành công!", {
-          description: `Đã thanh toán ${finalTotal.toLocaleString("vi-VN")}đ`,
-          duration: 5000,
-        })
-        
-        // Clear cart sau khi thanh toán thành công
-        setCartItems([])
-        
-        // Tự động chuyển về tab chọn vé để bắt đầu đơn mới
-        setTimeout(() => {
-          setActiveTab("tickets")
-        }, 2000)
-        return
-      }
-
-      if (!userId) {
-        toast.error("Không tìm thấy thông tin người dùng")
-        return
-      }
-
-      // Get ticket item from cart to get showtimeId
-      const ticketItem = cartItems.find(item => item.type === "ticket")
-      if (!ticketItem || !ticketItem.showtimeId) {
-        toast.error("Vui lòng chọn ghế trước khi thanh toán")
-        return
-      }
-
-      // Gọi API lấy OrderSession từ Redis (giống customer page)
-      const res = await apiClient.get(`/bookings/order-session`, {
-        params: { showtimeId: ticketItem.showtimeId, userId }
-      });
-      const session = res.data.data;
-      
-      if (!session) {
-        toast.error("Không tìm thấy thông tin đơn hàng")
-        return
-      }
-
-      // Lấy ticketIds và concessionOrders từ order session
-      const ticketIds = session.ticketIds || [];
-      const concessionOrders = session.concessionOrders || [];
-
-      if (ticketIds.length === 0) {
-        toast.error("Vui lòng chọn ghế trước khi thanh toán")
-        return
-      }
-
-      // Prepare concessions data từ order session
-      const concessionsData = concessionOrders.map((c: any) => ({
-        concessionId: c.comboId,
-        quantity: c.quantity
-      }));
-
-      // Fetch ticket details để tính totalPrice
-      let totalPrice = 0;
-      if (ticketIds.length > 0) {
-        const seatRes = await apiClient.get(`/bookings/tickets/details`, {
-          params: { ids: ticketIds.join(",") }
-        });
-        const tickets = seatRes.data.data || [];
-        totalPrice = tickets.reduce((sum: number, seat: any) => sum + (seat.ticketPrice || 0), 0);
-      }
-
-      // Calculate concessions total
-      let concessionsTotalPrice = 0;
-      if (concessionOrders.length > 0) {
-        const comboIds = concessionOrders.map((c: any) => c.comboId);
-        const consRes = await apiClient.get(`/concession/list-by-ids`, {
-          params: { ids: comboIds.join(",") }
-        });
-        const concessions = consRes.data.data || [];
-        concessionsTotalPrice = concessionOrders.reduce((sum: number, order: any) => {
-          const concession = concessions.find((c: any) => c.concessionId === order.comboId);
-          return sum + (concession?.price || 0) * order.quantity;
-        }, 0);
-      }
-
-      // Calculate final total with discount
-      const finalTotal = totalPrice + concessionsTotalPrice - discount
-
-      // Prepare payload for API (giống customer page)
-      const payload = {
-        userId,
-        ticketIds: ticketIds,
-        concessions: concessionsData,
-        totalPrice: totalPrice + concessionsTotalPrice,
-        discount: discount,
-        amount: finalTotal,
-        paymentCode: paymentMethod,
-        showtimeId: ticketItem.showtimeId.toString(),
-      }
-
-      // Call API to create booking
-      const response = await apiClient.post("/payment/checkout", payload)
-      
-      console.log("[Staff] Payment response:", response.data)
-      console.log("[Staff] Payment method:", paymentMethod)
-      
-      // If not CASH, redirect to payment URL
-      if (paymentMethod !== "CASH" && paymentMethod.toUpperCase() !== "CASH") {
-        const payUrl = response.data?.data || response.data?.payUrl
-        if (payUrl) {
-          console.log("[Staff] Redirecting to payment URL:", payUrl)
-          window.location.href = payUrl
-          return
-        } else {
-          console.error("[Staff] No payment URL in response:", response.data)
-          toast.error("Không nhận được URL thanh toán từ server")
-          return
-        }
-      }
-
-      // For cash payment, show success message
-      toast.success("Thanh toán thành công!", {
-        description: `Đã thanh toán ${finalTotal.toLocaleString("vi-VN")}đ${earnedPoints > 0 ? ` - Nhận được ${earnedPoints} điểm` : ""}`,
-        duration: 5000,
-      })
-      
-      // Clear cart sau khi thanh toán thành công
-      setCartItems([])
-      
-      // Tự động chuyển về tab chọn vé để bắt đầu đơn mới
-      setTimeout(() => {
-        setActiveTab("tickets")
-      }, 2000)
-    } catch (error: any) {
-      console.error("Payment success error:", error)
-      toast.error(error?.response?.data?.message || error?.message || "Lỗi khi xử lý thanh toán")
-    }
   }
 
   // Convert cartItems to BookingOrderSummary format
@@ -369,8 +230,6 @@ export default function CinemaManagement() {
         )
       case "eticket":
         return <ETicketScanner />
-      case "revenue":
-        return <RevenueDashboard />
       default:
         return <TicketSelection onAddToCart={addToCart} onSyncTicketsToCart={syncTicketsToCart} />
     }
@@ -381,10 +240,6 @@ export default function CinemaManagement() {
       <CinemaNavbar activeTab={activeTab} onTabChange={setActiveTab} />
 
       <div className="container mx-auto px-6 py-6">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Quản lý rạp chiếu phim</h1>
-          <p className="text-muted-foreground">Hệ thống quản lý bán vé và dịch vụ tại rạp</p>
-        </div>
         
         <div className="flex gap-6">
           <div className="flex-1">{renderContent()}</div>

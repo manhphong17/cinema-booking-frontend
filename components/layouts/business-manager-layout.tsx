@@ -23,9 +23,7 @@ export function BusinessManagerLayout({ children, activeSection }: BusinessManag
         { id: "concession", label: "Quản lý Bắp Nước", icon: Package, path: "/business-manager/concession" },
         { id: "voucher", label: "Quản lý Voucher", icon: Gift, path: "/business-manager/voucher" },
         { id: "ticket-price", label: "Quản lý Giá Vé", icon: DollarSign, path: "/business-manager/ticket-price" },
-        { id: "orders", label: "Quản lý Đơn Hàng", icon: ShoppingBag, path: "/business-manager/orders" }, // 👈 thêm dòng này
-
-
+        { id: "orders", label: "Quản lý Bán Hàng", icon: ShoppingBag, path: "/business-manager/orders" },
 
     ]
 

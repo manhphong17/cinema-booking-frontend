@@ -20,7 +20,7 @@
 // - Các lệnh gọi API để cập nhật dữ liệu trên backend.
 // ===================================================================================
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState, useRef } from "react"
 import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -38,7 +38,9 @@ import {
     updateRoom as updateRoomApi,
     type RoomDto, type RoomTypeDto, type SeatTypeDto,
 } from "@/app/api/room/rooms"
+import { roomTypesApi } from "@/app/api/room/room-types" // Thêm import này
 import { fetchSeatMatrix, saveSeatMatrix, type SeatCellDto } from "@/app/api/room/seats"
+import { seatTypesApi } from "@/app/api/room/seat-types" // Thêm import này
 import { friendlyFromPayload } from "@/src/utils/server-error" // Import friendlyFromPayload
 
 // Chức năng: Tải động (lazy-load) các component quản lý con.
@@ -47,11 +49,17 @@ import { friendlyFromPayload } from "@/src/utils/server-error" // Import friendl
 // Đầu vào: Đường dẫn đến component.
 // Đầu ra: Component được tải về phía client, với một placeholder "Đang tải..." hiển thị trong khi chờ.
 const RoomTypeManager = dynamic(
-    () => import("@/components/operator/roomType-managerment").then((m) => m.default),
+    () =>
+        import("@/components/operator/roomType-managerment").then(
+            (m) => m.default,
+        ),
     { ssr: false, loading: () => <div className="p-6 text-muted-foreground">Đang tải Loại phòng…</div> },
 )
 const SeatTypeManager = dynamic(
-    () => import("@/components/operator/seatType-managerment").then((m) => m.default),
+    () =>
+        import("@/components/operator/seatType-managerment").then(
+            (m) => m.default,
+        ),
     { ssr: false, loading: () => <div className="p-6 text-muted-foreground">Đang tải Loại ghế…</div> },
 )
 
@@ -99,6 +107,10 @@ interface FormState {
 // COMPONENT CHÍNH: RoomManagement
 // ===================================================================================
 export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
+    // Refs để điều khiển việc cuộn trong các dialog
+    const roomTypeScrollRef = useRef<HTMLDivElement>(null)
+    const seatTypeScrollRef = useRef<HTMLDivElement>(null)
+
     const { toast } = useToast()
 
     // -------------------------------------------------------------------------------
@@ -203,12 +215,16 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
     // Đầu ra: Cập nhật state `roomTypes` và `seatTypes`, hoặc hiển thị toast báo lỗi.
     const loadMeta = useCallback(async () => {
         try {
-            const res = await fetchRoomMeta()
-            if (res.status === 200 && res.data) {
-                setRoomTypes(res.data.roomTypes ?? [])
-                setSeatTypes(res.data.seatTypes ?? [])
+            // Sử dụng Promise.all để tải đồng thời, tăng hiệu suất
+            const [activeRoomTypes, seatTypesRes] = await Promise.all([
+                roomTypesApi.list(true), // Chỉ lấy các loại phòng đang hoạt động
+                seatTypesApi.list(true) // Lấy seatTypes đang hoạt động
+            ]);
+            if (activeRoomTypes && seatTypesRes) {
+                setRoomTypes(activeRoomTypes ?? [])
+                setSeatTypes(seatTypesRes ?? []) // Cập nhật seatTypes từ API mới
             } else {
-                toast({ title: "Không thể tải metadata", description: friendlyFromPayload(res, "Vui lòng thử lại") })
+                toast({ title: "Không thể tải metadata", description: "Vui lòng thử lại sau." })
             }
         } catch (error: any) {
             console.error("Failed to fetch room meta", error)
@@ -448,6 +464,7 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
     const handleRoomTypeDialogChange = (open: boolean) => {
         setRoomTypeOpen(open);
         if (!open) {
+            loadRooms(); // Tải lại danh sách phòng để cập nhật trạng thái
             loadMeta();
         }
     }
@@ -475,6 +492,7 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
             <SeatSetup
                 room={selectedRoom.room}
                 initialMatrix={selectedRoom.matrix}
+                // Bây giờ seatTypes đã được lọc sẵn từ API, không cần filter ở đây nữa
                 seatTypes={seatTypes}
                 onBack={handleBackFromSeatSetup}
                 onSave={handleSaveSeatConfig}
@@ -647,16 +665,24 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
             {/* Dialog Quản lý Loại phòng */}
             <Dialog open={isRoomTypeOpen} onOpenChange={handleRoomTypeDialogChange}>
                 <DialogContent className="bg-card text-card-foreground border border-border/60 w-[85vw] max-w-[85vw] h-[92vh] p-0 rounded-lg shadow-xl sm:max-w-none">
-                    <DialogHeader className="sticky top-0 z-10 bg-card px-5 py-3 border-b border-border/60 rounded-t-lg"><DialogTitle className="text-foreground">Quản lý loại phòng</DialogTitle></DialogHeader>
-                    <div className="h-[calc(92vh-56px)] overflow-y-auto overflow-x-hidden p-5"><RoomTypeManager /></div>
+                    <DialogHeader className="sticky top-0 z-10 bg-card px-5 py-3 border-b border-border/60 rounded-t-lg">
+                        <DialogTitle className="text-foreground">Quản lý loại phòng</DialogTitle>
+                    </DialogHeader>
+                    <div ref={roomTypeScrollRef} className="h-[calc(92vh-56px)] overflow-y-auto overflow-x-hidden p-5">
+                        <RoomTypeManager scrollContainerRef={roomTypeScrollRef} />
+                    </div>
                 </DialogContent>
             </Dialog>
 
             {/* Dialog Quản lý Loại ghế */}
             <Dialog open={isSeatTypeOpen} onOpenChange={handleSeatTypeDialogChange}>
                 <DialogContent className="bg-card text-card-foreground border border-border/60 w-[85vw] max-w-[85vw] h-[92vh] p-0 rounded-lg shadow-xl sm:max-w-none">
-                    <DialogHeader className="sticky top-0 z-10 bg-card px-5 py-3 border-b border-border/60 rounded-t-lg"><DialogTitle className="text-foreground">Quản lý loại ghế</DialogTitle></DialogHeader>
-                    <div className="h-[calc(92vh-56px)] overflow-y-auto overflow-x-hidden p-5"><SeatTypeManager /></div>
+                    <DialogHeader className="sticky top-0 z-10 bg-card px-5 py-3 border-b border-border/60 rounded-t-lg">
+                        <DialogTitle className="text-foreground">Quản lý loại ghế</DialogTitle>
+                    </DialogHeader>
+                    <div ref={seatTypeScrollRef} className="h-[calc(92vh-56px)] overflow-y-auto overflow-x-hidden p-5">
+                        <SeatTypeManager scrollContainerRef={seatTypeScrollRef} />
+                    </div>
                 </DialogContent>
             </Dialog>
         </div>

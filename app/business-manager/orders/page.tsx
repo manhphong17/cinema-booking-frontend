@@ -22,6 +22,10 @@ export default function OrderManagementPage() {
     const [status, setStatus] = useState<string>("ALL")
     const [loading, setLoading] = useState(true)
     const [date, setDate] = useState<string>(new Date().toISOString().split("T")[0]) // yyyy-MM-dd
+    const [page, setPage] = useState(0)
+    const [totalPages, setTotalPages] = useState(0)
+    const [totalElements, setTotalElements] = useState(0)
+
     const changeDate = (days: number) => {
         const d = new Date(date)
         d.setDate(d.getDate() + days)
@@ -39,14 +43,17 @@ export default function OrderManagementPage() {
         const fetchOrders = async () => {
             try {
                 setLoading(true)
-                const res = await apiClient.get(`/orders/sales?status=${status === "ALL" ? "" : status}&date=${date}`)
+                const res = await apiClient.get(
+                    `/orders/sales?status=${status === "ALL" ? "" : status}&date=${date}&page=${page}&size=8`
+                )
 
                 if (res.data?.status === 200) {
-                    const page = res.data.data.orders
-                    setOrders(page?.content || [])
+                    const pageData = res.data.data.orders
+                    setOrders(pageData?.content || [])
                     setSummary(res.data.data.summary || summary)
+                    setTotalPages(pageData?.totalPages || 0)
+                    setTotalElements(pageData?.totalElements || 0)
                 } else {
-                    //  Reset nếu không tìm thấy đơn
                     setOrders([])
                     setSummary({
                         totalRevenueToday: 0,
@@ -54,10 +61,11 @@ export default function OrderManagementPage() {
                         totalCompletedOrders: 0,
                         totalConcessionsSold: 0,
                     })
+                    setTotalPages(0)
+                    setTotalElements(0)
                 }
-            } catch (err: any) {
+            } catch (err) {
                 console.error("Error fetching orders:", err)
-                //  Reset luôn khi có lỗi
                 setOrders([])
                 setSummary({
                     totalRevenueToday: 0,
@@ -65,13 +73,16 @@ export default function OrderManagementPage() {
                     totalCompletedOrders: 0,
                     totalConcessionsSold: 0,
                 })
+                setTotalPages(0)
+                setTotalElements(0)
             } finally {
                 setLoading(false)
             }
         }
 
         fetchOrders()
-    }, [status, date])
+    }, [status, date, page])
+
 
 
     const formatCurrency = (amount: number) =>
@@ -161,27 +172,28 @@ export default function OrderManagementPage() {
                 </div>
 
                 {/* Filter */}
-                <div className="flex items-center gap-3">
-                    <Calendar className="h-4 w-4 text-gray-600" />
-                    <span className="text-sm font-medium text-gray-700">Ngày:</span>
-                    <div className="flex items-center border rounded-md px-2 py-1 bg-white">
-                        <button onClick={() => changeDate(-1)}>
-                            <ChevronLeft className="h-4 w-4 text-gray-600 hover:text-blue-600" />
-                        </button>
-                        <input
-                            type="date"
-                            value={date}
-                            onChange={(e) => setDate(e.target.value)}
-                            className="mx-2 text-sm border-none focus:ring-0"
-                        />
-                        <button onClick={() => changeDate(1)}>
-                            <ChevronRight className="h-4 w-4 text-gray-600 hover:text-blue-600" />
-                        </button>
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                    {/* Bộ chọn ngày */}
+                    <div className="flex items-center gap-3">
+                        <Calendar className="h-4 w-4 text-gray-600" />
+                        <span className="text-sm font-medium text-gray-700">Ngày:</span>
+                        <div className="flex items-center border rounded-md px-2 py-1 bg-white">
+                            <button onClick={() => changeDate(-1)}>
+                                <ChevronLeft className="h-4 w-4 text-gray-600 hover:text-blue-600" />
+                            </button>
+                            <input
+                                type="date"
+                                value={date}
+                                onChange={(e) => setDate(e.target.value)}
+                                className="mx-2 text-sm border-none focus:ring-0"
+                            />
+                            <button onClick={() => changeDate(1)}>
+                                <ChevronRight className="h-4 w-4 text-gray-600 hover:text-blue-600" />
+                            </button>
+                        </div>
                     </div>
-                </div>
 
-                <div className="flex items-center justify-between">
-
+                    {/* Bộ lọc trạng thái */}
                     <div className="flex items-center gap-2">
                         <Filter className="h-4 w-4 text-gray-600" />
                         <span className="text-sm font-medium text-gray-700">Trạng thái đơn hàng:</span>
@@ -197,14 +209,13 @@ export default function OrderManagementPage() {
                             </SelectContent>
                         </Select>
                     </div>
-
                 </div>
+
 
                 {/* Orders Table */}
                 <Card className="bg-white border-blue-100">
                     <CardHeader>
                         <CardTitle className="text-gray-900">Danh sách đơn hàng</CardTitle>
-                        <CardDescription>Các đơn hàng được tạo gần đây</CardDescription>
                     </CardHeader>
                     <CardContent>
                         {loading ? (
@@ -247,7 +258,43 @@ export default function OrderManagementPage() {
                                 </table>
                             </div>
                         )}
+
+
+                        {/* Pagination */}
+                        {orders.length > 0 && (
+                            <div className="flex items-center justify-between mt-4 text-sm text-gray-700">
+                                <p>
+                                    Trang {page + 1} / {totalPages} — Tổng: {totalElements} đơn hàng
+                                </p>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        disabled={page === 0}
+                                        onClick={() => setPage(page - 1)}
+                                        className={`px-3 py-1 rounded-md border text-sm font-medium transition ${
+                                            page === 0
+                                                ? "text-gray-400 border-gray-200 cursor-not-allowed"
+                                                : "text-blue-600 border-blue-200 hover:bg-blue-50"
+                                        }`}
+                                    >
+                                        ← Trước
+                                    </button>
+                                    <button
+                                        disabled={page >= totalPages - 1}
+                                        onClick={() => setPage(page + 1)}
+                                        className={`px-3 py-1 rounded-md border text-sm font-medium transition ${
+                                            page >= totalPages - 1
+                                                ? "text-gray-400 border-gray-200 cursor-not-allowed"
+                                                : "text-blue-600 border-blue-200 hover:bg-blue-50"
+                                        }`}
+                                    >
+                                        Sau →
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </CardContent>
+
+
                 </Card>
             </div>
         </BusinessManagerLayout>

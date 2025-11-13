@@ -19,7 +19,7 @@
 // - Các thông báo (toast) cho người dùng về kết quả của các thao tác.
 // ===================================================================================
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useRef, RefObject, useCallback } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -46,7 +46,11 @@ const toBool = (s: Status): boolean => s === "active"
 // Đầu ra: chuỗi "active" hoặc "inactive".
 const toStatus = (b: boolean): Status => (b ? "active" : "inactive")
 
-export default function RoomTypesManager() {
+interface RoomTypesManagerProps {
+    scrollContainerRef: RefObject<HTMLDivElement>
+}
+
+export default function RoomTypesManager({ scrollContainerRef }: RoomTypesManagerProps) {
     const { toast } = useToast()
 
     // -------------------------------------------------------------------------------
@@ -66,6 +70,11 @@ export default function RoomTypesManager() {
     // -------------------------------------------------------------------------------
     // KHỐI LẤY DỮ LIỆU VÀ XỬ LÝ SIDE EFFECT
     // -------------------------------------------------------------------------------
+
+    // Chức năng: Cuộn container cha lên đầu.
+    const scrollToTop = useCallback(() => {
+        scrollContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" })
+    }, [scrollContainerRef])
 
     // Chức năng: Tải danh sách các loại phòng từ API.
     // Đầu vào: `statusFilter` từ state để quyết định có lọc theo trạng thái không.
@@ -96,6 +105,9 @@ export default function RoomTypesManager() {
 
     // Chức năng: Đưa form về trạng thái mặc định (chế độ "Thêm mới").
     const resetForm = () => setForm({ id: undefined, name: "", description: "", status: "active" })
+
+    // Chức năng: Xóa tất cả các bộ lọc.
+    const clearFilters = () => { setSearch(""); setStatusFilter("all"); }
 
     // Chức năng: Xử lý việc submit form (Thêm mới hoặc Cập nhật).
     // Đầu vào: State `form`.
@@ -131,13 +143,15 @@ export default function RoomTypesManager() {
     // Chức năng: Đổ dữ liệu của một mục vào form để bắt đầu chỉnh sửa.
     // Đầu vào: `it` - Object `RoomTypeDto` từ hàng được chọn trong bảng.
     // Đầu ra: Cập nhật state `form` với dữ liệu của mục đó.
-    const onEdit = (it: RoomTypeDto) =>
+    const onEdit = (it: RoomTypeDto) => {
         setForm({
             id: it.id,
             name: it.name,
             description: it.description || "",
             status: toStatus((it as any).active ?? (it as any).status === "active"),
         })
+        scrollToTop() // Tự động cuộn lên đầu khi nhấn sửa
+    }
 
     // Chức năng: Chuyển đổi trạng thái active/inactive của một loại phòng.
     // Đầu vào: `id` của mục và `currentActive` (trạng thái hiện tại).
@@ -198,7 +212,7 @@ export default function RoomTypesManager() {
 
             {/* Card Filters: Dùng để tìm kiếm và lọc danh sách */}
             <Card className="bg-card border border-border/60 rounded-md shadow-sm p-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="space-y-2 min-w-0">
                         <Label className="text-sm text-foreground">Tìm kiếm</Label>
                         <div className="relative">
@@ -217,9 +231,13 @@ export default function RoomTypesManager() {
                             </SelectContent>
                         </Select>
                     </div>
-                    <div className="hidden md:flex items-end gap-2 text-muted-foreground">
+                    <div className="hidden lg:flex items-end gap-2 text-muted-foreground">
                         <Filter className="w-4 h-4" />
-                        <span>{loading ? "Đang tải…" : "Lọc kết quả"}</span>
+                        <span>{loading ? "Đang tải..." : `${filtered.length} kết quả`}</span>
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-sm font-medium text-transparent select-none">Hành động</Label>
+                        <Button variant="outline" onClick={clearFilters} className="w-full text-foreground hover:bg-muted">Xóa bộ lọc</Button>
                     </div>
                 </div>
             </Card>
