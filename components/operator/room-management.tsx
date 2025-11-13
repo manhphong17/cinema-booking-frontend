@@ -323,6 +323,14 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
             toast({ title: "Thiếu thông tin", description: "Vui lòng nhập tên, loại phòng, số hàng và số cột" })
             return
         }
+        if (rows < 1 || columns < 1 || rows > 12 || columns > 12) {
+            toast({
+                title: "kích thước không hợp lệ",
+                description: "Số hàng và số cột không được nhỏ hơn 1 hoặc lớn hơn 12",
+                // variant: "destructive",
+            })
+            return
+        }
         const payload = { name: formData.name.trim(), roomTypeId, rows, columns, status: formData.status }
         try {
             setLoading(true)
@@ -650,8 +658,8 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                         <div className="grid gap-2"><Label htmlFor="name" className="text-foreground">Tên phòng</Label><Input id="name" value={formData.name} onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))} className="bg-input border-border text-foreground" /></div>
                         <div className="grid gap-2"><Label className="text-foreground">Loại phòng</Label><Select value={formData.roomTypeId} onValueChange={(value) => setFormData((prev) => ({ ...prev, roomTypeId: value }))}><SelectTrigger className="bg-input border-border text-foreground"><SelectValue placeholder="Chọn loại phòng" /></SelectTrigger><SelectContent className="bg-popover border-border">{roomTypes.map((type) => (<SelectItem key={type.id} value={type.id.toString()}>{type.name}</SelectItem>))}</SelectContent></Select></div>
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="grid gap-2"><Label htmlFor="rows" className="text-foreground">Số hàng</Label><Input id="rows" type="number" min={1} value={formData.rows} onChange={(e) => setFormData((prev) => ({ ...prev, rows: e.target.value }))} className="bg-input border-border text-foreground" /></div>
-                            <div className="grid gap-2"><Label htmlFor="columns" className="text-foreground">Số cột</Label><Input id="columns" type="number" min={1} value={formData.columns} onChange={(e) => setFormData((prev) => ({ ...prev, columns: e.target.value }))} className="bg-input border-border text-foreground" /></div>
+                            <div className="grid gap-2"><Label htmlFor="rows" className="text-foreground">Số hàng</Label><Input id="rows" type="number" min={1} max={12} value={formData.rows} onChange={(e) => setFormData((prev) => ({ ...prev, rows: e.target.value }))} className="bg-input border-border text-foreground" /></div>
+                            <div className="grid gap-2"><Label htmlFor="columns" className="text-foreground">Số cột</Label><Input id="columns" type="number" min={1} max={12} value={formData.columns} onChange={(e) => setFormData((prev) => ({ ...prev, columns: e.target.value }))} className="bg-input border-border text-foreground" /></div>
                         </div>
                         <div className="grid gap-2"><Label className="text-foreground">Trạng thái</Label><Select value={formData.status} onValueChange={(value: "ACTIVE" | "INACTIVE") => setFormData((prev) => ({ ...prev, status: value }))}><SelectTrigger className="bg-input border-border text-foreground"><SelectValue /></SelectTrigger><SelectContent className="bg-popover border-border"><SelectItem value="ACTIVE">Hoạt động</SelectItem><SelectItem value="INACTIVE">Không hoạt động</SelectItem></SelectContent></Select></div>
                     </div>

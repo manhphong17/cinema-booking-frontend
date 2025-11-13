@@ -36,6 +36,7 @@ const ERROR_TEXT: Record<number, string> = {
     1041: "Loại phòng đang được sử dụng, không thể xóa",
     1042: "Tên phòng này đã tồn tại",
     1043: "Phòng đang được sử dụng, không thể xóa",
+    1044: "Kích thước phòng vượt quá giới hạn cho phép (tối đa 12 hàng/cột)",
     2003: "Không tìm thấy phòng",
     2033: "Phòng đang ở trạng thái không hoạt động",
 
