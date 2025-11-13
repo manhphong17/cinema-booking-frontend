@@ -3,7 +3,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
-import { Film, ShoppingCart, Ticket, TrendingUp, LogOut, User, CreditCard } from "lucide-react"
+import { Film, ShoppingCart, Ticket, LogOut, User, CreditCard } from "lucide-react"
 import { jwtDecode } from "jwt-decode"
 import { apiClient } from "@/src/api/interceptor"
 import { logout } from "@/src/api/interceptor"
@@ -98,7 +98,7 @@ export function CinemaNavbar({ activeTab, onTabChange }: CinemaNavbarProps) {
         </div>
 
         <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-          <TabsList className="tabs-list grid w-full grid-cols-5 bg-muted">
+          <TabsList className="tabs-list grid w-full grid-cols-4 bg-muted">
             <TabsTrigger value="tickets" className="flex items-center gap-2">
               <Ticket className="h-4 w-4" />
               Chọn vé
@@ -114,10 +114,6 @@ export function CinemaNavbar({ activeTab, onTabChange }: CinemaNavbarProps) {
             <TabsTrigger value="eticket" className="flex items-center gap-2">
               <Ticket className="h-4 w-4" />
               E-ticket
-            </TabsTrigger>
-            <TabsTrigger value="revenue" className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Doanh thu
             </TabsTrigger>
           </TabsList>
         </Tabs>

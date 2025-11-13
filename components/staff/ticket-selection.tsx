@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { ChevronRight, ChevronLeft, CalendarDays } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Clock, Calendar, MapPin, Loader2, Monitor, Sofa } from "lucide-react"
 import { getMoviesWithShowtimesToday } from "@/src/api/movies"
@@ -10,6 +10,7 @@ import type { StaffMovie } from "@/src/api/movies"
 import { apiClient } from "@/src/api/interceptor"
 import { useSeatWebSocket } from "@/hooks/use-seat-websocket"
 import { jwtDecode } from "jwt-decode"
+import {Button} from "@/components/ui/button";
 
 interface ShowtimeInfo {
   showTimeId: number
@@ -79,10 +80,40 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
   // User ID from token
   const [userId, setUserId] = useState<number | null>(null)
 
-  // Get today's date
-  const today = new Date().toISOString().split('T')[0]
-  
-  // Get user ID from token
+// === Quản lý chọn ngày ===
+    const [selectedDate, setSelectedDate] = useState(new Date())
+
+// Hàm tiện ích format YYYY-MM-DD cho API
+    const formatApiDate = (date: Date) => date.toISOString().split("T")[0]
+
+
+    const [datePage, setDatePage] = useState(0)
+    const daysPerPage = 5
+    const maxDays = 30 // giới hạn 30 ngày kế tiếp
+
+// Danh sách tất cả ngày
+    const allDays = Array.from({ length: maxDays }).map((_, i) => {
+        const d = new Date()
+        d.setDate(d.getDate() + i)
+        return d
+    })
+
+// 5 ngày đang hiển thị
+    const visibleDays = allDays.slice(datePage * daysPerPage, (datePage + 1) * daysPerPage)
+
+    const formatWeekday = (date: Date) => {
+        const today = new Date()
+        const diff = Math.floor((date.getTime() - today.setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24))
+        if (diff === 0) return "Hôm nay"
+        if (diff === 1) return "Ngày mai"
+        return date.toLocaleDateString("vi-VN", { weekday: "long" })
+    }
+
+    const formatDay = (date: Date) => date.getDate()
+    const formatMonth = (date: Date) => date.toLocaleDateString("vi-VN", { month: "short" }).replace(".", "")
+
+
+    // Get user ID from token
   useEffect(() => {
     try {
       const token = localStorage.getItem('accessToken')
@@ -122,8 +153,8 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
     selectedShowtimeId,
     userId,
     !!selectedShowtimeId && !!userId,
-    useCallback(() => {}, []), // No expiration handler for staff
-    handleSeatReleased // Callback when seats are released
+    handleSeatReleased, // Callback when seats are released
+    undefined // No booked handler for staff
   )
   
   // Track sent seats to avoid duplicate WebSocket calls
@@ -137,7 +168,7 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
     const fetchMovies = async () => {
       setLoadingMovies(true)
       try {
-        const moviesData = await getMoviesWithShowtimesToday(today)
+        const moviesData = await getMoviesWithShowtimesToday(formatApiDate(selectedDate))
         setApiMovies(moviesData)
       } catch (error) {
         console.error("Error fetching movies:", error)
@@ -146,7 +177,7 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
       }
     }
     fetchMovies()
-  }, [today])
+  }, [selectedDate])
 
   // Fetch showtimes when movie is selected
   useEffect(() => {
@@ -162,7 +193,7 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
       setSeatData([])
       try {
         const response = await apiClient.get<ShowtimeResponse>(
-          `/bookings/movies/${selectedMovieId}/show-times/${today}`
+          `/bookings/movies/${selectedMovieId}/show-times/${formatApiDate(selectedDate)}`
         )
         if (response.data?.status === 200 && response.data?.data) {
           setShowtimes(response.data.data)
@@ -175,7 +206,7 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
     }
 
     fetchShowtimes()
-  }, [selectedMovieId, today])
+  }, [selectedMovieId, selectedDate])
 
   // Fetch seats when showtime is selected
   useEffect(() => {
@@ -428,11 +459,11 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
         return
       }
 
-      // Check if seat is booked or in maintenance - cannot deselect those
+      // Check if seat is booked, in maintenance, or blocked - cannot deselect those
       const seatFromData = seatData.find(t => t.ticketId === ticketId)
       const backendStatus = seatFromData?.seatStatus || 'AVAILABLE'
-      if (backendStatus === 'BOOKED' || backendStatus === 'UNAVAILABLE') {
-        console.log('[Staff] Cannot deselect: seat is booked or unavailable')
+      if (backendStatus === 'BOOKED' || backendStatus === 'UNAVAILABLE' || backendStatus === 'BLOCKED') {
+        console.log('[Staff] Cannot deselect: seat is booked, unavailable, or blocked')
         return
       }
 
@@ -600,7 +631,69 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
 
   return (
     <div className="space-y-6">
-      {/* Movie Selection */}
+
+        <div className="flex items-center justify-between mb-6">
+            {/* Nhóm 5 ngày */}
+            <div className="flex items-center gap-2">
+                {/* Nút qua lại */}
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={datePage === 0}
+                    onClick={() => setDatePage(prev => Math.max(0, prev - 1))}
+                >
+                    <ChevronLeft className="w-5 h-5" />
+                </Button>
+
+                <div className="flex gap-2">
+                    {visibleDays.map((day, idx) => {
+                        const isSelected = day.toDateString() === selectedDate.toDateString()
+                        return (
+                            <Button
+                                key={idx}
+                                onClick={() => setSelectedDate(day)}
+                                variant={isSelected ? "default" : "outline"}
+                                style={isSelected ? { backgroundColor: '#3BAEF0', borderColor: '#3BAEF0' } : {}}
+                                className={`flex flex-col items-center justify-center px-4 py-2 rounded-xl w-20 h-16 transition-all ${
+                                    isSelected
+                                        ? "text-white shadow-lg scale-105"
+                                        : "bg-white text-gray-700 border-gray-300 hover:border-[#3BAEF0]"
+                                }`}
+                            >
+                                <span className={`text-xs font-semibold ${isSelected ? "text-white" : ""}`}>{formatWeekday(day)}</span>
+                                <span className={`text-lg font-bold leading-none ${isSelected ? "text-white" : ""}`}>{formatDay(day)}</span>
+                                <span className={`text-xs ${isSelected ? "text-white/80" : "text-gray-500"}`}>{formatMonth(day)}</span>
+                            </Button>
+                        )
+                    })}
+                </div>
+
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={(datePage + 1) * daysPerPage >= allDays.length}
+                    onClick={() => setDatePage(prev => prev + 1)}
+                >
+                    <ChevronRight className="w-5 h-5" />
+                </Button>
+            </div>
+
+            {/* Ô ngày cụ thể bên phải */}
+            <Button
+                variant="outline"
+                className="flex items-center gap-2 text-sm px-4 py-2 rounded-lg border-muted-foreground/40"
+            >
+                <CalendarDays className="w-4 h-4 text-muted-foreground" />
+                {selectedDate.toLocaleDateString("en-GB", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                })}
+            </Button>
+        </div>
+
+
+        {/* Movie Selection */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -682,10 +775,11 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
                 {showtimes.map((showtime) => (
                 <div
                     key={showtime.showTimeId}
+                  style={selectedShowtimeId === showtime.showTimeId ? { backgroundColor: '#3BAEF0', borderColor: '#3BAEF0' } : {}}
                   className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
                       selectedShowtimeId === showtime.showTimeId
-                      ? "border-primary bg-primary/10"
-                      : "border-border hover:border-primary/50"
+                      ? "text-white"
+                      : "border-gray-300 bg-white text-gray-700 hover:border-[#3BAEF0]"
                   }`}
                   onClick={() => {
                       setSelectedShowtimeId(showtime.showTimeId)
@@ -694,11 +788,15 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
                 >
                   <div className="text-center">
                       <div className="text-lg font-bold">{formatTime(showtime.startTime)}</div>
-                    <div className="text-sm text-muted-foreground flex items-center justify-center gap-1 mt-1">
+                    <div className={`text-sm flex items-center justify-center gap-1 mt-1 ${
+                      selectedShowtimeId === showtime.showTimeId ? "text-white" : "text-gray-600"
+                    }`}>
                       <MapPin className="h-3 w-3" />
                         {showtime.roomName}
                     </div>
-                      <div className="text-xs text-muted-foreground mt-1">
+                      <div className={`text-xs mt-1 ${
+                        selectedShowtimeId === showtime.showTimeId ? "text-white/90" : "text-gray-500"
+                      }`}>
                         {showtime.totalSeatAvailable}/{showtime.totalSeat} ghế trống
                     </div>
                   </div>
@@ -781,6 +879,7 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
                           const backendStatus = seatFromData?.seatStatus || 'AVAILABLE'
                           const isBooked = backendStatus === 'BOOKED'
                           const isMaintenance = backendStatus === 'UNAVAILABLE'
+                          const isBlocked = backendStatus === 'BLOCKED'
                         const isSelected = selectedSeats.includes(seat.id)
                         
                         // Check if held by current user (can be deselected)
@@ -810,14 +909,14 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
                         
                         // If seat is selected by current user, it's not considered "held" (can be deselected)
                           const isHeld = !isSelected && (isHeldByBackend || isHeldByOther || isHeldByWebSocket)
-                          const isOccupied = isBooked || isMaintenance || isHeld
+                          const isOccupied = isBooked || isMaintenance || isBlocked || isHeld
                           const seatType = getSeatType(seat.id)
                           const isLimitReached = !isOccupied && !isSelected && isSeatTypeLimitReached(seatType)
                           const isDifferentType = !isOccupied && !isSelected && isDifferentSeatType(seatType)
 
                           // Debug: check disabled state
                           const buttonDisabled = isSelected 
-                            ? (isBooked || isMaintenance) // If selected, only disable if booked/maintenance
+                            ? (isBooked || isMaintenance || isBlocked) // If selected, disable if booked/maintenance/blocked
                             : (isOccupied || isLimitReached || isDifferentType) // If not selected, normal checks
 
                         return (
@@ -826,31 +925,39 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
                               onClick={(e) => {
                                 console.log('[Staff Button onClick] Seat clicked:', seat.id, 'isSelected:', isSelected, 'disabled:', buttonDisabled)
                                 if (!buttonDisabled) {
-                                  handleSeatSelect(seat.id, isBooked || isMaintenance, isHeld)
+                                  handleSeatSelect(seat.id, isBooked || isMaintenance || isBlocked, isHeld)
                                 } else {
                                   console.log('[Staff Button onClick] Button is disabled, click ignored')
                                 }
                               }}
                               disabled={buttonDisabled}
-                            className={`
-                                w-10 h-10 rounded-lg text-xs font-bold transition-all duration-300 flex items-center justify-center relative
-                              ${isBooked 
-                                  ? 'bg-gradient-to-br from-orange-500 to-orange-700 text-white cursor-not-allowed shadow-inner ring-2 ring-orange-300' 
-                                  : isMaintenance
-                                    ? 'bg-gradient-to-br from-gray-600 to-gray-800 text-white cursor-not-allowed shadow-inner ring-2 ring-gray-400'
-                                : isHeld
-                                      ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-yellow-950 cursor-not-allowed shadow-inner animate-pulse ring-2 ring-yellow-300'
-                                    : isLimitReached
-                                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
-                                      : isDifferentType
-                                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-30'
+                            style={isBooked 
+                              ? { backgroundColor: '#FD2802', borderColor: '#FD2802' }
+                              : isMaintenance
+                                ? { backgroundColor: '#9CA3AF', borderColor: '#9CA3AF' }
+                                : isBlocked || isHeld
+                                  ? { backgroundColor: '#3FB7F9', borderColor: '#3FB7F9' }
                                   : isSelected
-                                        ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white scale-110 shadow-2xl ring-4 ring-emerald-300 ring-offset-2 font-extrabold'
-                                    : seatType === 'vip'
-                                          ? 'bg-gradient-to-br from-violet-500 to-violet-700 text-white hover:from-violet-400 hover:to-violet-600 shadow-xl hover:shadow-violet-500/60 ring-2 ring-violet-300'
-                                          : 'bg-gradient-to-br from-blue-500 to-blue-700 text-white hover:from-blue-400 hover:to-blue-600 shadow-xl hover:shadow-blue-500/60 ring-2 ring-blue-300'
+                                    ? { backgroundColor: '#03599D', borderColor: '#03599D' }
+                                    : { backgroundColor: '#BABBC3', borderColor: '#BABBC3' }
+                            }
+                            className={`
+                                w-10 h-10 rounded-lg text-xs font-bold transition-all duration-300 flex items-center justify-center relative border-2
+                              ${isBooked 
+                                  ? 'text-white cursor-not-allowed shadow-xl' 
+                                  : isMaintenance
+                                    ? 'text-white cursor-not-allowed shadow-xl'
+                                    : isBlocked || isHeld
+                                      ? 'text-white cursor-not-allowed shadow-xl'
+                                    : isLimitReached
+                                      ? 'opacity-50 cursor-not-allowed'
+                                      : isDifferentType
+                                        ? 'opacity-30 cursor-not-allowed'
+                                  : isSelected
+                                        ? 'text-white scale-110 shadow-2xl ring-2 ring-[#03599D] ring-offset-1 font-extrabold'
+                                    : 'text-white hover:opacity-90 shadow-lg hover:shadow-xl hover:scale-110'
                                 }
-                                hover:scale-110 active:scale-95
+                                active:scale-95
                               `}
                             >
                               <span className="text-sm font-bold">{seat.id.slice(1)}</span>
@@ -865,26 +972,22 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
                 {/* Legend */}
                 <div className="mt-8 bg-gray-50 rounded-xl p-4 border-2 border-gray-300">
                   <h4 className="font-semibold text-center mb-3 text-foreground text-base">Chú thích ghế</h4>
-                  <div className="grid grid-cols-2 gap-2 text-xs mb-4 max-w-sm mx-auto">
-                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-blue-200">
-                      <div className="w-5 h-5 bg-gradient-to-br from-blue-500 to-blue-700 rounded ring-2 ring-blue-300"></div>
-                      <span className="text-foreground font-medium">Có thể chọn</span>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs mb-4 max-w-lg mx-auto">
+                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-gray-200">
+                      <div className="w-5 h-5 rounded shadow-md" style={{ backgroundColor: '#BABBC3' }}></div>
+                      <span className="text-foreground font-medium">Ghế trống</span>
                     </div>
-                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-emerald-200">
-                      <div className="w-5 h-5 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded ring-2 ring-emerald-300"></div>
-                      <span className="text-foreground font-medium">Đã chọn</span>
+                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-gray-200">
+                      <div className="w-5 h-5 rounded shadow-md ring-1 ring-[#03599D]" style={{ backgroundColor: '#03599D' }}></div>
+                      <span className="text-foreground font-medium">Đang chọn</span>
                     </div>
-                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-orange-200">
-                      <div className="w-5 h-5 bg-gradient-to-br from-orange-500 to-orange-700 rounded ring-2 ring-orange-300"></div>
-                      <span className="text-foreground font-medium">Đã đặt</span>
+                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-gray-200">
+                      <div className="w-5 h-5 rounded shadow-md" style={{ backgroundColor: '#FD2802' }}></div>
+                      <span className="text-foreground font-medium">Đã bán</span>
                     </div>
-                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-yellow-200">
-                      <div className="w-5 h-5 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded animate-pulse ring-2 ring-yellow-300"></div>
+                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-gray-200">
+                      <div className="w-5 h-5 rounded shadow-md" style={{ backgroundColor: '#3FB7F9' }}></div>
                       <span className="text-foreground font-medium">Đang giữ</span>
-                    </div>
-                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-gray-300 col-span-2">
-                      <div className="w-5 h-5 bg-gradient-to-br from-gray-600 to-gray-800 rounded ring-2 ring-gray-400"></div>
-                      <span className="text-foreground font-medium">Bảo trì</span>
                     </div>
                   </div>
                 </div>

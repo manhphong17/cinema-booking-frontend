@@ -183,9 +183,9 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                                 </div>
                             </div>
                             <div className="flex flex-col">
-                <span className="text-2xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-                  Cinema
-                </span>
+                                <span className="text-2xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                                    PHT Cinema
+                                </span>
                                 <span className="text-xs text-muted-foreground font-medium -mt-1">Premium Experience</span>
                             </div>
                         </div>
@@ -314,7 +314,7 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                             <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 text-white p-5 rounded-xl shadow-xl">
                                 <Film className="h-12 w-12" />
                             </div>
-                            <span className="text-3xl font-bold">{isLoading ? "Loading..." : theaterDetails?.name || "Cinema"}</span>
+                            <span className="text-3xl font-bold">{isLoading ? "Loading..." : theaterDetails?.name || "PHT Cinema"}</span>
                         </div>
                         <div className="flex gap-3">
                             {[Facebook, Instagram, Youtube].map((Icon, i) => (
