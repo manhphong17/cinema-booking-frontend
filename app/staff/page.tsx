@@ -216,17 +216,15 @@ export default function CinemaManagement() {
         const ticketItem = cartItems.find(item => item.type === "ticket")
         
         return (
-          <PaymentTab
-            seats={seats}
-            seatsTotal={seatsTotal}
-            concessions={concessions}
-            concessionsTotal={concessionsTotal}
-            total={total}
-            onPaymentSuccess={(paymentMethod, isCallback, discount, earnedPoints) => handlePaymentSuccess(paymentMethod, isCallback, discount, earnedPoints)}
-            onNavigateToTickets={() => setActiveTab("tickets")}
-            showtimeId={ticketItem?.showtimeId || null}
-            userId={userId}
-          />
+            <PaymentTab
+                showtimeId={ticketItem?.showtimeId || null}
+                onPaymentSuccess={() => {
+                    toast.success("Thanh toán thành công!")
+                    setActiveTab("tickets")
+                    setCartItems([]) // OPTIONAL: clear giỏ hàng staff
+                }}
+            />
+
         )
       case "eticket":
         return <ETicketScanner />

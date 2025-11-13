@@ -486,11 +486,8 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                             >
                                 <Film className="h-12 w-12" />
                             </div>
-                            <div>
-                <span className="text-4xl font-bold text-white drop-shadow-[0_1px_6px_rgba(0,0,0,0.35)]">
-                  {isLoading ? "Loading..." : theaterDetails?.name || "Cinema"}
-                </span>
-                            </div>
+
+                            <span className="text-3xl font-bold">{isLoading ? "Loading..." : theaterDetails?.name || "PHT Cinema"}</span>
                         </div>
 
                         {/* Social icons */}

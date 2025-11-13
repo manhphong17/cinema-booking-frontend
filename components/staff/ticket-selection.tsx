@@ -153,8 +153,8 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
     selectedShowtimeId,
     userId,
     !!selectedShowtimeId && !!userId,
-    useCallback(() => {}, []), // No expiration handler for staff
-    handleSeatReleased // Callback when seats are released
+    handleSeatReleased, // Callback when seats are released
+    undefined // No booked handler for staff
   )
   
   // Track sent seats to avoid duplicate WebSocket calls
@@ -459,11 +459,11 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
         return
       }
 
-      // Check if seat is booked or in maintenance - cannot deselect those
+      // Check if seat is booked, in maintenance, or blocked - cannot deselect those
       const seatFromData = seatData.find(t => t.ticketId === ticketId)
       const backendStatus = seatFromData?.seatStatus || 'AVAILABLE'
-      if (backendStatus === 'BOOKED' || backendStatus === 'UNAVAILABLE') {
-        console.log('[Staff] Cannot deselect: seat is booked or unavailable')
+      if (backendStatus === 'BOOKED' || backendStatus === 'UNAVAILABLE' || backendStatus === 'BLOCKED') {
+        console.log('[Staff] Cannot deselect: seat is booked, unavailable, or blocked')
         return
       }
 
@@ -653,15 +653,16 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
                                 key={idx}
                                 onClick={() => setSelectedDate(day)}
                                 variant={isSelected ? "default" : "outline"}
-                                className={`flex flex-col items-center justify-center px-4 py-2 rounded-xl w-20 h-16 ${
+                                style={isSelected ? { backgroundColor: '#3BAEF0', borderColor: '#3BAEF0' } : {}}
+                                className={`flex flex-col items-center justify-center px-4 py-2 rounded-xl w-20 h-16 transition-all ${
                                     isSelected
-                                        ? "bg-primary text-white shadow-lg scale-105"
-                                        : "bg-background text-foreground hover:bg-muted"
+                                        ? "text-white shadow-lg scale-105"
+                                        : "bg-white text-gray-700 border-gray-300 hover:border-[#3BAEF0]"
                                 }`}
                             >
-                                <span className="text-xs font-semibold">{formatWeekday(day)}</span>
-                                <span className="text-lg font-bold leading-none">{formatDay(day)}</span>
-                                <span className="text-xs text-muted-foreground">{formatMonth(day)}</span>
+                                <span className={`text-xs font-semibold ${isSelected ? "text-white" : ""}`}>{formatWeekday(day)}</span>
+                                <span className={`text-lg font-bold leading-none ${isSelected ? "text-white" : ""}`}>{formatDay(day)}</span>
+                                <span className={`text-xs ${isSelected ? "text-white/80" : "text-gray-500"}`}>{formatMonth(day)}</span>
                             </Button>
                         )
                     })}
@@ -774,10 +775,11 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
                 {showtimes.map((showtime) => (
                 <div
                     key={showtime.showTimeId}
+                  style={selectedShowtimeId === showtime.showTimeId ? { backgroundColor: '#3BAEF0', borderColor: '#3BAEF0' } : {}}
                   className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
                       selectedShowtimeId === showtime.showTimeId
-                      ? "border-primary bg-primary/10"
-                      : "border-border hover:border-primary/50"
+                      ? "text-white"
+                      : "border-gray-300 bg-white text-gray-700 hover:border-[#3BAEF0]"
                   }`}
                   onClick={() => {
                       setSelectedShowtimeId(showtime.showTimeId)
@@ -786,11 +788,15 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
                 >
                   <div className="text-center">
                       <div className="text-lg font-bold">{formatTime(showtime.startTime)}</div>
-                    <div className="text-sm text-muted-foreground flex items-center justify-center gap-1 mt-1">
+                    <div className={`text-sm flex items-center justify-center gap-1 mt-1 ${
+                      selectedShowtimeId === showtime.showTimeId ? "text-white" : "text-gray-600"
+                    }`}>
                       <MapPin className="h-3 w-3" />
                         {showtime.roomName}
                     </div>
-                      <div className="text-xs text-muted-foreground mt-1">
+                      <div className={`text-xs mt-1 ${
+                        selectedShowtimeId === showtime.showTimeId ? "text-white/90" : "text-gray-500"
+                      }`}>
                         {showtime.totalSeatAvailable}/{showtime.totalSeat} ghế trống
                     </div>
                   </div>
@@ -873,6 +879,7 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
                           const backendStatus = seatFromData?.seatStatus || 'AVAILABLE'
                           const isBooked = backendStatus === 'BOOKED'
                           const isMaintenance = backendStatus === 'UNAVAILABLE'
+                          const isBlocked = backendStatus === 'BLOCKED'
                         const isSelected = selectedSeats.includes(seat.id)
                         
                         // Check if held by current user (can be deselected)
@@ -902,14 +909,14 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
                         
                         // If seat is selected by current user, it's not considered "held" (can be deselected)
                           const isHeld = !isSelected && (isHeldByBackend || isHeldByOther || isHeldByWebSocket)
-                          const isOccupied = isBooked || isMaintenance || isHeld
+                          const isOccupied = isBooked || isMaintenance || isBlocked || isHeld
                           const seatType = getSeatType(seat.id)
                           const isLimitReached = !isOccupied && !isSelected && isSeatTypeLimitReached(seatType)
                           const isDifferentType = !isOccupied && !isSelected && isDifferentSeatType(seatType)
 
                           // Debug: check disabled state
                           const buttonDisabled = isSelected 
-                            ? (isBooked || isMaintenance) // If selected, only disable if booked/maintenance
+                            ? (isBooked || isMaintenance || isBlocked) // If selected, disable if booked/maintenance/blocked
                             : (isOccupied || isLimitReached || isDifferentType) // If not selected, normal checks
 
                         return (
@@ -918,31 +925,39 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
                               onClick={(e) => {
                                 console.log('[Staff Button onClick] Seat clicked:', seat.id, 'isSelected:', isSelected, 'disabled:', buttonDisabled)
                                 if (!buttonDisabled) {
-                                  handleSeatSelect(seat.id, isBooked || isMaintenance, isHeld)
+                                  handleSeatSelect(seat.id, isBooked || isMaintenance || isBlocked, isHeld)
                                 } else {
                                   console.log('[Staff Button onClick] Button is disabled, click ignored')
                                 }
                               }}
                               disabled={buttonDisabled}
-                            className={`
-                                w-10 h-10 rounded-lg text-xs font-bold transition-all duration-300 flex items-center justify-center relative
-                              ${isBooked 
-                                  ? 'bg-gradient-to-br from-orange-500 to-orange-700 text-white cursor-not-allowed shadow-inner ring-2 ring-orange-300' 
-                                  : isMaintenance
-                                    ? 'bg-gradient-to-br from-gray-600 to-gray-800 text-white cursor-not-allowed shadow-inner ring-2 ring-gray-400'
-                                : isHeld
-                                      ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-yellow-950 cursor-not-allowed shadow-inner animate-pulse ring-2 ring-yellow-300'
-                                    : isLimitReached
-                                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
-                                      : isDifferentType
-                                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-30'
+                            style={isBooked 
+                              ? { backgroundColor: '#FD2802', borderColor: '#FD2802' }
+                              : isMaintenance
+                                ? { backgroundColor: '#9CA3AF', borderColor: '#9CA3AF' }
+                                : isBlocked || isHeld
+                                  ? { backgroundColor: '#3FB7F9', borderColor: '#3FB7F9' }
                                   : isSelected
-                                        ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white scale-110 shadow-2xl ring-4 ring-emerald-300 ring-offset-2 font-extrabold'
-                                    : seatType === 'vip'
-                                          ? 'bg-gradient-to-br from-violet-500 to-violet-700 text-white hover:from-violet-400 hover:to-violet-600 shadow-xl hover:shadow-violet-500/60 ring-2 ring-violet-300'
-                                          : 'bg-gradient-to-br from-blue-500 to-blue-700 text-white hover:from-blue-400 hover:to-blue-600 shadow-xl hover:shadow-blue-500/60 ring-2 ring-blue-300'
+                                    ? { backgroundColor: '#03599D', borderColor: '#03599D' }
+                                    : { backgroundColor: '#BABBC3', borderColor: '#BABBC3' }
+                            }
+                            className={`
+                                w-10 h-10 rounded-lg text-xs font-bold transition-all duration-300 flex items-center justify-center relative border-2
+                              ${isBooked 
+                                  ? 'text-white cursor-not-allowed shadow-xl' 
+                                  : isMaintenance
+                                    ? 'text-white cursor-not-allowed shadow-xl'
+                                    : isBlocked || isHeld
+                                      ? 'text-white cursor-not-allowed shadow-xl'
+                                    : isLimitReached
+                                      ? 'opacity-50 cursor-not-allowed'
+                                      : isDifferentType
+                                        ? 'opacity-30 cursor-not-allowed'
+                                  : isSelected
+                                        ? 'text-white scale-110 shadow-2xl ring-2 ring-[#03599D] ring-offset-1 font-extrabold'
+                                    : 'text-white hover:opacity-90 shadow-lg hover:shadow-xl hover:scale-110'
                                 }
-                                hover:scale-110 active:scale-95
+                                active:scale-95
                               `}
                             >
                               <span className="text-sm font-bold">{seat.id.slice(1)}</span>
@@ -957,26 +972,22 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
                 {/* Legend */}
                 <div className="mt-8 bg-gray-50 rounded-xl p-4 border-2 border-gray-300">
                   <h4 className="font-semibold text-center mb-3 text-foreground text-base">Chú thích ghế</h4>
-                  <div className="grid grid-cols-2 gap-2 text-xs mb-4 max-w-sm mx-auto">
-                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-blue-200">
-                      <div className="w-5 h-5 bg-gradient-to-br from-blue-500 to-blue-700 rounded ring-2 ring-blue-300"></div>
-                      <span className="text-foreground font-medium">Có thể chọn</span>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs mb-4 max-w-lg mx-auto">
+                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-gray-200">
+                      <div className="w-5 h-5 rounded shadow-md" style={{ backgroundColor: '#BABBC3' }}></div>
+                      <span className="text-foreground font-medium">Ghế trống</span>
                     </div>
-                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-emerald-200">
-                      <div className="w-5 h-5 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded ring-2 ring-emerald-300"></div>
-                      <span className="text-foreground font-medium">Đã chọn</span>
+                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-gray-200">
+                      <div className="w-5 h-5 rounded shadow-md ring-1 ring-[#03599D]" style={{ backgroundColor: '#03599D' }}></div>
+                      <span className="text-foreground font-medium">Đang chọn</span>
                     </div>
-                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-orange-200">
-                      <div className="w-5 h-5 bg-gradient-to-br from-orange-500 to-orange-700 rounded ring-2 ring-orange-300"></div>
-                      <span className="text-foreground font-medium">Đã đặt</span>
+                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-gray-200">
+                      <div className="w-5 h-5 rounded shadow-md" style={{ backgroundColor: '#FD2802' }}></div>
+                      <span className="text-foreground font-medium">Đã bán</span>
                     </div>
-                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-yellow-200">
-                      <div className="w-5 h-5 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded animate-pulse ring-2 ring-yellow-300"></div>
+                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-gray-200">
+                      <div className="w-5 h-5 rounded shadow-md" style={{ backgroundColor: '#3FB7F9' }}></div>
                       <span className="text-foreground font-medium">Đang giữ</span>
-                    </div>
-                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-gray-300 col-span-2">
-                      <div className="w-5 h-5 bg-gradient-to-br from-gray-600 to-gray-800 rounded ring-2 ring-gray-400"></div>
-                      <span className="text-foreground font-medium">Bảo trì</span>
                     </div>
                   </div>
                 </div>
