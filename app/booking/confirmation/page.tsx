@@ -111,9 +111,17 @@ export default function ConfirmationPage() {
         const fetchOrderDetail = async () => {
             if (orderId && status === "SUCCESS") {
                 try {
-                    const detail = await getOrderDetail(orderId)
-                    // getOrderDetail returns OrderDetail directly, but check if it's wrapped
-                    setOrderDetail(detail?.data?.data || detail?.data || detail)
+                    const response = await getOrderDetail(orderId)
+                    // getOrderDetail returns OrderDetail directly from apiClient
+                    // Check if it's wrapped in response.data.data or response.data
+                    let detail = response
+                    if (response && typeof response === 'object' && 'data' in response) {
+                        detail = (response as any).data
+                        if (detail && typeof detail === 'object' && 'data' in detail) {
+                            detail = (detail as any).data
+                        }
+                    }
+                    setOrderDetail(detail)
                 } catch (error: any) {
                     console.error("Error fetching order detail:", error)
                     // If orderId is not available, we might need orderCode to search
@@ -199,6 +207,22 @@ export default function ConfirmationPage() {
             font-weight: normal;
             opacity: 0.9;
         }
+        .ticket-logo {
+            width: 50px;
+            height: 50px;
+            margin: 0 auto 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            padding: 10px;
+        }
+        .ticket-logo svg {
+            width: 100%;
+            height: 100%;
+            color: white;
+        }
         .ticket-body {
             background: rgba(255,255,255,0.1);
             padding: 15px;
@@ -268,7 +292,16 @@ export default function ConfirmationPage() {
 <body>
     <div class="ticket">
         <div class="ticket-header">
-            <h1>PHT CINEMA</h1>
+            <div class="ticket-logo">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                    <path d="M7 4v16"></path>
+                    <path d="M17 4v16"></path>
+                    <path d="M2 8h20"></path>
+                    <path d="M2 16h20"></path>
+                </svg>
+            </div>
+            <h1>CINEMA</h1>
             <h2>VÉ XEM PHIM</h2>
         </div>
         

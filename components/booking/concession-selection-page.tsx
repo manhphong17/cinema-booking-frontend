@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { Plus, Minus, ShoppingCart, Loader2, Image as ImageIcon, ArrowLeft } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useMemo, useState, useEffect, useCallback, useRef } from "react"
@@ -200,6 +201,15 @@ export default function ConcessionSelectionPage({
 
   // Helper functions
   const updateConcessionQuantity = (comboId: string, quantity: number) => {
+    const concession = concessions.find(c => c.concessionId.toString() === comboId)
+    const maxQuantity = concession?.unitInStock || 0
+    
+    // Không cho phép chọn quá số lượng tồn kho
+    if (quantity > maxQuantity) {
+      toast.warning(`Chỉ còn ${maxQuantity} sản phẩm trong kho`)
+      quantity = maxQuantity
+    }
+    
     if (quantity <= 0) {
       const newSelected = { ...selectedConcessions }
       delete newSelected[comboId]
@@ -401,6 +411,21 @@ export default function ConcessionSelectionPage({
                           <CardContent className="p-4">
                             <h3 className="font-semibold text-lg mb-2">{item.name}</h3>
                             <p className="text-sm text-gray-600 mb-3">{item.description || "Không có mô tả"}</p>
+                            
+                            {/* Hiển thị số lượng tồn kho */}
+                            <div className="mb-3">
+                              {item.unitInStock !== undefined && item.unitInStock !== null ? (
+                                <div className="flex items-center gap-2">
+                                  <Badge 
+                                    variant={item.unitInStock > 0 ? "default" : "destructive"}
+                                    className={item.unitInStock > 0 ? "bg-green-100 text-green-800 hover:bg-green-200" : ""}
+                                  >
+                                    {item.unitInStock > 0 ? `Còn ${item.unitInStock} sản phẩm` : "Hết hàng"}
+                                  </Badge>
+                                </div>
+                              ) : null}
+                            </div>
+                            
                             <div className="flex items-center justify-between mt-4">
                               <div className="flex items-center gap-2">
                                 <Button
@@ -412,13 +437,37 @@ export default function ConcessionSelectionPage({
                                 >
                                   <Minus className="h-4 w-4" />
                                 </Button>
-                                <span className="w-8 text-center font-semibold">
-                                  {quantity}
-                                </span>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  max={item.unitInStock || 0}
+                                  value={quantity}
+                                  onChange={(e) => {
+                                    const value = parseInt(e.target.value) || 0
+                                    const maxQuantity = item.unitInStock || 0
+                                    if (value < 0) {
+                                      updateConcessionQuantity(item.concessionId.toString(), 0)
+                                    } else if (value > maxQuantity) {
+                                      toast.warning(`Chỉ còn ${maxQuantity} sản phẩm trong kho`)
+                                      updateConcessionQuantity(item.concessionId.toString(), maxQuantity)
+                                    } else {
+                                      updateConcessionQuantity(item.concessionId.toString(), value)
+                                    }
+                                  }}
+                                  onBlur={(e) => {
+                                    const value = parseInt(e.target.value) || 0
+                                    if (value < 0 || isNaN(value)) {
+                                      updateConcessionQuantity(item.concessionId.toString(), 0)
+                                    }
+                                  }}
+                                  className="w-16 h-8 text-center font-semibold p-0"
+                                  disabled={!item.unitInStock || item.unitInStock === 0}
+                                />
                                 <Button
                                   size="sm"
                                   variant="outline"
                                   onClick={() => updateConcessionQuantity(item.concessionId.toString(), quantity + 1)}
+                                  disabled={!item.unitInStock || quantity >= item.unitInStock}
                                   className="w-8 h-8 p-0"
                                 >
                                   <Plus className="h-4 w-4" />

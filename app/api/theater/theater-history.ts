@@ -45,7 +45,7 @@ export async function fetchTheaterHistory(params: GetHistoryParams = {}): Promis
     console.log('🔍 Fetching theater history:', { theaterId, page, size });
     
     const { data } = await apiClient.get<ResponseData<TheaterHistoryResponse>>(
-        "http://localhost:8885/api/theater_history",
+        "/api/theater_history",
         {
             params: { theaterId, page, size }
         }
@@ -63,7 +63,7 @@ export async function fetchTheaterHistoryByDateRange(
     console.log('🔍 Fetching theater history by date range:', { theaterId, startDate, endDate, page, size });
     
     const { data } = await apiClient.get<ResponseData<TheaterHistoryResponse>>(
-        "http://localhost:8885/api/theater_history/by-date-range",
+        "/api/theater_history/by-date-range",
         {
             params: { theaterId, startDate, endDate, page, size }
         }

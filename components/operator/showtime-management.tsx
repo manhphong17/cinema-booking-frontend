@@ -170,8 +170,7 @@ const joinLocalDateHHmm = (dateYMD: string, hhmmStr: string) =>
     `${dateYMD}T${hhmmStr}:00`
 
 // ===================== API base =====================
-
-const BASE = "http://localhost:8885/api/showtimes"
+// Note: Using apiClient with BACKEND_BASE_URL from environment variables
 
 // ===================== Modal: CreateShowtimeDialog =====================
 
@@ -1258,11 +1257,12 @@ export function ShowtimeManagement() {
     // }
     const fetchRoomTypes = async () => {
         try {
-            const res = await fetch(`${BASE}/room-types/lookup/id-name`)
-            if (!res.ok) return
-            const data = await res.json()
+            const res = await apiClient.get('/api/showtimes/room-types/lookup/id-name')
+            const data = res.data?.data || res.data
             if (Array.isArray(data)) setRoomTypes(data)
-        } catch {}
+        } catch (error) {
+            console.error("Failed to load room types:", error)
+        }
     }
     // const fetchMovies = async () => {
     //     try {

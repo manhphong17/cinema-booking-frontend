@@ -1,5 +1,6 @@
 "use client"
 
+import type React from "react"
 import type { ReactNode } from "react"
 import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
@@ -18,7 +19,7 @@ import {
     Youtube,
     Menu,
     X,
-    Clock
+    Clock,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { jwtDecode } from "jwt-decode"
@@ -102,7 +103,8 @@ export function HomeLayout({ children }: HomeLayoutProps) {
 
         const loadUserData = () => {
             const storedAvatar = localStorage.getItem("userAvatar")
-            const storedName = localStorage.getItem("userName") || localStorage.getItem("customerName")
+            const storedName =
+                localStorage.getItem("userName") || localStorage.getItem("customerName")
             if (storedAvatar) setUserAvatar(storedAvatar)
             if (storedName) setUserName(storedName)
         }
@@ -119,7 +121,8 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                 }
             }
             if (e.key === "userAvatar" && e.newValue) setUserAvatar(e.newValue)
-            if ((e.key === "userName" || e.key === "customerName") && e.newValue) setUserName(e.newValue)
+            if ((e.key === "userName" || e.key === "customerName") && e.newValue)
+                setUserName(e.newValue)
         }
 
         const handleTokenSet = () => {
@@ -189,7 +192,9 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                                 <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 text-white p-3 rounded-xl shadow-lg">
                                     <Film className="h-5 w-5" />
                                 </div>
-                                <span className="text-xl font-bold text-foreground">Cinema</span>
+                                <span className="text-xl font-bold text-foreground">
+                                    Cinema
+                                </span>
                             </div>
                             {/* Menu skeleton */}
                             <div className="hidden md:flex items-center gap-2">
@@ -226,7 +231,7 @@ export function HomeLayout({ children }: HomeLayoutProps) {
 
     return (
         <div className="home-layout">
-            {/* NAVBAR (lấy logic bản 2, styling gần bản 1) */}
+            {/* NAVBAR (merge logic + UI) */}
             <nav className="home-navbar fixed top-0 left-0 right-0 bg-white border-b shadow-sm z-50">
                 <div className="container mx-auto px-4">
                     <div className="flex items-center justify-between h-16">
@@ -241,16 +246,16 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                                 </div>
                             </div>
                             <div className="flex flex-col">
-                <span className="text-2xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-                  Cinema
-                </span>
+                                <span className="text-2xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                                    PHT Cinema
+                                </span>
                                 <span className="text-xs text-muted-foreground font-medium -mt-1">
-                  Premium Experience
-                </span>
+                                    Premium Experience
+                                </span>
                             </div>
                         </div>
 
-                        {/* Desktop Menu */}
+                        {/* Desktop Menu – union các menu của bản 1 + bản 2 */}
                         <div className="hidden md:flex items-center gap-2">
                             {[
                                 { path: "/home", label: "Trang chủ" },
@@ -259,26 +264,34 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                                 { path: "/vouchers", label: "Voucher" },
                                 { path: "/news", label: "Tin tức" },
                                 ...(isAuthenticated
-                                    ? [{ path: "/customer?section=orders", label: "Đơn hàng", isOrder: true }]
+                                    ? [
+                                        {
+                                            path: "/customer?section=orders",
+                                            label: "Đơn hàng",
+                                            isOrder: true,
+                                        } as const,
+                                    ]
                                     : []),
                             ].map((item) => (
                                 <button
                                     key={item.path}
                                     onClick={() =>
-                                        item.isOrder ? handleNavigate("orders") : handleMenuClick(item.path)
+                                        item.isOrder
+                                            ? handleNavigate("orders")
+                                            : handleMenuClick(item.path)
                                     }
                                     className="relative text-foreground hover:text-blue-600 transition-all duration-300 font-medium text-base py-3 px-4 rounded-lg group hover:bg-blue-50"
                                 >
-                  <span className="relative z-10 flex items-center gap-2">
-                    <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                      {item.label}
-                  </span>
+                                    <span className="relative z-10 flex items-center gap-2">
+                                        <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                        {item.label}
+                                    </span>
                                     <div className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 transition-all duration-300 group-hover:w-full rounded-full" />
                                 </button>
                             ))}
                         </div>
 
-                        {/* Desktop Auth */}
+                        {/* Desktop Auth – union logic 2 bên (thêm Voucher trong dropdown) */}
                         <div className="hidden md:flex items-center gap-2">
                             {!isAuthenticated ? (
                                 <>
@@ -324,7 +337,8 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                                                 onClick={() => handleNavigate("orders")}
                                                 className="flex items-center px-4 py-2 text-sm hover:bg-gray-100 w-full"
                                             >
-                                                <ShoppingBag className="mr-2 h-4 w-4" /> Đơn hàng của tôi
+                                                <ShoppingBag className="mr-2 h-4 w-4" /> Đơn hàng
+                                                của tôi
                                             </button>
                                             <button
                                                 onClick={() => handleNavigate("vouchers")}
@@ -344,7 +358,7 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                             )}
                         </div>
 
-                        {/* Mobile Auth + Menu toggle */}
+                        {/* Mobile Auth + Menu toggle (giữ phiên bản giàu tính năng của bản 1) */}
                         <div className="md:hidden flex items-center gap-2">
                             {!isAuthenticated ? (
                                 <>
@@ -400,7 +414,8 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                                                 onClick={() => handleNavigate("orders")}
                                                 className="flex items-center w-full px-4 py-2 text-sm hover:bg-gray-100"
                                             >
-                                                <ShoppingBag className="mr-2 h-4 w-4" /> Đơn hàng của tôi
+                                                <ShoppingBag className="mr-2 h-4 w-4" /> Đơn hàng
+                                                của tôi
                                             </button>
                                             <button
                                                 onClick={() => handleNavigate("vouchers")}
@@ -434,7 +449,7 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                         </div>
                     </div>
 
-                    {/* Mobile Menu */}
+                    {/* Mobile Menu – union menu items (có Voucher + News + Orders) */}
                     {mobileMenuOpen && (
                         <div className="md:hidden border-t border-border bg-white animate-in slide-in-from-top-2 duration-300">
                             <div className="px-4 py-6 grid grid-cols-2 gap-3">
@@ -445,17 +460,27 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                                     { path: "/vouchers", label: "Voucher" },
                                     { path: "/news", label: "Tin tức" },
                                     ...(isAuthenticated
-                                        ? [{ path: "/customer?section=orders", label: "Đơn hàng", isOrder: true }]
+                                        ? [
+                                            {
+                                                path: "/customer?section=orders",
+                                                label: "Đơn hàng",
+                                                isOrder: true,
+                                            } as const,
+                                        ]
                                         : []),
                                 ].map((item) => (
                                     <button
                                         key={item.path}
                                         onClick={() =>
-                                            item.isOrder ? handleNavigate("orders") : handleMenuClick(item.path)
+                                            item.isOrder
+                                                ? handleNavigate("orders")
+                                                : handleMenuClick(item.path)
                                         }
                                         className="flex flex-col items-center py-4 px-3 rounded-xl hover:bg-primary/5 hover:text-primary transition-all"
                                     >
-                                        <span className="font-medium text-sm">{item.label}</span>
+                                        <span className="font-medium text-sm">
+                                            {item.label}
+                                        </span>
                                     </button>
                                 ))}
                             </div>
@@ -467,7 +492,7 @@ export function HomeLayout({ children }: HomeLayoutProps) {
             {/* MAIN CONTENT */}
             <div className="pt-16">{children}</div>
 
-            {/* FOOTER: dùng layout “Liên hệ và Thông tin Chi tiết” */}
+            {/* FOOTER: layout “Liên hệ và Thông tin Chi tiết” + map động */}
             <footer className="relative home-footer bg-gradient-to-br from-[#070b12] via-[#0b1220] to-[#070b12] text-white mt-12">
                 {/* glow */}
                 <div
@@ -487,7 +512,11 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                                 <Film className="h-12 w-12" />
                             </div>
 
-                            <span className="text-3xl font-bold">{isLoading ? "Loading..." : theaterDetails?.name || "PHT Cinema"}</span>
+                            <span className="text-3xl font-bold">
+                                {isLoading
+                                    ? "Loading..."
+                                    : theaterDetails?.name || "PHT Cinema"}
+                            </span>
                         </div>
 
                         {/* Social icons */}
@@ -504,7 +533,7 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                         </div>
                     </div>
 
-                    {/* KHỐI MỚI: Liên hệ & Thông tin chi tiết */}
+                    {/* KHỐI: Liên hệ & Thông tin chi tiết */}
                     <div className="mb-12 border-t border-white/10 pt-8 text-slate-300">
                         <h3
                             className="text-3xl font-extrabold mb-6
@@ -520,7 +549,9 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                             </p>
                         )}
                         {error && (
-                            <p className="text-red-400 text-center text-lg">❌ {error}</p>
+                            <p className="text-red-400 text-center text-lg">
+                                ❌ {error}
+                            </p>
                         )}
 
                         {theaterDetails && !isLoading && !error && (
@@ -561,7 +592,9 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                                 {theaterDetails.googleMapUrl && (
                                     <div className="relative h-48 md:h-64 rounded-xl overflow-hidden shadow-lg border-2 border-white/20">
                                         <iframe
-                                            src={getGoogleMapEmbedUrl(theaterDetails.googleMapUrl)}
+                                            src={getGoogleMapEmbedUrl(
+                                                theaterDetails.googleMapUrl
+                                            )}
                                             width="100%"
                                             height="100%"
                                             style={{ border: 0 }}
@@ -588,9 +621,11 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                         )}
                     </div>
 
-                    {/* Bottom row – tùy bạn thêm nội dung sau */}
+                    {/* Bottom row */}
                     <div className="border-t border-white/10 pt-8 text-sm text-slate-400 flex flex-col md:flex-row justify-between gap-4">
-                        <span>© {new Date().getFullYear()} Cinema. All rights reserved.</span>
+                        <span>
+                            © {new Date().getFullYear()} Cinema. All rights reserved.
+                        </span>
                         <div className="flex gap-4">
                             <a href="#" className="hover:text-white">
                                 Điều khoản sử dụng
