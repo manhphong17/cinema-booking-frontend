@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { ChevronRight, ChevronLeft, CalendarDays } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Clock, Calendar, MapPin, Loader2, Monitor, Sofa } from "lucide-react"
 import { getMoviesWithShowtimesToday } from "@/src/api/movies"
@@ -10,6 +10,7 @@ import type { StaffMovie } from "@/src/api/movies"
 import { apiClient } from "@/src/api/interceptor"
 import { useSeatWebSocket } from "@/hooks/use-seat-websocket"
 import { jwtDecode } from "jwt-decode"
+import {Button} from "@/components/ui/button";
 
 interface ShowtimeInfo {
   showTimeId: number
@@ -79,10 +80,40 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
   // User ID from token
   const [userId, setUserId] = useState<number | null>(null)
 
-  // Get today's date
-  const today = new Date().toISOString().split('T')[0]
-  
-  // Get user ID from token
+// === Quản lý chọn ngày ===
+    const [selectedDate, setSelectedDate] = useState(new Date())
+
+// Hàm tiện ích format YYYY-MM-DD cho API
+    const formatApiDate = (date: Date) => date.toISOString().split("T")[0]
+
+
+    const [datePage, setDatePage] = useState(0)
+    const daysPerPage = 5
+    const maxDays = 30 // giới hạn 30 ngày kế tiếp
+
+// Danh sách tất cả ngày
+    const allDays = Array.from({ length: maxDays }).map((_, i) => {
+        const d = new Date()
+        d.setDate(d.getDate() + i)
+        return d
+    })
+
+// 5 ngày đang hiển thị
+    const visibleDays = allDays.slice(datePage * daysPerPage, (datePage + 1) * daysPerPage)
+
+    const formatWeekday = (date: Date) => {
+        const today = new Date()
+        const diff = Math.floor((date.getTime() - today.setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24))
+        if (diff === 0) return "Hôm nay"
+        if (diff === 1) return "Ngày mai"
+        return date.toLocaleDateString("vi-VN", { weekday: "long" })
+    }
+
+    const formatDay = (date: Date) => date.getDate()
+    const formatMonth = (date: Date) => date.toLocaleDateString("vi-VN", { month: "short" }).replace(".", "")
+
+
+    // Get user ID from token
   useEffect(() => {
     try {
       const token = localStorage.getItem('accessToken')
@@ -137,7 +168,7 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
     const fetchMovies = async () => {
       setLoadingMovies(true)
       try {
-        const moviesData = await getMoviesWithShowtimesToday(today)
+        const moviesData = await getMoviesWithShowtimesToday(formatApiDate(selectedDate))
         setApiMovies(moviesData)
       } catch (error) {
         console.error("Error fetching movies:", error)
@@ -146,7 +177,7 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
       }
     }
     fetchMovies()
-  }, [today])
+  }, [selectedDate])
 
   // Fetch showtimes when movie is selected
   useEffect(() => {
@@ -162,7 +193,7 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
       setSeatData([])
       try {
         const response = await apiClient.get<ShowtimeResponse>(
-          `/bookings/movies/${selectedMovieId}/show-times/${today}`
+          `/bookings/movies/${selectedMovieId}/show-times/${formatApiDate(selectedDate)}`
         )
         if (response.data?.status === 200 && response.data?.data) {
           setShowtimes(response.data.data)
@@ -175,7 +206,7 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
     }
 
     fetchShowtimes()
-  }, [selectedMovieId, today])
+  }, [selectedMovieId, selectedDate])
 
   // Fetch seats when showtime is selected
   useEffect(() => {
@@ -600,7 +631,68 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
 
   return (
     <div className="space-y-6">
-      {/* Movie Selection */}
+
+        <div className="flex items-center justify-between mb-6">
+            {/* Nhóm 5 ngày */}
+            <div className="flex items-center gap-2">
+                {/* Nút qua lại */}
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={datePage === 0}
+                    onClick={() => setDatePage(prev => Math.max(0, prev - 1))}
+                >
+                    <ChevronLeft className="w-5 h-5" />
+                </Button>
+
+                <div className="flex gap-2">
+                    {visibleDays.map((day, idx) => {
+                        const isSelected = day.toDateString() === selectedDate.toDateString()
+                        return (
+                            <Button
+                                key={idx}
+                                onClick={() => setSelectedDate(day)}
+                                variant={isSelected ? "default" : "outline"}
+                                className={`flex flex-col items-center justify-center px-4 py-2 rounded-xl w-20 h-16 ${
+                                    isSelected
+                                        ? "bg-primary text-white shadow-lg scale-105"
+                                        : "bg-background text-foreground hover:bg-muted"
+                                }`}
+                            >
+                                <span className="text-xs font-semibold">{formatWeekday(day)}</span>
+                                <span className="text-lg font-bold leading-none">{formatDay(day)}</span>
+                                <span className="text-xs text-muted-foreground">{formatMonth(day)}</span>
+                            </Button>
+                        )
+                    })}
+                </div>
+
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={(datePage + 1) * daysPerPage >= allDays.length}
+                    onClick={() => setDatePage(prev => prev + 1)}
+                >
+                    <ChevronRight className="w-5 h-5" />
+                </Button>
+            </div>
+
+            {/* Ô ngày cụ thể bên phải */}
+            <Button
+                variant="outline"
+                className="flex items-center gap-2 text-sm px-4 py-2 rounded-lg border-muted-foreground/40"
+            >
+                <CalendarDays className="w-4 h-4 text-muted-foreground" />
+                {selectedDate.toLocaleDateString("en-GB", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                })}
+            </Button>
+        </div>
+
+
+        {/* Movie Selection */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
