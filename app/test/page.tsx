@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react"
 import { Client } from "@stomp/stompjs"
 import SockJS from "sockjs-client"
+import { BACKEND_BASE_URL } from "@/src/utils/config"
 
 export default function WebSocketTestPage() {
     const [messages, setMessages] = useState<string[]>([])
@@ -9,7 +10,7 @@ export default function WebSocketTestPage() {
 
     // @ts-ignore
     useEffect(() => {
-        const socket = new SockJS("http://localhost:8885/ws")
+        const socket = new SockJS(`${BACKEND_BASE_URL}/ws`)
         const client = new Client({
             webSocketFactory: () => socket,
             reconnectDelay: 5000,
