@@ -806,15 +806,7 @@ export default function SeatSelectionPage() {
                     </div>
                     <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-md border-2 border-gray-200 hover:shadow-lg transition-all">
                       <div className="w-6 h-6 rounded-lg shadow-md" style={{ backgroundColor: '#3FB7F9' }}></div>
-                      <span className="text-gray-900 font-semibold">Đang giữ</span>
-                    </div>
-                    <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-md border-2 border-gray-200 hover:shadow-lg transition-all">
-                      <div className="w-6 h-6 rounded-lg shadow-md" style={{ backgroundColor: '#9CA3AF' }}></div>
-                      <span className="text-gray-900 font-semibold">Bảo trì</span>
-                    </div>
-                    <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-md border-2 border-gray-200 hover:shadow-lg transition-all">
-                      <div className="w-6 h-6 rounded-lg shadow-md" style={{ backgroundColor: '#3FB7F9' }}></div>
-                      <span className="text-gray-900 font-semibold">Ghế bị block</span>
+                      <span className="text-gray-900 font-semibold">Đang giữ / Bị chặn</span>
                     </div>
                   </div>
                 </div>
