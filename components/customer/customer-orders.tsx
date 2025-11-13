@@ -54,6 +54,8 @@ export function CustomerOrders() {
       setDetailLoading(true)
       setModalOpen(true)
       const detail = await getOrderDetail(Number(orderId))
+      console.log("Order detail received:", detail)
+      console.log("Concessions in detail:", detail.concessions)
       setSelectedOrder(detail)
     } catch (e: any) {
       console.error("Failed to load order detail:", e)

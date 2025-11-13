@@ -82,6 +82,7 @@ const extractErrorMessage = (error: unknown) => {
 export function CustomerProfile() {
     const [isEditing, setIsEditing] = useState(false)
     const [loading, setLoading] = useState(false)
+    const [avatarFile, setAvatarFile] = useState<File | null>(null)
     const [formData, setFormData] = useState({
         name: "",
         email: "",
@@ -230,13 +231,40 @@ export function CustomerProfile() {
                 throw new Error("Không tìm thấy token xác thực. Vui lòng đăng nhập lại.")
             }
 
-            // Create payload with the exact structure expected by the backend
+            // 🔹 B1: nếu có avatarFile mới chọn -> upload trước để lấy URL
+            let avatarUrl = formData.avatar || ""
+
+            if (avatarFile) {
+                const formDataUpload = new FormData()
+                formDataUpload.append("file", avatarFile)
+
+                const uploadRes = await fetch(`${BACKEND_BASE_URL}/users/me/avatar`, {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`
+                    },
+                    body: formDataUpload
+                })
+
+                const uploadResult = await uploadRes.json()
+
+                if (uploadResult.status === 200 && uploadResult.data) {
+                    avatarUrl = uploadResult.data
+                    // cập nhật luôn preview & localStorage
+                    setAvatarPreview(uploadResult.data)
+                    localStorage.setItem("userAvatar", uploadResult.data)
+                } else {
+                    throw new Error(uploadResult.message || "Có lỗi xảy ra khi tải ảnh lên")
+                }
+            }
+
+            // 🔹 B2: gọi API update profile với avatarUrl mới (nếu có)
             const requestBody = {
                 name: formData.name,
                 gender: formData.gender,
-                address: formData.address || '',
-                phoneNumber: formData.phoneNumber || '',
-                avatar: formData.avatar || ''
+                address: formData.address || "",
+                phoneNumber: formData.phoneNumber || "",
+                avatar: avatarUrl || ""
             }
 
             const response = await axios.put(
@@ -244,16 +272,15 @@ export function CustomerProfile() {
                 requestBody,
                 {
                     headers: {
-                        'Authorization': `Bearer ${accessToken}`,
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'Accept-Encoding': 'gzip, deflate, br, zstd'
+                        Authorization: `Bearer ${accessToken}`,
+                        "Content-Type": "application/json",
+                        Accept: "application/json",
+                        "Accept-Encoding": "gzip, deflate, br, zstd"
                     }
                 }
             )
 
             if (response.data && response.data.status === 200) {
-                // Update local state with new data from response
                 const updatedData = response.data.data
                 setFormData(prev => ({
                     ...prev,
@@ -262,15 +289,17 @@ export function CustomerProfile() {
                     gender: updatedData.gender || prev.gender,
                     address: updatedData.address || prev.address,
                     phoneNumber: updatedData.phoneNumber || prev.phoneNumber,
-                    avatar: updatedData.avatar || prev.avatar
+                    avatar: updatedData.avatar || avatarUrl || prev.avatar
                 }))
-                setAvatarPreview(updatedData.avatar || "")
 
-                // Update local storage
+                // lưu về localStorage
                 localStorage.setItem("userName", updatedData.name)
-                localStorage.setItem("userGender", normalizeGender(updatedData.gender));
-                localStorage.setItem("userAddress", updatedData.address || '')
-                localStorage.setItem("userPhone", updatedData.phoneNumber || '')
+                localStorage.setItem("userGender", normalizeGender(updatedData.gender))
+                localStorage.setItem("userAddress", updatedData.address || "")
+                localStorage.setItem("userPhone", updatedData.phoneNumber || "")
+
+                // 👉 clear avatarFile sau khi lưu xong
+                setAvatarFile(null)
 
                 setIsEditing(false)
                 showToast(response.data.message || "Cập nhật thông tin thành công!")
@@ -353,7 +382,7 @@ export function CustomerProfile() {
         }
     }
 
-    const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
 
@@ -364,54 +393,22 @@ export function CustomerProfile() {
         }
 
         // Check file type
-        if (!file.type.startsWith('image/')) {
+        if (!file.type.startsWith("image/")) {
             showToast("Vui lòng chọn file ảnh", "error")
             return
         }
 
-        try {
-            setLoading(true)
+        // 👉 Chỉ lưu file vào state + preview, KHÔNG gọi API
+        setAvatarFile(file)
 
-            // Get access token
-            const accessToken = localStorage.getItem("accessToken")
-            if (!accessToken) {
-                throw new Error("Không tìm thấy token xác thực. Vui lòng đăng nhập lại.")
-            }
-
-            // Create FormData and append file
-            const formData = new FormData()
-            formData.append('file', file)
-
-            // Upload avatar to backend
-            const response = await fetch(`${BACKEND_BASE_URL}/users/me/avatar`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`
-                },
-                body: formData
-            })
-
-            const result = await response.json()
-
-            if (result.status === 200 && result.data) {
-                // Update avatar preview and form data with the URL from backend
-                setAvatarPreview(result.data)
-                setFormData(prev => ({ ...prev, avatar: result.data }))
-
-                // Save to localStorage so it appears in the home layout header
-                localStorage.setItem("userAvatar", result.data)
-
-                showToast("Cập nhật ảnh đại diện thành công!")
-            } else {
-                throw new Error(result.message || "Có lỗi xảy ra khi tải ảnh lên")
-            }
-        } catch (error) {
-            console.error('Upload avatar failed:', error)
-            showToast(extractErrorMessage(error) || "Tải ảnh lên thất bại. Vui lòng thử lại sau.", "error")
-        } finally {
-            setLoading(false)
+        const reader = new FileReader()
+        reader.onloadend = () => {
+            setAvatarPreview(reader.result as string)        // hiện avatar mới
+            setFormData(prev => ({ ...prev, avatar: prev.avatar })) // giữ nguyên URL cũ trong form (tạm thời)
         }
+        reader.readAsDataURL(file)
     }
+
 
     return (
         <div id="view-profile" className="min-h-screen bg-white relative overflow-hidden">

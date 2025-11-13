@@ -4,16 +4,21 @@ export type OrderStatus = "COMPLETED" | "UPCOMING" | "CANCELLED" | string;
 
 export type CustomerOrder = {
   id: string;
-  date: string; // ISO string (createdAt)
+  date: string;
   movie?: string;
-  showtime?: string; // ISO string
-  seats: string[]; // e.g. ["A12","A13"]
-  total: number; // totalPrice
+  showtime?: string;
+  seats: string[];
+  total: number;
   status: OrderStatus;
   code?: string | null;
   roomName?: string | null;
   userName?: string | null;
+
+  concessions?: Concession[];
 };
+
+
+
 
 export type PaginatedResponse<T> = {
   items: T[];
@@ -36,6 +41,13 @@ export type SearchOrdersByDatePayload = {
   sort?: string[];
 };
 
+export type Concession = {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  urlImage: string;
+};
+
 export type OrderDetail = {
   orderId: number;
   createdAt: string;
@@ -47,6 +59,7 @@ export type OrderDetail = {
   showtimeStart: string | null;
   showtimeEnd: string | null;
   seats: string[];
+  concessions?: Concession[];
   totalPrice: number;
   orderStatus: string;
   reservationCode: string | null;
@@ -71,15 +84,20 @@ const normalizeOrder = (raw: any): CustomerOrder => {
     movie: raw?.movie ?? raw?.movieTitle ?? raw?.movieName ?? raw?.title ?? "",
     showtime: raw?.showtime ?? raw?.showTime ?? raw?.startTime ?? raw?.showtimeStart ?? raw?.screeningTime ?? undefined,
     seats: Array.isArray(raw?.seats)
-      ? raw.seats.map((s: any) => String(s))
-      : (typeof raw?.seats === "string" ? raw.seats.split(/[\,\s]+/).filter(Boolean) : []),
+        ? raw.seats.map((s: any) => String(s))
+        : (typeof raw?.seats === "string" ? raw.seats.split(/[\,\s]+/).filter(Boolean) : []),
     total: Number(raw?.total ?? raw?.totalAmount ?? raw?.totalPrice ?? 0),
     status: String(raw?.status ?? raw?.orderStatus ?? "").toUpperCase(),
     code: raw?.code ?? raw?.orderCode ?? null,
     roomName: raw?.roomName ?? null,
     userName: raw?.userName ?? raw?.user_name ?? null,
+
+    // ✅ THÊM DÒNG NÀY
+    concessions: Array.isArray(raw?.concessions) ? raw.concessions : []
   };
 };
+
+
 
 export async function listMyOrders(params: ListOrdersParams = {}): Promise<PaginatedResponse<CustomerOrder>> {
   const { email, page = 1, size = 5 } = params;
@@ -140,12 +158,58 @@ export async function searchOrdersByDate(payload: SearchOrdersByDatePayload): Pr
   return { items, total, page: pageNum, size: sizeNum };
 }
 
+// Normalize backend order detail response to frontend shape
+const normalizeOrderDetail = (raw: any): OrderDetail => {
+  const concessionsRaw =
+      raw?.concessions ??
+      raw?.orderConcessions ??
+      raw?.concessionItems ??
+      raw?.concessionList;
+
+  console.log("🔥 Raw order detail từ API:", raw);
+  console.log("🔥 Concessions raw:", concessionsRaw);
+
+  return {
+    orderId: raw?.orderId ?? raw?.id ?? 0,
+    createdAt: raw?.createdAt ?? new Date().toISOString(),
+    userName: raw?.userName ?? raw?.user_name ?? "",
+    orderCode: raw?.orderCode ?? raw?.code ?? "",
+    bookingCode: raw?.bookingCode ?? null,
+    movieName: raw?.movieName ?? raw?.movie ?? null,
+    roomName: raw?.roomName ?? null,
+    showtimeStart: raw?.showtimeStart ?? null,
+    showtimeEnd: raw?.showtimeEnd ?? null,
+    seats: Array.isArray(raw?.seats)
+        ? raw.seats.map((s: any) => String(s))
+        : (typeof raw?.seats === "string" ? raw.seats.split(/[\,\s]+/).filter(Boolean) : []),
+
+    // ✅ chỗ quan trọng
+    concessions: Array.isArray(concessionsRaw) ? concessionsRaw : [],
+
+    totalPrice: Number(raw?.totalPrice ?? raw?.total ?? 0),
+    orderStatus: raw?.orderStatus ?? raw?.status ?? "",
+    reservationCode: raw?.reservationCode ?? null,
+    paymentMethods: Array.isArray(raw?.paymentMethods) ? raw.paymentMethods : [],
+    qrAvailable: Boolean(raw?.qrAvailable ?? false),
+    qrExpired: Boolean(raw?.qrExpired ?? false),
+    regenerateAllowed: Boolean(raw?.regenerateAllowed ?? false),
+    qrJwt: raw?.qrJwt ?? null,
+    qrImageUrl: raw?.qrImageUrl ?? null,
+    graceMinutes: raw?.graceMinutes ?? null,
+    qrExpiryAt: raw?.qrExpiryAt ?? null,
+    payloadJson: raw?.payloadJson,
+    nonce: raw?.nonce,
+    version: raw?.version,
+  };
+};
+
+
 export async function getOrderDetail(orderId: number): Promise<OrderDetail> {
   const response = await apiClient.get(`/orders/${orderId}`);
-  return response.data;
+  return normalizeOrderDetail(response.data); // ✅ nhớ gọi normalizer
 }
 
 export async function generateQRCode(orderId: number): Promise<OrderDetail> {
   const response = await apiClient.get(`/orders/${orderId}/qr-payload`);
-  return response.data;
+  return normalizeOrderDetail(response.data); // ✅ không trả raw nữa
 }
