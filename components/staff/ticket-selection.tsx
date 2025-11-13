@@ -459,11 +459,11 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
         return
       }
 
-      // Check if seat is booked or in maintenance - cannot deselect those
+      // Check if seat is booked, in maintenance, or blocked - cannot deselect those
       const seatFromData = seatData.find(t => t.ticketId === ticketId)
       const backendStatus = seatFromData?.seatStatus || 'AVAILABLE'
-      if (backendStatus === 'BOOKED' || backendStatus === 'UNAVAILABLE') {
-        console.log('[Staff] Cannot deselect: seat is booked or unavailable')
+      if (backendStatus === 'BOOKED' || backendStatus === 'UNAVAILABLE' || backendStatus === 'BLOCKED') {
+        console.log('[Staff] Cannot deselect: seat is booked, unavailable, or blocked')
         return
       }
 
@@ -873,6 +873,7 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
                           const backendStatus = seatFromData?.seatStatus || 'AVAILABLE'
                           const isBooked = backendStatus === 'BOOKED'
                           const isMaintenance = backendStatus === 'UNAVAILABLE'
+                          const isBlocked = backendStatus === 'BLOCKED'
                         const isSelected = selectedSeats.includes(seat.id)
                         
                         // Check if held by current user (can be deselected)
@@ -902,14 +903,14 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
                         
                         // If seat is selected by current user, it's not considered "held" (can be deselected)
                           const isHeld = !isSelected && (isHeldByBackend || isHeldByOther || isHeldByWebSocket)
-                          const isOccupied = isBooked || isMaintenance || isHeld
+                          const isOccupied = isBooked || isMaintenance || isBlocked || isHeld
                           const seatType = getSeatType(seat.id)
                           const isLimitReached = !isOccupied && !isSelected && isSeatTypeLimitReached(seatType)
                           const isDifferentType = !isOccupied && !isSelected && isDifferentSeatType(seatType)
 
                           // Debug: check disabled state
                           const buttonDisabled = isSelected 
-                            ? (isBooked || isMaintenance) // If selected, only disable if booked/maintenance
+                            ? (isBooked || isMaintenance || isBlocked) // If selected, disable if booked/maintenance/blocked
                             : (isOccupied || isLimitReached || isDifferentType) // If not selected, normal checks
 
                         return (
@@ -918,7 +919,7 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
                               onClick={(e) => {
                                 console.log('[Staff Button onClick] Seat clicked:', seat.id, 'isSelected:', isSelected, 'disabled:', buttonDisabled)
                                 if (!buttonDisabled) {
-                                  handleSeatSelect(seat.id, isBooked || isMaintenance, isHeld)
+                                  handleSeatSelect(seat.id, isBooked || isMaintenance || isBlocked, isHeld)
                                 } else {
                                   console.log('[Staff Button onClick] Button is disabled, click ignored')
                                 }
@@ -930,8 +931,10 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
                                   ? 'bg-gradient-to-br from-orange-500 to-orange-700 text-white cursor-not-allowed shadow-inner ring-2 ring-orange-300' 
                                   : isMaintenance
                                     ? 'bg-gradient-to-br from-gray-600 to-gray-800 text-white cursor-not-allowed shadow-inner ring-2 ring-gray-400'
-                                : isHeld
-                                      ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-yellow-950 cursor-not-allowed shadow-inner animate-pulse ring-2 ring-yellow-300'
+                                    : isBlocked
+                                      ? 'bg-gradient-to-br from-slate-700 to-slate-900 text-white cursor-not-allowed shadow-inner ring-2 ring-slate-500'
+                                      : isHeld
+                                        ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-yellow-950 cursor-not-allowed shadow-inner animate-pulse ring-2 ring-yellow-300'
                                     : isLimitReached
                                       ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
                                       : isDifferentType
@@ -957,7 +960,7 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
                 {/* Legend */}
                 <div className="mt-8 bg-gray-50 rounded-xl p-4 border-2 border-gray-300">
                   <h4 className="font-semibold text-center mb-3 text-foreground text-base">Chú thích ghế</h4>
-                  <div className="grid grid-cols-2 gap-2 text-xs mb-4 max-w-sm mx-auto">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs mb-4 max-w-lg mx-auto">
                     <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-blue-200">
                       <div className="w-5 h-5 bg-gradient-to-br from-blue-500 to-blue-700 rounded ring-2 ring-blue-300"></div>
                       <span className="text-foreground font-medium">Có thể chọn</span>
@@ -974,9 +977,13 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
                       <div className="w-5 h-5 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded animate-pulse ring-2 ring-yellow-300"></div>
                       <span className="text-foreground font-medium">Đang giữ</span>
                     </div>
-                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-gray-300 col-span-2">
+                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-gray-300">
                       <div className="w-5 h-5 bg-gradient-to-br from-gray-600 to-gray-800 rounded ring-2 ring-gray-400"></div>
                       <span className="text-foreground font-medium">Bảo trì</span>
+                    </div>
+                    <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-md border border-slate-400">
+                      <div className="w-5 h-5 bg-gradient-to-br from-slate-700 to-slate-900 rounded ring-2 ring-slate-500"></div>
+                      <span className="text-foreground font-medium">Ghế bị block</span>
                     </div>
                   </div>
                 </div>
