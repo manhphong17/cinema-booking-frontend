@@ -391,11 +391,11 @@ export default function SeatSelectionPage() {
         return
       }
 
-      // Check if seat is booked or in maintenance - cannot deselect those
+      // Check if seat is booked, in maintenance, or blocked - cannot deselect those
       const seatFromData = seatData.find(t => t.ticketId === ticketId)
       const backendStatus = seatFromData?.seatStatus || 'AVAILABLE'
-      if (backendStatus === 'BOOKED' || backendStatus === 'UNAVAILABLE') {
-        console.log('Cannot deselect: seat is booked or unavailable')
+      if (backendStatus === 'BOOKED' || backendStatus === 'UNAVAILABLE' || backendStatus === 'BLOCKED') {
+        console.log('Cannot deselect: seat is booked, unavailable, or blocked')
         return
       }
 
@@ -692,6 +692,7 @@ export default function SeatSelectionPage() {
                             const backendStatus = seatFromData?.seatStatus || 'AVAILABLE'
                             const isBooked = backendStatus === 'BOOKED'
                             const isMaintenance = backendStatus === 'UNAVAILABLE'
+                            const isBlocked = backendStatus === 'BLOCKED'
                             const isSelected = selectedSeats.includes(seat.id)
                             // If seat is selected by current user, check if it's held by current user (can be deselected)
                             // Otherwise, check if it's held by someone else
@@ -722,14 +723,14 @@ export default function SeatSelectionPage() {
                             // If seat is selected by current user, it's not considered "held" (can be deselected)
                             // Even if backendStatus is HELD, if it's selected by current user, allow deselection
                             const isHeld = !isSelected && (isHeldByBackend || isHeldByOther || isHeldByWebSocket)
-                            const isOccupied = isBooked || isMaintenance || isHeld
+                            const isOccupied = isBooked || isMaintenance || isBlocked || isHeld
                             const seatType = getSeatType(seat.id)
                             const isLimitReached = !isOccupied && !isSelected && isSeatTypeLimitReached(seatType)
                             const isDifferentType = !isOccupied && !isSelected && isDifferentSeatType(seatType)
 
                             // Debug: check disabled state
                             const buttonDisabled = isSelected 
-                              ? (isBooked || isMaintenance) // If selected, only disable if booked/maintenance
+                              ? (isBooked || isMaintenance || isBlocked) // If selected, disable if booked/maintenance/blocked
                               : (isOccupied || isLimitReached || isDifferentType) // If not selected, normal checks
 
                             return (
@@ -738,7 +739,7 @@ export default function SeatSelectionPage() {
                                   onClick={(e) => {
                                     console.log('[Button onClick] Seat clicked:', seat.id, 'isSelected:', isSelected, 'disabled:', buttonDisabled)
                                     if (!buttonDisabled) {
-                                      handleSeatClick(seat.id, isBooked || isMaintenance, isHeld)
+                                      handleSeatClick(seat.id, isBooked || isMaintenance || isBlocked, isHeld)
                                     } else {
                                       console.log('[Button onClick] Button is disabled, click ignored')
                                     }
@@ -748,11 +749,13 @@ export default function SeatSelectionPage() {
                                   ? { backgroundColor: '#FD2802', borderColor: '#FD2802' }
                                   : isMaintenance
                                     ? { backgroundColor: '#9CA3AF', borderColor: '#9CA3AF' }
-                                    : isHeld
-                                      ? { backgroundColor: '#3FB7F9', borderColor: '#3FB7F9' }
+                                    : isBlocked
+                                      ? { backgroundColor: '#4B5563', borderColor: '#4B5563' }
+                                      : isHeld
+                                        ? { backgroundColor: '#3FB7F9', borderColor: '#3FB7F9' }
                                         : isSelected
-                                        ? { backgroundColor: '#03599D', borderColor: '#03599D' }
-                                        : { backgroundColor: '#BABBC3', borderColor: '#BABBC3' }
+                                          ? { backgroundColor: '#03599D', borderColor: '#03599D' }
+                                          : { backgroundColor: '#BABBC3', borderColor: '#BABBC3' }
                                 }
                                 className={`
                                   w-12 h-12 rounded-xl text-sm font-bold transition-all duration-300 flex items-center justify-center relative border-2
@@ -760,15 +763,17 @@ export default function SeatSelectionPage() {
                                     ? 'text-white cursor-not-allowed shadow-xl' 
                                     : isMaintenance
                                       ? 'text-white cursor-not-allowed shadow-xl'
-                                      : isHeld
+                                      : isBlocked
                                         ? 'text-white cursor-not-allowed shadow-xl'
-                                      : isLimitReached
-                                        ? 'opacity-50 cursor-not-allowed'
-                                        : isDifferentType
-                                          ? 'opacity-30 cursor-not-allowed'
-                                  : isSelected
-                                          ? 'text-white scale-110 shadow-2xl ring-2 ring-[#03599D] ring-offset-1 font-extrabold'
-                                      : 'text-white hover:opacity-90 shadow-lg hover:shadow-xl hover:scale-110'
+                                        : isHeld
+                                          ? 'text-white cursor-not-allowed shadow-xl'
+                                        : isLimitReached
+                                          ? 'opacity-50 cursor-not-allowed'
+                                          : isDifferentType
+                                            ? 'opacity-30 cursor-not-allowed'
+                                    : isSelected
+                                            ? 'text-white scale-110 shadow-2xl ring-2 ring-[#03599D] ring-offset-1 font-extrabold'
+                                        : 'text-white hover:opacity-90 shadow-lg hover:shadow-xl hover:scale-110'
                                   }
                                   active:scale-95
                                 `}
@@ -790,7 +795,7 @@ export default function SeatSelectionPage() {
                     <div className="w-1 h-6 bg-gradient-to-b from-blue-500 to-blue-300 rounded-full"></div>
                     <h4 className="font-bold text-lg text-gray-900">Chú thích ghế</h4>
                   </div>
-                  <div className="grid grid-cols-2 gap-3 text-sm max-w-lg mx-auto">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm max-w-2xl mx-auto">
                     <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-md border-2 border-gray-200 hover:shadow-lg transition-all">
                       <div className="w-6 h-6 rounded-lg shadow-md" style={{ backgroundColor: '#BABBC3' }}></div>
                       <span className="text-gray-900 font-semibold">Ghế trống</span>
@@ -806,6 +811,14 @@ export default function SeatSelectionPage() {
                     <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-md border-2 border-gray-200 hover:shadow-lg transition-all">
                       <div className="w-6 h-6 rounded-lg shadow-md" style={{ backgroundColor: '#3FB7F9' }}></div>
                       <span className="text-gray-900 font-semibold">Đang giữ</span>
+                    </div>
+                    <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-md border-2 border-gray-200 hover:shadow-lg transition-all">
+                      <div className="w-6 h-6 rounded-lg shadow-md" style={{ backgroundColor: '#4B5563' }}></div>
+                      <span className="text-gray-900 font-semibold">Ghế bị block</span>
+                    </div>
+                    <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-md border-2 border-gray-200 hover:shadow-lg transition-all">
+                      <div className="w-6 h-6 rounded-lg shadow-md" style={{ backgroundColor: '#9CA3AF' }}></div>
+                      <span className="text-gray-900 font-semibold">Bảo trì</span>
                     </div>
                   </div>
                 </div>
