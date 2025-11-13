@@ -36,7 +36,7 @@ export function HomeNowShowingCarousel() {
                     <div className="text-center mb-12">
                         <h2 className="text-4xl font-bold text-foreground mb-4">
                             PHIM ĐANG CHIẾU
-                        </h2>
+                            </h2>
                         <div className="w-16 h-1 bg-black mx-auto mb-8"></div>
                     </div>
 
@@ -62,7 +62,7 @@ export function HomeNowShowingCarousel() {
                 <div className="text-center mb-12">
                     <h2 className="text-4xl font-bold text-foreground mb-4">
                         PHIM ĐANG CHIẾU
-                    </h2>
+                        </h2>
                     <div className="w-16 h-1 bg-black mx-auto mb-8"></div>
                 </div>
 
@@ -178,7 +178,7 @@ export function HomeComingSoonCarousel() {
                     <div className="text-center mb-12">
                         <h2 className="text-4xl font-bold text-foreground mb-4">
                             PHIM SẮP CHIẾU
-                        </h2>
+                            </h2>
                         <div className="w-16 h-1 bg-black mx-auto mb-8"></div>
                     </div>
 
@@ -204,7 +204,7 @@ export function HomeComingSoonCarousel() {
                 <div className="text-center mb-12">
                     <h2 className="text-4xl font-bold text-foreground mb-4">
                         PHIM SẮP CHIẾU
-                    </h2>
+                        </h2>
                     <div className="w-16 h-1 bg-black mx-auto mb-8"></div>
                 </div>
 

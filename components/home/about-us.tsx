@@ -55,15 +55,10 @@ export function AboutUs() {
                 <div className="text-[11px] font-bold text-pink-600 uppercase tracking-wider mb-3 px-2 py-1 bg-pink-50 rounded-md inline-block">
                   About Us
                 </div>
-                <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4 text-balance">
-                <span className="bg-gradient-to-r from-pink-600 to-rose-500 bg-clip-text text-transparent">
+                <h2 className="text-4xl font-bold text-foreground mb-4 text-balance">
                   Giới thiệu rạp của chúng tôi
-                </span>
                 </h2>
-                <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-20 rounded-full bg-gradient-to-r from-pink-500 to-rose-400"></div>
-                  <div className="h-1.5 w-2 rounded-full bg-pink-400"></div>
-                </div>
+                <div className="w-16 h-1 bg-black mb-8"></div>
               </div>
 
               <div className="space-y-4 text-foreground/80 leading-relaxed">

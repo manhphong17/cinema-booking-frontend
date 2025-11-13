@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation"
 import { useMemo, useState, useEffect, useCallback, useRef } from "react"
+import { Button } from "@/components/ui/button"
+import { ArrowLeft } from "lucide-react"
 import CustomerInfoCard, { CustomerInfo } from "./customer-info-card"
 import PaymentMethodCard from "./payment-method-card"
 import BookingOrderSummary, { SeatInfo, ConcessionInfo, MovieInfo } from "./booking-order-summary"
@@ -269,7 +271,6 @@ export default function PaymentPage({
       <div className="absolute top-0 left-0 right-0 h-1" style={{ backgroundColor: '#3BAEF0' }}></div>
       
       <div className="container mx-auto px-4 py-8 max-w-7xl relative z-10">
-
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* LEFT */}
           <div className="lg:col-span-3 space-y-6">
@@ -296,19 +297,32 @@ export default function PaymentPage({
             showtimeId={showtimeId ? parseInt(showtimeId) : null}
             userId={userId}
             movieId={resolvedMovieId || movieId}
+            actionButton={
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => router.back()}
+                  className="flex items-center gap-2 border-gray-300 text-gray-700 hover:bg-gray-50 flex-1 text-lg py-4"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Quay lại
+                </Button>
+                <button
+                  disabled={isProcessing}
+                  onClick={handlePayment}
+                  style={{ backgroundColor: '#38AAEC' }}
+                  className="flex-1 hover:opacity-90 text-white font-bold py-4 shadow-lg transition-all duration-300 hover:scale-105 active:scale-95 rounded-xl text-lg relative overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/20 via-transparent to-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                  <span className="relative z-10">
+                    {isProcessing
+                      ? "Đang xử lý..."
+                      : "Thanh toán"}
+                  </span>
+                </button>
+              </div>
+            }
           />
-
-          {/* Payment Button */}
-          <button
-            disabled={isProcessing}
-            onClick={handlePayment}
-            style={{ backgroundColor: '#38AAEC' }}
-            className="-mt-3 w-full py-4 rounded-xl hover:opacity-90 text-white font-semibold text-lg shadow-lg transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-          >
-            {isProcessing
-              ? "Đang xử lý..."
-              : `Thanh toán ${calculateTotal().toLocaleString()}đ`}
-          </button>
 
         </div>
         </div>

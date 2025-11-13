@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Minus, ShoppingCart, Loader2, Image as ImageIcon } from "lucide-react"
+import { Plus, Minus, ShoppingCart, Loader2, Image as ImageIcon, ArrowLeft } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useMemo, useState, useEffect, useCallback, useRef } from "react"
 import { toast } from "sonner"
@@ -453,24 +453,34 @@ export default function ConcessionSelectionPage({
               userId={userId}
               movieId={movieId}
               actionButton={
-                <Button
-                  onClick={handleContinue}
-                  disabled={isSubmitting}
-                  size="lg"
-                  style={{ backgroundColor: '#38AAEC' }}
-                  className="w-full hover:opacity-90 text-white font-bold px-8 py-7 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed text-lg transition-opacity"
-                >
-                  <span className="flex items-center justify-center">
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                        Đang xử lý...
-                      </>
-                    ) : (
-                      "Tiếp tục thanh toán →"
-                    )}
-                  </span>
-                </Button>
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => router.back()}
+                    className="flex items-center gap-2 border-gray-300 text-gray-700 hover:bg-gray-50 flex-1 text-lg py-4"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Quay lại
+                  </Button>
+                  <Button
+                    onClick={handleContinue}
+                    disabled={isSubmitting}
+                    style={{ backgroundColor: '#38AAEC' }}
+                    className="flex-1 hover:opacity-90 text-white font-bold py-4 shadow-lg transition-all duration-300 hover:scale-105 active:scale-95 rounded-xl text-lg relative overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-white/20 via-transparent to-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                    <span className="relative z-10 flex items-center justify-center">
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                          Đang xử lý...
+                        </>
+                      ) : (
+                        "Tiếp tục"
+                      )}
+                    </span>
+                  </Button>
+                </div>
               }
             />
           </div>
