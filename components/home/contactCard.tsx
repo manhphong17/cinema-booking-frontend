@@ -31,14 +31,13 @@ export const ContactCard: React.FC<ContactCardProps> = ({
                                                             subContent
                                                         }) => {
     return (
-        <div className="p-5 rounded-xl text-white
-      bg-gray-900 shadow-2xl shadow-black/80 ring-1 ring-white/10
-      bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950
-      transition-all duration-300 hover:shadow-pink-500/30">
+        <div className="p-6 rounded-xl border-2 border-slate-600/60 bg-slate-700/40 hover:border-pink-400/60 hover:bg-slate-700/60 hover:shadow-lg transition-all duration-300 group backdrop-blur-sm">
             <div className="flex items-start gap-4">
-                <Icon className="h-6 w-6 text-pink-500 flex-shrink-0 mt-0.5" />
-                <div>
-                    <p className="text-lg font-bold text-white mb-0.5">{title}</p>
+                <div className="p-3 rounded-lg bg-gradient-to-br from-pink-500/25 to-purple-500/25 group-hover:from-pink-500/35 group-hover:to-purple-500/35 transition-colors border border-pink-400/30">
+                    <Icon className="h-6 w-6 text-pink-300 flex-shrink-0" />
+                </div>
+                <div className="flex-1">
+                    <p className="text-lg font-bold text-white mb-1 group-hover:text-pink-300 transition-colors">{title}</p>
                     <p className="text-base font-medium text-gray-200">{content}</p>
 
                     {linkHref && (
@@ -46,14 +45,14 @@ export const ContactCard: React.FC<ContactCardProps> = ({
                             href={linkHref}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-sm text-blue-400 hover:text-blue-300 transition-colors mt-1 inline-block"
+                            className="text-sm text-blue-300 hover:text-blue-200 font-medium transition-colors mt-2 inline-block hover:underline"
                         >
-                            {linkText || "Chi tiết"}
+                            {linkText || "Chi tiết"} →
                         </a>
                     )}
 
                     {subContent && (
-                        <p className="text-xs text-slate-400 mt-1">{subContent}</p>
+                        <p className="text-xs text-gray-300 mt-2 font-medium">{subContent}</p>
                     )}
                 </div>
             </div>
