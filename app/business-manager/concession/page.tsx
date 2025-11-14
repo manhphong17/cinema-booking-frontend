@@ -152,23 +152,6 @@ export default function ConcessionPage() {
         image: "",
     });
 
-    // =======================================
-    // 🟢 BIỂU ĐỒ TOP SẢN PHẨM BÁN CHẠY (mock)
-    // =======================================
-    const bestSellerData = {
-        week: [
-            { name: "Bắp Rang Bơ Lớn", value: 450, color: "#2563eb" },
-            { name: "Combo Couple", value: 320, color: "#3b82f6" },
-            { name: "Coca Cola", value: 280, color: "#60a5fa" },
-        ],
-        month: [
-            { name: "Combo Couple", value: 1850, color: "#2563eb" },
-            { name: "Bắp Rang Bơ Lớn", value: 1620, color: "#3b82f6" },
-            { name: "Combo Family", value: 980, color: "#60a5fa" },
-        ],
-    }
-    const bestSellers = bestSellerData[timeFilter] ?? []
-    const topProduct = bestSellers[0]
 
     // =======================================
     // 🟢  useEffect — GỌI API KHI FILTER THAY ĐỔI
@@ -351,6 +334,7 @@ export default function ConcessionPage() {
             if (!newProduct.name.trim()) return toast.error("Tên sản phẩm không được để trống!");
             if (+newProduct.price <= 0) return toast.error("Giá bán phải lớn hơn 0!");
             if (+newProduct.quantity <= 0) return toast.error("Số lượng phải lớn hơn 0!");
+            if (+newProduct.quantity > 10000) return toast.error ("Số lượng tồn không được vượt quá 10.000!");
             if (!newProduct.image) return toast.error("Vui lòng chọn hoặc nhập ảnh!");
 
             const formData = new FormData();

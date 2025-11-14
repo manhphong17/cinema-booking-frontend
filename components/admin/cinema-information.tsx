@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { MapPin, Phone, Mail, Clock, ImageIcon, Loader2, Edit, Upload, History } from "lucide-react"
-import { fetchTheaterDetails, updateTheaterDetails, uploadBanner, type TheaterDetails } from "@/app/api/theater/theater"
+import { MapPin, Phone, Mail, Clock, ImageIcon, Loader2, Edit, History } from "lucide-react"
+import { fetchTheaterDetails, updateTheaterDetails, type TheaterDetails } from "@/app/api/theater/theater"
 import { useToast } from "@/hooks/use-toast"
 
 export function CinemaInformation() {
@@ -18,7 +18,6 @@ export function CinemaInformation() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
-  const [uploading, setUploading] = useState(false)
   const [formData, setFormData] = useState<Partial<TheaterDetails>>({})
 
   // Fetch theater details on mount
@@ -32,14 +31,14 @@ export function CinemaInformation() {
       console.log('Fetching theater details...')
       const data = await fetchTheaterDetails()
       console.log('Theater data received:', data)
-      
+
       if (!data) {
         throw new Error('No data returned from API')
       }
-      
+
       setTheaterData(data)
       setFormData(data)
-    } catch (error: any) {
+    }  catch (error: any) {
       console.error('Error loading theater details:', error)
       console.error('Error response:', error.response?.data)
       toast({
@@ -89,54 +88,7 @@ export function CinemaInformation() {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
-  const handleBannerChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
 
-    // Check file size (max 10MB for banner)
-    if (file.size > 10 * 1024 * 1024) {
-      toast({
-        title: "Lỗi",
-        description: "Kích thước ảnh không được vượt quá 10MB",
-        variant: "destructive",
-      })
-      return
-    }
-
-    // Check file type
-    if (!file.type.startsWith('image/')) {
-      toast({
-        title: "Lỗi",
-        description: "Vui lòng chọn file ảnh",
-        variant: "destructive",
-      })
-      return
-    }
-
-    try {
-      setUploading(true)
-      console.log('📎 Uploading banner:', file.name)
-      
-      const bannerUrl = await uploadBanner(file)
-      console.log('✅ Banner uploaded:', bannerUrl)
-      
-      setFormData(prev => ({ ...prev, bannerUrl }))
-      
-      toast({
-        title: "Thành công",
-        description: "Tải ảnh banner thành công",
-      })
-    } catch (error: any) {
-      console.error('Upload banner failed:', error)
-      toast({
-        title: "Lỗi",
-        description: error.message || "Tải ảnh lên thất bại",
-        variant: "destructive",
-      })
-    } finally {
-      setUploading(false)
-    }
-  }
 
   // Extract Google Map embed URL - simple iframe without API key
   const getGoogleMapEmbedUrl = (url: string) => {
@@ -200,86 +152,9 @@ export function CinemaInformation() {
         </div>
       </div>
 
-      {/* Banner Section */}
-      <Card className="bg-white border-blue-100 shadow-md overflow-hidden">
-        <CardHeader>
-          <CardTitle className="text-gray-900 flex items-center gap-2">
-            <ImageIcon className="w-5 h-5" />
-            Banner rạp chiếu
-          </CardTitle>
-          <CardDescription>Hình ảnh banner hiển thị trên trang chủ (1200x400px khuyến nghị)</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Banner Preview */}
-          <div className="relative w-full h-64 rounded-lg overflow-hidden bg-gray-100 border-2 border-dashed border-gray-300">
-            {formData.bannerUrl ? (
-              <img
-                src={formData.bannerUrl}
-                alt="Theater Banner"
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.currentTarget.src = "https://via.placeholder.com/1200x400?text=Banner+Not+Available"
-                }}
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                <ImageIcon className="w-16 h-16 mb-2" />
-                <p className="text-sm">Chưa có banner</p>
-              </div>
-            )}
-          </div>
 
-          {/* Upload Button - Only show when editing */}
-          {isEditing && (
-            <div className="space-y-2">
-              <Input
-                type="file"
-                accept="image/*"
-                onChange={handleBannerChange}
-                className="hidden"
-                id="banner-upload"
-                disabled={uploading}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => document.getElementById('banner-upload')?.click()}
-                disabled={uploading}
-                className="w-full sm:w-auto"
-              >
-                {uploading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Đang tải lên...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-4 h-4 mr-2" />
-                    Tải lên banner
-                  </>
-                )}
-              </Button>
-              <p className="text-xs text-gray-500">JPG/PNG/GIF tối đa 10MB</p>
-            </div>
-          )}
 
-          {/* Banner URL Input - Optional */}
-          {isEditing && (
-            <div className="space-y-2">
-              <Label htmlFor="banner-url" className="text-gray-900 text-sm">
-                Hoặc nhập URL trực tiếp
-              </Label>
-              <Input
-                id="banner-url"
-                placeholder="https://example.com/banner.jpg"
-                value={formData.bannerUrl || ""}
-                onChange={(e) => handleInputChange("bannerUrl", e.target.value)}
-                disabled={uploading}
-              />
-            </div>
-          )}
-        </CardContent>
-      </Card>
+
 
       {/* Basic Info Card */}
       <Card className="bg-white border-blue-100 shadow-md">

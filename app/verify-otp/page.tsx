@@ -1,7 +1,7 @@
 "use client"
 
-import type React from "react"
-import {useState, useEffect} from "react"
+import React, {useEffect} from "react"
+import {useState} from "react"
 import {useRouter, useSearchParams} from "next/navigation"
 import {Button} from "@/components/ui/button"
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
@@ -16,20 +16,29 @@ export default function OTPVerifyPage() {
     const [error, setError] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const [isResending, setIsResending] = useState(false)
-    const [email, setEmail] = useState<string | null>(null)
-    const [name, setName] = useState<string | null>(null)
     const router = useRouter()
-    const searchParams = useSearchParams()
+    const [countdown, setCountdown] = useState(300); // 5 phút = 300 giây
 
-    // Lấy email và name từ sessionStorage chỉ khi component mount (client-side)
     useEffect(() => {
-        if (typeof window !== "undefined") {
-            const storedEmail = sessionStorage.getItem("registerEmail")
-            const storedName = sessionStorage.getItem("name")
-            setEmail(storedEmail)
-            setName(storedName)
-        }
-    }, [])
+        if (countdown <= 0) return;
+
+        const timer = setInterval(() => {
+            setCountdown((prev) => prev - 1);
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [countdown]);
+
+    const formatTime = (sec: number) => {
+        const m = Math.floor(sec / 60).toString().padStart(2, "0");
+        const s = (sec % 60).toString().padStart(2, "0");
+        return `${m}:${s}`;
+    };
+
+
+    // Lấy email từ sessionStorage
+    const email = sessionStorage.getItem("registerEmail")
+    const name = sessionStorage.getItem("name");
 
 
     const handleVerifyOTP = async (e: React.FormEvent) => {
@@ -38,7 +47,6 @@ export default function OTPVerifyPage() {
 
         if (!email) {
             setError("Không tìm thấy email. Vui lòng quay lại bước đăng ký.")
-            router.push("/register")
             return
         }
 
@@ -54,11 +62,11 @@ export default function OTPVerifyPage() {
                 {method: "POST"}
             )
 
-            const data = await response.json()
+
 
             if (response.ok) {
                 toast.success( "Xác minh thành công!")
-                router.push("/login")
+                router.push("/home")
             } else {
                 setError("OTP không hợp lệ")
                 toast.error( "OTP không hợp lệ")
@@ -75,20 +83,17 @@ export default function OTPVerifyPage() {
         setIsResending(true)
         setError("")
 
-        if (!email) {
-            setError("Không tìm thấy email. Vui lòng quay lại bước đăng ký.")
-            router.push("/register")
-            setIsResending(false)
-            return
-        }
-
         try {
+
             const response = await fetch(
-                `${BACKEND_BASE_URL}/auth/resend-otp?email=${encodeURIComponent(email)}&name=${name || ""}`,
+                `${BACKEND_BASE_URL}/auth/resend-otp?email=${encodeURIComponent(email || "")}&name=${name || ""}`,
                 {method: "POST"}
             )
 
-            const data = await response.json()
+            if (response.ok) {
+                toast.success("OTP mới đã được gửi lại");
+                setCountdown(300);   // ⬅️ reset lại 5 phút
+            }
 
             if (response.ok) {
                 toast.success("OTP mới đã được gửi lại ")
@@ -129,6 +134,11 @@ export default function OTPVerifyPage() {
                         Đã gửi mã OTP xác minh tài khoản về email của bạn,
                         hãy kiểm tra và nhập vào đây để tiếp tục.
                     </CardDescription>
+
+                    <p className="text-center text-sm text-gray-600 mt-1">
+                        OTP của bạn còn hiệu lực trong <span className="font-semibold text-red-600">{formatTime(countdown)}</span>
+                    </p>
+
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleVerifyOTP} className="space-y-6">
