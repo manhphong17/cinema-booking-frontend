@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Calendar, Clock, MapPin, Ticket, CreditCard, User, QrCode, Loader2, RefreshCw } from "lucide-react"
+import { Calendar, Clock, MapPin, Ticket, CreditCard, User, QrCode, Loader2, RefreshCw, ShoppingBag } from "lucide-react"
 import { OrderDetail, generateQRCode } from "@/src/api/orders"
 import { QRCodeSVG } from "qrcode.react"
 
@@ -24,13 +24,26 @@ export function OrderDetailModal({ open, onOpenChange, orderDetail, loading, onQ
 
   const handleGenerateQR = async () => {
     if (!orderDetail) return
-    
+
     try {
       setGeneratingQR(true)
       setQrError(null)
+
       const updatedOrder = await generateQRCode(orderDetail.orderId)
+
+      // 🧠 MERGE: giữ lại thông tin cũ (tên khách, phim, concessions, …)
+      const mergedOrder: OrderDetail = {
+        ...orderDetail,       // dữ liệu đang hiển thị
+        ...updatedOrder,      // ghi đè các field QR mới, status mới, v.v.
+        // đảm bảo nếu API không trả concessions thì vẫn giữ concessions cũ
+        concessions:
+            updatedOrder.concessions && updatedOrder.concessions.length > 0
+                ? updatedOrder.concessions
+                : orderDetail.concessions,
+      }
+
       if (onQRGenerated) {
-        onQRGenerated(updatedOrder)
+        onQRGenerated(mergedOrder)
       }
     } catch (error: any) {
       console.error("Failed to generate QR code:", error)
@@ -39,6 +52,7 @@ export function OrderDetailModal({ open, onOpenChange, orderDetail, loading, onQ
       setGeneratingQR(false)
     }
   }
+
 
   const getStatusBadge = (status: string) => {
     switch (status?.toUpperCase()) {
@@ -194,6 +208,61 @@ export function OrderDetailModal({ open, onOpenChange, orderDetail, loading, onQ
               </>
             )}
 
+            {/* Concessions Info */}
+            {(() => {
+              console.log("Checking concessions:", orderDetail.concessions);
+              console.log("Concessions length:", orderDetail.concessions?.length);
+              return orderDetail.concessions && orderDetail.concessions.length > 0;
+            })() && (
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <ShoppingBag className="h-5 w-5 text-blue-600" />
+                  Đồ ăn & Thức uống
+                </h3>
+                <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+                  {orderDetail.concessions?.map((concession, idx) => (
+                    <div key={idx} className="flex items-center gap-4 bg-white rounded-lg p-3 shadow-sm">
+                      <div className="flex-shrink-0">
+                        <img 
+                          src={concession.urlImage} 
+                          alt={concession.name}
+                          className="w-16 h-16 object-cover rounded-lg"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = '/placeholder-food.png';
+                          }}
+                        />
+                      </div>
+                      <div className="flex-grow">
+                        <h4 className="font-medium text-gray-900">{concession.name}</h4>
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-sm text-gray-600">
+                            Số lượng: <span className="font-medium">{concession.quantity}</span>
+                          </span>
+                          <span className="text-sm text-gray-600">
+                            Đơn giá: <span className="font-medium">{concession.unitPrice.toLocaleString('vi-VN')} đ</span>
+                          </span>
+                        </div>
+                        <div className="mt-1">
+                          <span className="text-sm font-semibold text-blue-600">
+                            Thành tiền: {(concession.quantity * concession.unitPrice).toLocaleString('vi-VN')} đ
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="border-t pt-3 mt-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-base font-medium text-gray-700">Tổng tiền đồ ăn & thức uống:</span>
+                      <span className="text-lg font-bold text-blue-600">
+                        {(orderDetail.concessions || []).reduce((total, item) => total + (item.quantity * item.unitPrice), 0).toLocaleString('vi-VN')} đ
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Payment Info */}
             <div className="space-y-3">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -219,152 +288,153 @@ export function OrderDetailModal({ open, onOpenChange, orderDetail, loading, onQ
                     </div>
                   </div>
                 )}
-                {orderDetail.bookingCode && (
-                  <div>
-                    <p className="text-sm text-gray-600">Mã đặt chỗ</p>
-                    <p className="text-base font-medium text-gray-900">{orderDetail.bookingCode}</p>
-                  </div>
-                )}
-                {orderDetail.reservationCode && (
-                  <div>
-                    <p className="text-sm text-gray-600">Mã đặt trước</p>
-                    <p className="text-base font-medium text-gray-900">{orderDetail.reservationCode}</p>
-                  </div>
-                )}
+
               </div>
             </div>
 
             {/* QR Code Section */}
+            {/* QR Code Section - phiên bản gọn, sạch, dễ nhìn hơn */}
             <div className="space-y-3">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <QrCode className="h-5 w-5 text-blue-600" />
-                Mã QR
+                Mã QR vé xem phim
               </h3>
-              <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg p-6">
+
+              <div className="rounded-2xl border border-gray-200 bg-white p-6 flex flex-col items-center gap-4 shadow-sm">
+                {/* Thông báo lỗi nếu có */}
                 {qrError && (
-                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-sm text-red-600">{qrError}</p>
-                  </div>
+                    <div className="w-full mb-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-sm text-red-600">{qrError}</p>
+                    </div>
                 )}
-                
+
+                {/* Trạng thái không hỗ trợ QR */}
                 {!orderDetail.qrAvailable ? (
-                  <div className="text-center py-6">
-                    <Badge variant="outline" className="text-base px-4 py-2 mb-3">
-                      Mã QR chưa khả dụng
-                    </Badge>
-                    <p className="text-sm text-gray-600 mt-3 mb-4">
-                      Đơn hàng này chưa hỗ trợ tạo mã QR
-                    </p>
-                  </div>
+                    <div className="flex flex-col items-center gap-3 py-4">
+                      <Badge variant="outline" className="text-base px-4 py-1 rounded-full">
+                        Mã QR chưa khả dụng
+                      </Badge>
+                      <p className="text-sm text-gray-600 text-center max-w-md">
+                        Đơn hàng này hiện chưa hỗ trợ sử dụng mã QR. Vui lòng dùng mã đặt chỗ hoặc thông tin vé để check-in.
+                      </p>
+                    </div>
                 ) : orderDetail.qrExpired ? (
-                  <div className="text-center py-6">
-                    <Badge variant="destructive" className="text-base px-4 py-2 mb-3">
-                      Mã QR đã hết hạn
-                    </Badge>
-                    {orderDetail.regenerateAllowed ? (
-                      <>
-                        <p className="text-sm text-gray-600 mt-3 mb-4">
-                          Bạn có thể tạo lại mã QR mới
+                    // Trạng thái QR hết hạn
+                    <div className="flex flex-col items-center gap-3 py-4">
+                      <Badge variant="destructive" className="text-base px-4 py-1 rounded-full">
+                        Mã QR đã hết hạn
+                      </Badge>
+                      {orderDetail.regenerateAllowed ? (
+                          <>
+                            <p className="text-sm text-gray-600 text-center max-w-md">
+                              Bạn có thể tạo lại mã QR mới để tiếp tục sử dụng vé này.
+                            </p>
+                            <Button
+                                onClick={handleGenerateQR}
+                                disabled={generatingQR}
+                                className="bg-blue-600 hover:bg-blue-700 rounded-full px-6"
+                            >
+                              {generatingQR ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Đang tạo mã QR...
+                                  </>
+                              ) : (
+                                  <>
+                                    <RefreshCw className="mr-2 h-4 w-4" />
+                                    Tạo lại mã QR
+                                  </>
+                              )}
+                            </Button>
+                          </>
+                      ) : (
+                          <p className="text-sm text-gray-600 text-center max-w-md">
+                            Không thể tạo lại mã QR cho đơn hàng này. Vui lòng liên hệ nhân viên để được hỗ trợ.
+                          </p>
+                      )}
+                    </div>
+                ) : orderDetail.qrJwt ? (
+                    // Trạng thái có QR dạng JWT
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-md">
+                        <QRCodeSVG
+                            value={orderDetail.qrJwt}
+                            size={220}          // nhỏ lại 1 chút cho đỡ “chi chít”
+                            level="H"
+                            includeMargin={true}
+                        />
+                      </div>
+                      <div className="text-center space-y-1">
+                        <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs px-3 py-1 rounded-full">
+                          Mã QR hợp lệ
+                        </Badge>
+                        <p className="text-sm text-gray-600">
+                          Hãy đưa mã này cho nhân viên soát vé hoặc đặt trước máy quét để check-in.
                         </p>
-                        <Button 
+                        {orderDetail.graceMinutes && (
+                            <p className="text-xs text-gray-500">
+                              Thời gian gia hạn: {orderDetail.graceMinutes} phút
+                            </p>
+                        )}
+                        {orderDetail.qrExpiryAt && (
+                            <p className="text-xs text-gray-400">
+                              Hết hạn: {new Date(orderDetail.qrExpiryAt).toLocaleString("vi-VN")}
+                            </p>
+                        )}
+                      </div>
+                    </div>
+                ) : orderDetail.qrImageUrl ? (
+                    // Trạng thái có QR dạng ảnh
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-md">
+                        <img
+                            src={orderDetail.qrImageUrl}
+                            alt="QR Code"
+                            className="w-56 h-56 object-contain"
+                        />
+                      </div>
+                      <div className="text-center space-y-1">
+                        <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs px-3 py-1 rounded-full">
+                          Mã QR hợp lệ
+                        </Badge>
+                        {orderDetail.graceMinutes && (
+                            <p className="text-xs text-gray-500">
+                              Thời gian gia hạn: {orderDetail.graceMinutes} phút
+                            </p>
+                        )}
+                      </div>
+                    </div>
+                ) : (
+                    // Trạng thái chưa tạo QR
+                    <div className="flex flex-col items-center gap-3 py-4">
+                      <Badge variant="outline" className="text-base px-4 py-1 rounded-full">
+                        Mã QR chưa được tạo
+                      </Badge>
+                      <p className="text-sm text-gray-600 text-center max-w-md">
+                        Nhấn nút bên dưới để tạo mã QR cho đơn hàng này. Mã này sẽ được dùng để check-in nhanh tại rạp.
+                      </p>
+                      <Button
                           onClick={handleGenerateQR}
                           disabled={generatingQR}
-                          className="bg-blue-600 hover:bg-blue-700"
-                        >
-                          {generatingQR ? (
+                          className="bg-blue-600 hover:bg-blue-700 rounded-full px-6"
+                      >
+                        {generatingQR ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                               Đang tạo mã QR...
                             </>
-                          ) : (
+                        ) : (
                             <>
-                              <RefreshCw className="mr-2 h-4 w-4" />
-                              Tạo lại mã QR
+                              <QrCode className="mr-2 h-4 w-4" />
+                              Tạo mã QR
                             </>
-                          )}
-                        </Button>
-                      </>
-                    ) : (
-                      <p className="text-sm text-gray-600 mt-3">
-                        Không thể tạo lại mã QR cho đơn hàng này
-                      </p>
-                    )}
-                  </div>
-                ) : orderDetail.qrJwt ? (
-                  <div className="flex flex-col items-center space-y-4">
-                    <div className="bg-white p-6 rounded-lg shadow-md">
-                      <QRCodeSVG 
-                        value={orderDetail.qrJwt}
-                        size={256}
-                        level="H"
-                        includeMargin={true}
-                      />
+                        )}
+                      </Button>
                     </div>
-                    <div className="text-center space-y-2">
-                      <Badge className="bg-green-100 text-green-800 text-sm px-3 py-1">
-                        Mã QR hợp lệ
-                      </Badge>
-                      {orderDetail.graceMinutes && (
-                        <p className="text-sm text-gray-600">
-                          Thời gian gia hạn: {orderDetail.graceMinutes} phút
-                        </p>
-                      )}
-                      {orderDetail.qrExpiryAt && (
-                        <p className="text-xs text-gray-500">
-                          Hết hạn: {new Date(orderDetail.qrExpiryAt).toLocaleString('vi-VN')}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ) : orderDetail.qrImageUrl ? (
-                  <div className="flex flex-col items-center space-y-4">
-                    <div className="bg-white p-4 rounded-lg shadow-md">
-                      <img 
-                        src={orderDetail.qrImageUrl} 
-                        alt="QR Code" 
-                        className="w-64 h-64 object-contain"
-                      />
-                    </div>
-                    <div className="text-center">
-                      <Badge className="bg-green-100 text-green-800 text-sm px-3 py-1">
-                        Mã QR hợp lệ
-                      </Badge>
-                      {orderDetail.graceMinutes && (
-                        <p className="text-sm text-gray-600 mt-2">
-                          Thời gian gia hạn: {orderDetail.graceMinutes} phút
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-6">
-                    <Badge variant="outline" className="text-base px-4 py-2 mb-3">
-                      Mã QR chưa được tạo
-                    </Badge>
-                    <p className="text-sm text-gray-600 mt-3 mb-4">
-                      Nhấn nút bên dưới để tạo mã QR cho đơn hàng này
-                    </p>
-                    <Button 
-                      onClick={handleGenerateQR}
-                      disabled={generatingQR}
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      {generatingQR ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Đang tạo mã QR...
-                        </>
-                      ) : (
-                        <>
-                          <QrCode className="mr-2 h-4 w-4" />
-                          Tạo mã QR
-                        </>
-                      )}
-                    </Button>
-                  </div>
                 )}
               </div>
             </div>
+
           </div>
         ) : (
           <div className="py-10 text-center text-gray-600">Không tìm thấy thông tin đơn hàng</div>

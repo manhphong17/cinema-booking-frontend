@@ -1,85 +1,49 @@
 import axios from 'axios'
-import { BACKEND_BASE_URL } from '@/src/utils/config'
+
+const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL
 
 // Tạo axios instance
 export const apiClient = axios.create({
-    baseURL: BACKEND_BASE_URL,
-    timeout: 30000,
+    baseURL: BASE_URL,
+    timeout: 10000,
     withCredentials: true, // Enable sending cookies (refresh token) with requests
 })
 
-// Helper function to get user role from token or localStorage
-const getUserRole = (): string | null => {
-    if (typeof window === 'undefined') return null
-
+// Token management utilities
+const isTokenExpired = (token: string | null): boolean => {
+    if (!token) return true
     try {
-        // Try to get role from token first
-        const token = localStorage.getItem("accessToken")
-        if (token) {
-            const payload = JSON.parse(atob(token.split('.')[1]))
-            const roles = payload.roles || payload.authorities
-            if (roles && Array.isArray(roles) && roles.length > 0) {
-                return roles[0] // Return first role
-            }
-        }
-
-        // Fallback to localStorage
-        const roleName = localStorage.getItem("roleName")
-        if (roleName) {
-            try {
-                const roles = JSON.parse(roleName)
-                if (Array.isArray(roles) && roles.length > 0) {
-                    return roles[0]
-                }
-            } catch {
-                return roleName
-            }
-        }
-    } catch (error) {
-        console.error('Error getting user role:', error)
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        const currentTime = Date.now() / 1000
+        return payload.exp < currentTime
+    } catch {
+        return true
     }
-
-    return null
 }
 
 // Helper function to determine login page based on user role
 const getLoginPage = (): string => {
     if (typeof window === 'undefined') return "/login"
-
+    
     const currentPath = window.location.pathname
-    const userRole = getUserRole()
-
-    // Determine login page based on role
-    if (userRole) {
-        const roleLower = userRole.toLowerCase()
-        if (roleLower.includes('admin') || 
-            roleLower.includes('operator') || 
-            roleLower.includes('business')) {
-            return "/login/admin"
-        }
-    }
-
+    
     // Nếu đang ở admin/operator pages thì redirect đến admin login
-    if (currentPath.startsWith('/admin') ||
-        currentPath.startsWith('/operator-manager') ||
+    if (currentPath.startsWith('/admin') || 
+        currentPath.startsWith('/operator-manager') || 
         currentPath.startsWith('/business-manager')) {
         return "/login/admin"
     }
-
+    
     // Mặc định redirect đến customer login
     return "/login"
 }
 
 const refreshAccessToken = async (): Promise<string | null> => {
     try {
-        // Use skipAuth flag to prevent adding Authorization header
         const response = await apiClient.post(
             '/auth/refresh-token',
             {},
-            { 
-                withCredentials: true,
-                skipAuth: true // Skip adding Authorization header
-            }
+            {  withCredentials: true }
         )
 
         if (response.data?.status === 200 && response.data?.data?.accessToken) {
@@ -89,8 +53,7 @@ const refreshAccessToken = async (): Promise<string | null> => {
         }
 
         return null
-    } catch (error) {
-        console.error('Refresh token error:', error)
+    } catch {
         return null
     }
 }
@@ -99,18 +62,32 @@ const refreshAccessToken = async (): Promise<string | null> => {
 // Request interceptor - tự động thêm token
 apiClient.interceptors.request.use(
     (config: any) => {
-        // Skip auth if flag is set or for auth endpoints
-        if (config.skipAuth ||
-            config.url?.includes('/auth/') ||
-            config.url?.includes('/login') ||
-            config.url?.includes('/register')) {
+        // Skip auth if flag is set (for refresh token request)
+        if (config.skipAuth) {
             return config
         }
 
         const token = localStorage.getItem("accessToken")
+
+        // Skip auth for login/register/logout endpoints (except refresh-token)
+        if ((config.url?.includes('/auth/') && !config.url?.includes('/auth/refresh-token')) || 
+            config.url?.includes('/login') || 
+            config.url?.includes('/register')) {
+            return config
+        }
+        
+        // Skip auth for logout endpoint
+        if (config.url?.includes('/auth/log-out')) {
+            return config
+        }
+
+        // Gửi token nếu có, không kiểm tra expired (để backend tự xử lý)
         if (token) {
             config.headers = config.headers || {}
             config.headers.Authorization = `Bearer ${token}`
+            console.log('🔐 Token added to request:', config.url)
+        } else {
+            console.warn('⚠️ No token found for request:', config.url)
         }
 
         return config
@@ -128,21 +105,15 @@ apiClient.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config
 
-        // Skip redirect for refresh-token endpoint to prevent infinite loop
-        if (originalRequest.url?.includes('/auth/refresh-token')) {
-            return Promise.reject(error)
-        }
-
-        // Skip redirect for auth endpoints (login, register, logout)
-        if (originalRequest.url?.includes('/auth/') ||
-            originalRequest.url?.includes('/login') ||
+        // Skip redirect for auth endpoints (except refresh-token)
+        if ((originalRequest.url?.includes('/auth/') && !originalRequest.url?.includes('/auth/refresh-token')) || 
+            originalRequest.url?.includes('/login') || 
             originalRequest.url?.includes('/register')) {
             return Promise.reject(error)
         }
 
-        // Skip redirect for public endpoints (theater details should be publicly accessible)
-        if ((originalRequest.url?.includes('/theater_details') || originalRequest.url?.includes('/api/theater_details')) && 
-            originalRequest.method?.toLowerCase() === 'get') {
+        // Skip refresh token if logout endpoint was called
+        if (originalRequest.url?.includes('/auth/log-out')) {
             return Promise.reject(error)
         }
 
@@ -158,7 +129,7 @@ apiClient.interceptors.response.use(
 
             try {
                 const newToken = await refreshAccessToken()
-
+                
                 if (newToken) {
                     // Thử lại request với token mới
                     originalRequest.headers.Authorization = `Bearer ${newToken}`
@@ -166,12 +137,10 @@ apiClient.interceptors.response.use(
                 } else {
                     // Refresh token trả về null, redirect đến login
                     redirectToLogin()
-                    return Promise.reject(error)
                 }
             } catch (refreshError) {
                 // Refresh failed, redirect to appropriate login page
                 redirectToLogin()
-                return Promise.reject(error)
             }
         } else if (error.response?.status === 401) {
             // 401 error but already retried or not retryable
@@ -182,19 +151,11 @@ apiClient.interceptors.response.use(
     }
 )
 
-// Helper function to redirect to login with notification
+// Helper function to redirect to login
 const redirectToLogin = () => {
     if (typeof window !== 'undefined') {
-        const loginPage = getLoginPage()
-        
-        // Set notification message in sessionStorage
-        sessionStorage.setItem("tokenExpired", "true")
-        sessionStorage.setItem("expiredMessage", "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.")
-        
-        // Clear token and related data
         localStorage.removeItem("accessToken")
-        localStorage.removeItem("refreshToken")
-        
+        const loginPage = getLoginPage()
         // Use replace instead of href to prevent back button issues
         window.location.replace(loginPage)
     }
@@ -229,7 +190,7 @@ export const logout = async () => {
             localStorage.removeItem("userAddress")
             localStorage.removeItem("userPhone")
             localStorage.removeItem("userId")
-
+            
             const loginPage = getLoginPage()
             window.location.replace(loginPage)
         }
