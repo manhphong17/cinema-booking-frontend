@@ -37,6 +37,7 @@ const ERROR_TEXT: Record<number, string> = {
     1042: "Tên phòng này đã tồn tại",
     1043: "Phòng đang được sử dụng, không thể xóa",
     1044: "Kích thước phòng vượt quá giới hạn cho phép (tối đa 12 hàng/cột)",
+    1045: "Không thể sửa đổi hoặc hủy kích hoạt loại phòng vì nó liên quan đến thời gian chiếu đang diễn ra",
     2003: "Không tìm thấy phòng",
     2033: "Phòng đang ở trạng thái không hoạt động",
 

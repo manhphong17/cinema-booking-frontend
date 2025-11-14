@@ -307,6 +307,12 @@ export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: Se
     }
 
     const insertRow = (afterRow: number) => {
+
+        if(seatMatrix.length >= 12) {
+            toast({ title: "Không thể thêm", description: `Đã đạt giới hạn tối đa 12 hàng.`, variant: "destructive" });
+            return;
+        }
+
         const draft = seatMatrix.map(row => [...row])
         const columns = seatMatrix[0]?.length || room.columns
         const sid = selectedSeatTypeId === null ? fallbackSeatTypeId : selectedSeatTypeId
@@ -329,6 +335,12 @@ export function SeatSetup({ room, initialMatrix, seatTypes, onBack, onSave }: Se
     }
 
     const insertColumn = (afterCol: number) => {
+
+        if((seatMatrix[0]?.length??0)>=12) {
+            toast({ title: "Không thể thêm", description: `Đã đạt giới hạn tối đa 12 cột.`, variant: "destructive" });
+            return;
+        }
+
         const draft = seatMatrix.map(row => [...row])
         const sid = selectedSeatTypeId === null ? fallbackSeatTypeId : selectedSeatTypeId
         draft.forEach(row => {
