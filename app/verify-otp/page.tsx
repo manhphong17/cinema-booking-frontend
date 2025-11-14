@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import {useState} from "react"
+import {useState, useEffect} from "react"
 import {useRouter, useSearchParams} from "next/navigation"
 import {Button} from "@/components/ui/button"
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
@@ -16,12 +16,20 @@ export default function OTPVerifyPage() {
     const [error, setError] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const [isResending, setIsResending] = useState(false)
+    const [email, setEmail] = useState<string | null>(null)
+    const [name, setName] = useState<string | null>(null)
     const router = useRouter()
     const searchParams = useSearchParams()
 
-    // Lấy email từ sessionStorage
-    const email = sessionStorage.getItem("registerEmail")
-    const name = sessionStorage.getItem("name");
+    // Lấy email và name từ sessionStorage chỉ khi component mount (client-side)
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const storedEmail = sessionStorage.getItem("registerEmail")
+            const storedName = sessionStorage.getItem("name")
+            setEmail(storedEmail)
+            setName(storedName)
+        }
+    }, [])
 
 
     const handleVerifyOTP = async (e: React.FormEvent) => {
@@ -30,6 +38,7 @@ export default function OTPVerifyPage() {
 
         if (!email) {
             setError("Không tìm thấy email. Vui lòng quay lại bước đăng ký.")
+            router.push("/register")
             return
         }
 
@@ -66,10 +75,16 @@ export default function OTPVerifyPage() {
         setIsResending(true)
         setError("")
 
-        try {
+        if (!email) {
+            setError("Không tìm thấy email. Vui lòng quay lại bước đăng ký.")
+            router.push("/register")
+            setIsResending(false)
+            return
+        }
 
+        try {
             const response = await fetch(
-                `${BACKEND_BASE_URL}/auth/resend-otp?email=${encodeURIComponent(email || "")}&name=${name || ""}`,
+                `${BACKEND_BASE_URL}/auth/resend-otp?email=${encodeURIComponent(email)}&name=${name || ""}`,
                 {method: "POST"}
             )
 
