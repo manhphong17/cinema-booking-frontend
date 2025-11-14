@@ -147,7 +147,7 @@ export function PaymentTab({ showtimeId, onPaymentSuccess }: PaymentTabProps) {
             }
 
             // Gọi API tương ứng
-            if (selectedPaymentName.toLowerCase().includes("tiền mặt")) {
+            if (selectedPaymentCode.toUpperCase() === "CASH") {
                 const res = await apiClient.post("/payment/checkout-cash", payload)
                 if (res.status === 200) {
                     toast.success("Thanh toán tiền mặt thành công!")
