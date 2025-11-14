@@ -13,6 +13,9 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts"
 import {
   Users,
@@ -25,6 +28,10 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
+  TrendingUp,
+  Sparkles,
+  ArrowUpRight,
+  ShoppingCart,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -38,11 +45,13 @@ import {
 import {
   fetchAdminAccounts,
   fetchAdminDashboard,
+  fetchStatistics,
   type AccountListResponse,
   type DashboardResponse,
+  type StatisticsResponse,
 } from "@/app/api/admin/dashboard"
 
-type MetricKey = "totalUsers" | "newUsers" | "totalLogins" | "activeSessions"
+type MetricKey = "totalUsers" | "totalOrders"
 
 const DEFAULT_DASHBOARD: DashboardResponse = {
   metrics: {
@@ -57,6 +66,54 @@ const DEFAULT_DASHBOARD: DashboardResponse = {
 
 const PAGE_SIZE = 10
 
+const PIE_COLORS = [
+  "#3b82f6", // blue
+  "#10b981", // green
+  "#f59e0b", // amber
+  "#ef4444", // red
+  "#8b5cf6", // purple
+  "#ec4899", // pink
+]
+
+// Role color mapping
+const getRoleColor = (role: string): { bg: string; text: string; border: string } => {
+  const roleUpper = role.toUpperCase()
+  if (roleUpper.includes("ADMIN") || roleUpper.includes("QUẢN TRỊ")) {
+    return {
+      bg: "bg-red-100",
+      text: "text-red-700",
+      border: "border-red-300",
+    }
+  }
+  if (roleUpper.includes("OPERATOR") || roleUpper.includes("VẬN HÀNH")) {
+    return {
+      bg: "bg-blue-100",
+      text: "text-blue-700",
+      border: "border-blue-300",
+    }
+  }
+  if (roleUpper.includes("BUSINESS") || roleUpper.includes("KINH DOANH")) {
+    return {
+      bg: "bg-purple-100",
+      text: "text-purple-700",
+      border: "border-purple-300",
+    }
+  }
+  if (roleUpper.includes("CUSTOMER") || roleUpper.includes("KHÁCH HÀNG")) {
+    return {
+      bg: "bg-emerald-100",
+      text: "text-emerald-700",
+      border: "border-emerald-300",
+    }
+  }
+  // Default color
+  return {
+    bg: "bg-gray-100",
+    text: "text-gray-700",
+    border: "border-gray-300",
+  }
+}
+
 export function Dashboard() {
   const [filters, setFilters] = useState({ startDate: "", endDate: "" })
   const [appliedFilters, setAppliedFilters] = useState({ startDate: "", endDate: "" })
@@ -70,6 +127,13 @@ export function Dashboard() {
   const [accountsLoading, setAccountsLoading] = useState(false)
   const [accountsError, setAccountsError] = useState<string | null>(null)
   const [accountsPage, setAccountsPage] = useState(0)
+  
+  const [ordersData, setOrdersData] = useState<StatisticsResponse | null>(null)
+  const [ordersLoading, setOrdersLoading] = useState(false)
+  const [ordersError, setOrdersError] = useState<string | null>(null)
+  const [ordersPage, setOrdersPage] = useState(0)
+  const [totalOrders, setTotalOrders] = useState(0)
+  const [totalAccounts, setTotalAccounts] = useState(0)
 
   const fetchDashboardData = useCallback(async (start?: string, end?: string) => {
     try {
@@ -116,6 +180,62 @@ export function Dashboard() {
     fetchDashboardData(appliedFilters.startDate, appliedFilters.endDate)
   }, [appliedFilters.startDate, appliedFilters.endDate, fetchDashboardData])
 
+  // Load accounts data initially for pie chart
+  useEffect(() => {
+    fetchAccountsData({
+      start: appliedFilters.startDate,
+      end: appliedFilters.endDate,
+      page: 0,
+    })
+  }, [appliedFilters.startDate, appliedFilters.endDate, fetchAccountsData])
+
+  // Load orders statistics initially
+  const fetchOrdersData = useCallback(
+    async ({ start, end, page }: { start?: string; end?: string; page?: number }) => {
+      try {
+        setOrdersLoading(true)
+        setOrdersError(null)
+        console.log("📥 [Dashboard] Fetching orders with params:", { start, end, page })
+        
+        const data = await fetchStatistics({
+          startDate: start || undefined,
+          endDate: end || undefined,
+          page: page ?? 0,
+          size: PAGE_SIZE,
+        })
+        
+        console.log("📥 [Dashboard] Received orders data:", data)
+        console.log("📥 [Dashboard] Orders array:", data.orders)
+        console.log("📥 [Dashboard] Orders count:", data.orders?.length)
+        
+        if (data.orders && data.orders.length > 0) {
+          console.log("📥 [Dashboard] First order sample:", data.orders[0])
+        }
+        
+        setOrdersData(data)
+        setTotalOrders(data.totalOrders)
+        setTotalAccounts(data.totalAccounts)
+      } catch (err: any) {
+        console.error("❌ [Dashboard] Failed to fetch orders list:", err)
+        console.error("❌ [Dashboard] Error response:", err?.response)
+        console.error("❌ [Dashboard] Error data:", err?.response?.data)
+        const message = err?.response?.data?.message ?? err?.message ?? "Không thể tải danh sách đơn hàng"
+        setOrdersError(message)
+      } finally {
+        setOrdersLoading(false)
+      }
+    },
+    []
+  )
+
+  useEffect(() => {
+    fetchOrdersData({
+      start: appliedFilters.startDate,
+      end: appliedFilters.endDate,
+      page: 0,
+    })
+  }, [appliedFilters.startDate, appliedFilters.endDate, fetchOrdersData])
+
   const handleFilterSubmit = (event: React.FormEvent) => {
     event.preventDefault()
     setAppliedFilters(filters)
@@ -129,12 +249,21 @@ export function Dashboard() {
   const handleOpenModal = (metric: MetricKey) => {
     setSelectedMetric(metric)
     setModalOpen(true)
-    setAccountsPage(0)
-    fetchAccountsData({
-      start: appliedFilters.startDate,
-      end: appliedFilters.endDate,
-      page: 0,
-    })
+    if (metric === "totalOrders") {
+      setOrdersPage(0)
+      fetchOrdersData({
+        start: appliedFilters.startDate,
+        end: appliedFilters.endDate,
+        page: 0,
+      })
+    } else {
+      setAccountsPage(0)
+      fetchAccountsData({
+        start: appliedFilters.startDate,
+        end: appliedFilters.endDate,
+        page: 0,
+      })
+    }
   }
 
   const handleChangeAccountsPage = (nextPage: number) => {
@@ -147,57 +276,170 @@ export function Dashboard() {
     })
   }
 
+  const handleChangeOrdersPage = (nextPage: number) => {
+    if (nextPage < 0 || (ordersData && nextPage >= ordersData.totalPages)) return
+    setOrdersPage(nextPage)
+    fetchOrdersData({
+      start: appliedFilters.startDate,
+      end: appliedFilters.endDate,
+      page: nextPage,
+    })
+  }
+
   const statCards = useMemo(
     () => [
       {
         key: "totalUsers" as MetricKey,
         title: "Tổng người dùng",
         icon: Users,
-        color: "text-blue-600",
-        value: dashboard.metrics.totalUsers,
+        gradient: "from-blue-500 to-blue-600",
+        bgGradient: "from-blue-50 to-blue-100/50",
+        iconBg: "bg-blue-100",
+        iconColor: "text-blue-600",
+        value: totalAccounts || dashboard.metrics.totalUsers,
         description: "Tổng số tài khoản trong hệ thống",
       },
       {
-        key: "newUsers" as MetricKey,
-        title: "Người dùng mới",
-        icon: UserPlus,
-        color: "text-green-600",
-        value: dashboard.metrics.newUsers,
-        description: "Số tài khoản mới trong khoảng thời gian",
-      },
-      {
-        key: "activeSessions" as MetricKey,
-        title: "Phiên hoạt động",
-        icon: Activity,
-        color: "text-purple-600",
-        value: dashboard.metrics.activeSessions,
-        description: "Người dùng đang hoạt động",
-      },
-      {
-        key: "totalLogins" as MetricKey,
-        title: "Lượt đăng nhập",
-        icon: LogIn,
-        color: "text-orange-600",
-        value: dashboard.metrics.totalLogins,
-        description: "Tổng lượt đăng nhập",
+        key: "totalOrders" as MetricKey,
+        title: "Tổng đơn hàng",
+        icon: ShoppingCart,
+        gradient: "from-emerald-500 to-emerald-600",
+        bgGradient: "from-emerald-50 to-emerald-100/50",
+        iconBg: "bg-emerald-100",
+        iconColor: "text-emerald-600",
+        value: totalOrders,
+        description: "Tổng số đơn hàng trong hệ thống",
       },
     ],
-    [dashboard.metrics]
+    [dashboard.metrics, totalOrders, totalAccounts]
   )
 
+  // Prepare pie chart data for account creation date distribution
+  const creationDateDistribution = useMemo(() => {
+    if (!accountsData?.accounts || accountsData.accounts.length === 0) {
+      return []
+    }
+
+    const dateCounts: Record<string, number> = {}
+    
+    accountsData.accounts.forEach((account) => {
+      if (!account.createdAt) {
+        const unknown = "Không xác định"
+        dateCounts[unknown] = (dateCounts[unknown] || 0) + 1
+        return
+      }
+
+      try {
+        // Parse date string (could be ISO format, DD/MM/YYYY, etc.)
+        const dateStr = account.createdAt
+        let date: Date
+
+        // Try to parse different date formats
+        if (dateStr.includes('T')) {
+          // ISO format
+          date = new Date(dateStr)
+        } else if (dateStr.includes('/')) {
+          // DD/MM/YYYY or MM/DD/YYYY format
+          const parts = dateStr.split('/')
+          if (parts.length === 3) {
+            // Assume DD/MM/YYYY
+            date = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]))
+          } else {
+            date = new Date(dateStr)
+          }
+        } else {
+          date = new Date(dateStr)
+        }
+
+        if (isNaN(date.getTime())) {
+          const unknown = "Không xác định"
+          dateCounts[unknown] = (dateCounts[unknown] || 0) + 1
+          return
+        }
+
+        // Group by month/year (e.g., "Tháng 1/2024")
+        const month = date.getMonth() + 1
+        const year = date.getFullYear()
+        const monthYear = `Tháng ${month}/${year}`
+        
+        dateCounts[monthYear] = (dateCounts[monthYear] || 0) + 1
+      } catch (error) {
+        const unknown = "Không xác định"
+        dateCounts[unknown] = (dateCounts[unknown] || 0) + 1
+      }
+    })
+
+    // Sort by date (newest first) and take top 6
+    const entries = Object.entries(dateCounts)
+    entries.sort((a, b) => {
+      // Sort "Không xác định" to the end
+      if (a[0] === "Không xác định") return 1
+      if (b[0] === "Không xác định") return -1
+      
+      // Extract month and year for sorting
+      const aMatch = a[0].match(/Tháng (\d+)\/(\d+)/)
+      const bMatch = b[0].match(/Tháng (\d+)\/(\d+)/)
+      
+      if (aMatch && bMatch) {
+        const aYear = parseInt(aMatch[2])
+        const aMonth = parseInt(aMatch[1])
+        const bYear = parseInt(bMatch[2])
+        const bMonth = parseInt(bMatch[1])
+        
+        if (aYear !== bYear) return bYear - aYear
+        return bMonth - aMonth
+      }
+      return 0
+    })
+
+    // Take top 6 months, group the rest as "Khác"
+    const topEntries = entries.slice(0, 6)
+    const otherCount = entries.slice(6).reduce((sum, [, count]) => sum + count, 0)
+    
+    const result = topEntries.map(([name, value], index) => ({
+      name: name || "Không xác định",
+      value,
+      fill: PIE_COLORS[index % PIE_COLORS.length],
+    }))
+
+    if (otherCount > 0) {
+      result.push({
+        name: "Khác",
+        value: otherCount,
+        fill: PIE_COLORS[result.length % PIE_COLORS.length],
+      })
+    }
+
+    return result
+  }, [accountsData])
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Bảng điều khiển</h1>
-          <p className="text-gray-600 mt-2">
-            Theo dõi tổng quan hoạt động hệ thống theo thời gian thực
-          </p>
+    <div className="space-y-8 p-1">
+      {/* Header Section */}
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="space-y-2">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/25">
+              <Sparkles className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold tracking-tight text-gray-900">Bảng điều khiển</h1>
+              <p className="text-gray-500 mt-1">
+                Theo dõi tổng quan hoạt động hệ thống theo thời gian thực
+              </p>
+              <div className="mt-3 flex items-center gap-2">
+                <span className="text-sm text-gray-600">Tổng người dùng:</span>
+                <span className="text-lg font-bold text-blue-600">
+                  {(totalAccounts || dashboard.metrics.totalUsers).toLocaleString("vi-VN")}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <form onSubmit={handleFilterSubmit} className="grid grid-cols-1 sm:flex sm:items-end gap-3">
+        <form onSubmit={handleFilterSubmit} className="flex flex-wrap items-end gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
           <div className="flex flex-col gap-2">
-            <label htmlFor="startDate" className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+            <label htmlFor="startDate" className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
               Từ ngày
             </label>
             <div className="flex items-center gap-2">
@@ -209,14 +451,14 @@ export function Dashboard() {
                 onChange={(event) =>
                   setFilters((prev) => ({ ...prev, startDate: event.target.value }))
                 }
-                className="w-full min-w-[200px]"
+                className="w-full min-w-[180px] border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                 max={filters.endDate || undefined}
               />
             </div>
           </div>
 
           <div className="flex flex-col gap-2">
-            <label htmlFor="endDate" className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+            <label htmlFor="endDate" className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
               Đến ngày
             </label>
             <div className="flex items-center gap-2">
@@ -228,18 +470,26 @@ export function Dashboard() {
                 onChange={(event) =>
                   setFilters((prev) => ({ ...prev, endDate: event.target.value }))
                 }
-                className="w-full min-w-[200px]"
+                className="w-full min-w-[180px] border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                 min={filters.startDate || undefined}
               />
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <Button type="submit" className="flex items-center gap-2">
+            <Button 
+              type="submit" 
+              className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-md"
+            >
               <Filter className="h-4 w-4" />
               Áp dụng
             </Button>
-            <Button type="button" variant="outline" onClick={handleResetFilters}>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={handleResetFilters}
+              className="border-gray-300 hover:bg-gray-50"
+            >
               Đặt lại
             </Button>
           </div>
@@ -247,255 +497,663 @@ export function Dashboard() {
       </div>
 
       {error && (
-        <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
-          <AlertCircle className="h-5 w-5" />
-          <span>{error}</span>
+        <div className="flex items-center gap-3 rounded-xl border border-red-200 bg-gradient-to-r from-red-50 to-red-100/50 p-4 text-red-700 shadow-sm">
+          <AlertCircle className="h-5 w-5 flex-shrink-0" />
+          <span className="font-medium">{error}</span>
         </div>
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {statCards.map((card) => (
           <Card
             key={card.key}
-            className="bg-white border-blue-100 shadow-md hover:shadow-lg transition-shadow cursor-pointer"
+            className={`group relative overflow-hidden border-0 bg-gradient-to-br ${card.bgGradient} shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer transform hover:-translate-y-1`}
             onClick={() => handleOpenModal(card.key)}
           >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-900">{card.title}</CardTitle>
-              <card.icon className={`h-4 w-4 ${card.color}`} />
+            <div className="absolute inset-0 bg-gradient-to-br from-white/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 relative z-10">
+              <CardTitle className="text-sm font-semibold text-gray-700">{card.title}</CardTitle>
+              <div className={`${card.iconBg} rounded-lg p-2 group-hover:scale-110 transition-transform duration-300`}>
+                <card.icon className={`h-5 w-5 ${card.iconColor}`} />
+              </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="relative z-10">
               {loading ? (
                 <div className="flex items-center gap-2 text-gray-500">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Đang tải...</span>
+                  <span className="text-sm">Đang tải...</span>
                 </div>
               ) : (
                 <>
-                  <div className="text-2xl font-bold text-gray-900">
-                    {card.value.toLocaleString("vi-VN")}
+                  <div className="flex items-baseline gap-2 mb-1">
+                    <div className={`text-3xl font-bold bg-gradient-to-r ${card.gradient} bg-clip-text text-transparent`}>
+                      {card.value.toLocaleString("vi-VN")}
+                    </div>
+                    <ArrowUpRight className={`h-4 w-4 ${card.iconColor} opacity-70 group-hover:opacity-100 transition-opacity`} />
                   </div>
-                  <p className="text-xs text-gray-600">{card.description}</p>
+                  <p className="text-xs text-gray-600 font-medium">{card.description}</p>
                 </>
               )}
             </CardContent>
+            <div className={`absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r ${card.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
           </Card>
         ))}
       </div>
 
-      {/* User Activity Chart */}
-      <Card className="bg-white border-blue-100 shadow-md">
-        <CardHeader>
-          <CardTitle className="text-gray-900">Hoạt động người dùng</CardTitle>
-          <CardDescription>
-            Thống kê đăng ký mới, lượt đăng nhập và phiên hoạt động trong 7 ngày gần nhất
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex items-center justify-center h-[280px] text-gray-500">
-              <Loader2 className="h-6 w-6 animate-spin mr-2" /> Đang tải dữ liệu biểu đồ...
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Order Status Distribution Chart */}
+        <Card className="lg:col-span-2 bg-white border-gray-200 shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <CardHeader className="border-b border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600">
+                <ShoppingCart className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-xl text-gray-900">Thống kê trạng thái đơn hàng</CardTitle>
+                <CardDescription className="mt-1">
+                  Phân bổ đơn hàng theo trạng thái
+                </CardDescription>
+              </div>
             </div>
-          ) : dashboard.activity.length === 0 ? (
-            <div className="text-center text-sm text-gray-500 py-12">
-              Không có dữ liệu biểu đồ trong khoảng thời gian đã chọn.
+          </CardHeader>
+          <CardContent className="pt-6">
+            {ordersLoading || !ordersData ? (
+              <div className="flex items-center justify-center h-[320px] text-gray-500">
+                <Loader2 className="h-6 w-6 animate-spin mr-2" /> Đang tải dữ liệu biểu đồ...
+              </div>
+            ) : !ordersData.orders || ordersData.orders.length === 0 ? (
+              <div className="text-center text-sm text-gray-500 py-16">
+                <ShoppingCart className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                <p>Không có dữ liệu đơn hàng trong khoảng thời gian đã chọn.</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={320}>
+                <BarChart data={(() => {
+                  // Calculate status distribution
+                  const statusCounts: Record<string, number> = {}
+                  ordersData.orders.forEach((order) => {
+                    const status = order.status || "Không xác định"
+                    statusCounts[status] = (statusCounts[status] || 0) + 1
+                  })
+                  
+                  // Convert to array for chart
+                  const chartData = Object.entries(statusCounts).map(([name, value]) => ({
+                    name: name === "PENDING" ? "Đang chờ" 
+                          : name === "COMPLETED" ? "Hoàn thành"
+                          : name === "CANCELED" ? "Đã hủy"
+                          : name === "PROCESSING" ? "Đang xử lý"
+                          : name,
+                    value,
+                    originalName: name,
+                  }))
+                  
+                  return chartData.sort((a, b) => b.value - a.value)
+                })()} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" opacity={0.5} />
+                  <XAxis 
+                    dataKey="name" 
+                    stroke="#64748b" 
+                    tick={{ fontSize: 12, fill: "#64748b" }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis 
+                    stroke="#64748b" 
+                    tick={{ fontSize: 12, fill: "#64748b" }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#ffffff",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "8px",
+                      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                    }}
+                    cursor={{ fill: "rgba(16, 185, 129, 0.1)" }}
+                    formatter={(value: number) => [`${value} đơn hàng`, "Số lượng"]}
+                  />
+                  <Legend 
+                    wrapperStyle={{ paddingTop: "20px" }}
+                    iconType="circle"
+                  />
+                  <Bar
+                    dataKey="value"
+                    name="Số lượng đơn hàng"
+                    fill="#10b981"
+                    radius={[8, 8, 0, 0]}
+                    maxBarSize={80}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Account Creation Date Distribution Pie Chart */}
+        <Card className="bg-white border-gray-200 shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <CardHeader className="border-b border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-purple-600">
+                <Calendar className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-xl text-gray-900">Phân bổ theo ngày tạo</CardTitle>
+                <CardDescription className="mt-1">
+                  Thống kê tài khoản theo tháng tạo
+                </CardDescription>
+              </div>
             </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={320}>
-              <BarChart data={dashboard.activity}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="date" stroke="#64748b" tick={{ fontSize: 12 }} />
-                <YAxis stroke="#64748b" tick={{ fontSize: 12 }} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#ffffff",
-                    border: "1px solid #e2e8f0",
-                    borderRadius: "8px",
-                  }}
-                />
-                <Legend />
-                <Bar
-                  dataKey="logins"
-                  name="Đăng nhập"
-                  fill="#1d4ed8"
-                  radius={[6, 6, 0, 0]}
-                  maxBarSize={48}
-                />
-                <Bar
-                  dataKey="activeSessions"
-                  name="Phiên hoạt động"
-                  fill="#8b5cf6"
-                  radius={[6, 6, 0, 0]}
-                  maxBarSize={48}
-                />
-                <Bar
-                  dataKey="newUsers"
-                  name="Đăng ký mới"
-                  fill="#10b981"
-                  radius={[6, 6, 0, 0]}
-                  maxBarSize={48}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent className="pt-6">
+            {accountsLoading || !accountsData ? (
+              <div className="flex items-center justify-center h-[320px] text-gray-500">
+                <Loader2 className="h-6 w-6 animate-spin mr-2" /> Đang tải...
+              </div>
+            ) : creationDateDistribution.length === 0 ? (
+              <div className="text-center text-sm text-gray-500 py-16">
+                <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                <p>Chưa có dữ liệu thống kê.</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-4"
+                  onClick={() => handleOpenModal("totalUsers")}
+                >
+                  Xem danh sách tài khoản
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <ResponsiveContainer width="100%" height={240}>
+                  <PieChart>
+                    <Pie
+                      data={creationDateDistribution}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }: { name?: string; percent?: number }) => {
+                        // Show shorter label on pie chart
+                        const displayName = name || "Không xác định"
+                        const shortName = displayName.length > 12 ? displayName.substring(0, 10) + '...' : displayName
+                        const percentValue = percent ?? 0
+                        return `${shortName}: ${(percentValue * 100).toFixed(0)}%`
+                      }}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {creationDateDistribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#ffffff",
+                        border: "1px solid #e2e8f0",
+                        borderRadius: "8px",
+                        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                      }}
+                      formatter={(value: number) => [`${value} tài khoản`, "Số lượng"]}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="space-y-2 pt-2 max-h-[120px] overflow-y-auto">
+                  {creationDateDistribution.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="h-3 w-3 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: item.fill }}
+                        />
+                        <span className="text-gray-700 font-medium truncate">{item.name || "Không xác định"}</span>
+                      </div>
+                      <span className="text-gray-900 font-semibold ml-2">{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Recent Activities */}
-      <Card className="bg-white border-blue-100 shadow-md">
-        <CardHeader>
-          <CardTitle className="text-gray-900">Hoạt động gần đây</CardTitle>
-          <CardDescription>
-            Các thao tác gần nhất được thực hiện bởi quản trị viên và người dùng
-          </CardDescription>
+      <Card className="bg-white border-gray-200 shadow-lg hover:shadow-xl transition-shadow duration-300">
+        <CardHeader className="border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-amber-600">
+              <Activity className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <CardTitle className="text-xl text-gray-900">Hoạt động gần đây</CardTitle>
+              <CardDescription className="mt-1">
+                Các thao tác gần nhất được thực hiện bởi quản trị viên và người dùng
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex items-center justify-center h-40 text-gray-500">
-              <Loader2 className="h-5 w-5 animate-spin mr-2" /> Đang tải hoạt động gần đây...
-            </div>
-          ) : dashboard.recentActivities.length === 0 ? (
-            <div className="text-center text-sm text-gray-500 py-8">
-              Không có hoạt động nào trong khoảng thời gian đã chọn.
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Thời gian</TableHead>
-                  <TableHead>Người dùng</TableHead>
-                  <TableHead>Hành động</TableHead>
-                  <TableHead>Mô tả</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {dashboard.recentActivities.map((activity) => (
-                  <TableRow key={activity.id ?? activity.timestamp}>
-                    <TableCell className="text-gray-600 text-sm">
-                      {activity.timestamp || "--"}
-                    </TableCell>
-                    <TableCell className="text-gray-900">{activity.user || "Không xác định"}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{activity.action || "N/A"}</Badge>
-                    </TableCell>
-                    <TableCell className="text-gray-600">{activity.detail || "--"}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+        <CardContent className="pt-6 space-y-6">
+          {/* Login Statistics Table */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <LogIn className="h-5 w-5 text-amber-600" />
+              Thống kê đăng nhập
+            </h3>
+            {accountsLoading || !accountsData ? (
+              <div className="flex items-center justify-center h-32 text-gray-500">
+                <Loader2 className="h-5 w-5 animate-spin mr-2" /> Đang tải...
+              </div>
+            ) : !accountsData.accounts || accountsData.accounts.length === 0 ? (
+              <div className="text-center text-sm text-gray-500 py-8">
+                <LogIn className="h-10 w-10 mx-auto mb-2 text-gray-300" />
+                <p>Không có dữ liệu đăng nhập.</p>
+              </div>
+            ) : (
+              <div className="overflow-hidden rounded-lg border border-gray-200">
+                <Table>
+                  <TableHeader className="bg-gradient-to-r from-gray-50 to-gray-100/50">
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="font-semibold text-gray-700">Thời gian</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Người dùng</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Email</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Vai trò</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {accountsData.accounts
+                      .filter((account) => account.lastLogin)
+                      .sort((a, b) => {
+                        const dateA = a.lastLogin ? new Date(a.lastLogin).getTime() : 0
+                        const dateB = b.lastLogin ? new Date(b.lastLogin).getTime() : 0
+                        return dateB - dateA
+                      })
+                      .slice(0, 10)
+                      .map((account, index) => {
+                        const formatTime = (dateStr: string | undefined) => {
+                          if (!dateStr) return "--"
+                          try {
+                            const date = new Date(dateStr)
+                            if (isNaN(date.getTime())) return dateStr
+                            return date.toLocaleTimeString("vi-VN", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              hour12: false
+                            })
+                          } catch {
+                            return dateStr
+                          }
+                        }
+                        
+                        return (
+                          <TableRow 
+                            key={account.id ?? account.email ?? index}
+                            className="hover:bg-gray-50/50 transition-colors"
+                          >
+                            <TableCell className="text-gray-600 text-sm font-medium">
+                              {formatTime(account.lastLogin)}
+                            </TableCell>
+                            <TableCell className="text-gray-900 font-semibold">
+                              {account.fullName || "Không xác định"}
+                            </TableCell>
+                            <TableCell className="text-gray-600">{account.email}</TableCell>
+                            <TableCell>
+                              {(() => {
+                                const roles = account.role
+                                if (!roles) return <span className="text-gray-400">--</span>
+                                if (Array.isArray(roles)) {
+                                  return roles.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1">
+                                      {roles.map((r, idx) => {
+                                        const colors = getRoleColor(r)
+                                        return (
+                                          <Badge 
+                                            key={idx}
+                                            variant="outline" 
+                                            className={`${colors.bg} ${colors.text} ${colors.border}`}
+                                          >
+                                            {r}
+                                          </Badge>
+                                        )
+                                      })}
+                                    </div>
+                                  ) : (
+                                    <span className="text-gray-400">--</span>
+                                  )
+                                }
+                                const colors = getRoleColor(roles)
+                                return (
+                                  <Badge 
+                                    variant="outline" 
+                                    className={`${colors.bg} ${colors.text} ${colors.border}`}
+                                  >
+                                    {roles}
+                                  </Badge>
+                                )
+                              })()}
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+
         </CardContent>
       </Card>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>
-              Chi tiết tài khoản - {statCards.find((card) => card.key === selectedMetric)?.title}
-            </DialogTitle>
-            <DialogDescription>
-              Danh sách tài khoản liên quan trong khoảng thời gian được chọn
-            </DialogDescription>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="border-b border-gray-200 pb-4">
+            <div className="flex items-center gap-3">
+              <div className={`flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br ${
+                selectedMetric === "totalOrders" 
+                  ? "from-emerald-500 to-emerald-600" 
+                  : "from-blue-500 to-blue-600"
+              }`}>
+                {selectedMetric === "totalOrders" ? (
+                  <ShoppingCart className="h-5 w-5 text-white" />
+                ) : (
+                  <Users className="h-5 w-5 text-white" />
+                )}
+              </div>
+              <div>
+                <DialogTitle className="text-2xl text-gray-900">
+                  Chi tiết - {statCards.find((card) => card.key === selectedMetric)?.title}
+                </DialogTitle>
+                <DialogDescription className="mt-1 text-base">
+                  {selectedMetric === "totalOrders" 
+                    ? "Danh sách đơn hàng trong khoảng thời gian được chọn"
+                    : "Danh sách tài khoản liên quan trong khoảng thời gian được chọn"}
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
-          {accountsError && (
-            <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
-              <AlertCircle className="h-4 w-4" />
-              <span>{accountsError}</span>
-            </div>
-          )}
+          {selectedMetric === "totalOrders" ? (
+            <>
+              {ordersError && (
+                <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-gradient-to-r from-red-50 to-red-100/50 p-3 text-sm text-red-600">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                  <span className="font-medium">{ordersError}</span>
+                </div>
+              )}
 
-          <div className="overflow-hidden rounded-lg border border-slate-200">
-            <Table>
-              <TableHeader className="bg-slate-50">
-                <TableRow>
-                  <TableHead>Họ tên</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Vai trò</TableHead>
-                  <TableHead>Trạng thái</TableHead>
-                  <TableHead>Ngày tạo</TableHead>
-                  <TableHead>Lần đăng nhập cuối</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {accountsLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="h-32 text-center text-sm text-gray-500">
-                      <div className="flex items-center justify-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" /> Đang tải danh sách tài khoản...
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : accountsData && accountsData.accounts.length > 0 ? (
-                  accountsData.accounts.map((account) => (
-                    <TableRow key={account.id ?? account.email}>
-                      <TableCell className="font-medium text-gray-900">
-                        {account.fullName || "Không xác định"}
-                      </TableCell>
-                      <TableCell className="text-gray-600">{account.email}</TableCell>
-                      <TableCell className="text-gray-600">{account.role || "--"}</TableCell>
-                      <TableCell>
-                        {account.status ? (
-                          account.status.toLowerCase() === "active" ? (
-                            <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-                              {account.status}
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary">{account.status}</Badge>
-                          )
-                        ) : (
-                          <span className="text-gray-400">--</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-gray-600 text-sm">
-                        {account.createdAt || "--"}
-                      </TableCell>
-                      <TableCell className="text-gray-600 text-sm">
-                        {account.lastLogin || "--"}
-                      </TableCell>
+              <div className="overflow-hidden rounded-xl border border-gray-200 shadow-sm">
+                <Table>
+                  <TableHeader className="bg-gradient-to-r from-gray-50 to-gray-100/50">
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="font-semibold text-gray-700">ID</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Khách hàng</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Email</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Tổng tiền</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Trạng thái</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Ngày tạo</TableHead>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="h-32 text-center text-sm text-gray-500">
-                      Không có tài khoản nào phù hợp.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  </TableHeader>
+                  <TableBody>
+                    {ordersLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="h-40 text-center">
+                          <div className="flex flex-col items-center justify-center gap-3">
+                            <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
+                            <span className="text-sm text-gray-500 font-medium">Đang tải danh sách đơn hàng...</span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : ordersData && ordersData.orders.length > 0 ? (
+                      (() => {
+                        console.log("🎨 [Dashboard] Rendering orders table with data:", ordersData.orders)
+                        return ordersData.orders.map((order, idx) => {
+                          console.log(`🎨 [Dashboard] Rendering order ${idx}:`, order)
+                          console.log(`🎨 [Dashboard] Order ${idx} - customerName:`, order.customerName)
+                          console.log(`🎨 [Dashboard] Order ${idx} - customerEmail:`, order.customerEmail)
+                          console.log(`🎨 [Dashboard] Order ${idx} - totalAmount:`, order.totalAmount)
+                          
+                          return (
+                            <TableRow 
+                              key={order.id ?? order.orderId ?? idx}
+                              className="hover:bg-gray-50/50 transition-colors"
+                            >
+                              <TableCell className="font-semibold text-gray-900">
+                                #{order.id ?? order.orderId ?? "--"}
+                              </TableCell>
+                              <TableCell className="text-gray-900 font-medium">
+                                {order.customerName || "Không xác định"}
+                              </TableCell>
+                              <TableCell className="text-gray-600">{order.customerEmail || "--"}</TableCell>
+                              <TableCell className="text-gray-900 font-semibold">
+                                {order.totalAmount 
+                                  ? new Intl.NumberFormat("vi-VN", {
+                                      style: "currency",
+                                      currency: "VND",
+                                    }).format(order.totalAmount)
+                                  : "--"}
+                              </TableCell>
+                              <TableCell>
+                                {order.status ? (
+                                  <Badge 
+                                    className={
+                                      order.status.toLowerCase() === "completed" || order.status.toLowerCase() === "success"
+                                        ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200"
+                                        : order.status.toLowerCase() === "pending"
+                                        ? "bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200"
+                                        : "bg-gray-100 text-gray-700"
+                                    }
+                                  >
+                                    {order.status}
+                                  </Badge>
+                                ) : (
+                                  <span className="text-gray-400">--</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-gray-600 text-sm font-medium">
+                                {order.createdAt || "--"}
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })
+                      })()
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={6} className="h-40 text-center">
+                          <div className="flex flex-col items-center justify-center gap-3">
+                            <ShoppingCart className="h-12 w-12 text-gray-300" />
+                            <span className="text-sm text-gray-500 font-medium">Không có đơn hàng nào phù hợp.</span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
 
-          <div className="flex items-center justify-between pt-4 text-sm text-gray-600">
-            <div>
-              Tổng số: {accountsData?.totalElements ?? 0} tài khoản · Trang {accountsPage + 1} / {accountsData?.totalPages ?? 1}
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                disabled={accountsPage === 0 || accountsLoading}
-                onClick={() => handleChangeAccountsPage(accountsPage - 1)}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                disabled={
-                  accountsLoading ||
-                  !accountsData ||
-                  accountsPage >= (accountsData.totalPages ?? 1) - 1
-                }
-                onClick={() => handleChangeAccountsPage(accountsPage + 1)}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+              <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                <div className="text-sm text-gray-600">
+                  <span className="font-semibold text-gray-900">{ordersData?.totalElements ?? 0}</span> đơn hàng · 
+                  Trang <span className="font-semibold text-gray-900">{ordersPage + 1}</span> / 
+                  <span className="font-semibold text-gray-900"> {ordersData?.totalPages ?? 1}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    disabled={ordersPage === 0 || ordersLoading}
+                    onClick={() => handleChangeOrdersPage(ordersPage - 1)}
+                    className="border-gray-300 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    disabled={
+                      ordersLoading ||
+                      !ordersData ||
+                      ordersPage >= (ordersData.totalPages ?? 1) - 1
+                    }
+                    onClick={() => handleChangeOrdersPage(ordersPage + 1)}
+                    className="border-gray-300 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {accountsError && (
+                <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-gradient-to-r from-red-50 to-red-100/50 p-3 text-sm text-red-600">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                  <span className="font-medium">{accountsError}</span>
+                </div>
+              )}
+
+              <div className="overflow-hidden rounded-xl border border-gray-200 shadow-sm">
+                <Table>
+                  <TableHeader className="bg-gradient-to-r from-gray-50 to-gray-100/50">
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="font-semibold text-gray-700">Họ tên</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Email</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Vai trò</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Trạng thái</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Ngày tạo</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Lần đăng nhập cuối</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {accountsLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="h-40 text-center">
+                          <div className="flex flex-col items-center justify-center gap-3">
+                            <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+                            <span className="text-sm text-gray-500 font-medium">Đang tải danh sách tài khoản...</span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : accountsData && accountsData.accounts.length > 0 ? (
+                      accountsData.accounts.map((account) => (
+                        <TableRow 
+                          key={account.id ?? account.email}
+                          className="hover:bg-gray-50/50 transition-colors"
+                        >
+                          <TableCell className="font-semibold text-gray-900">
+                            {account.fullName || "Không xác định"}
+                          </TableCell>
+                          <TableCell className="text-gray-600">{account.email}</TableCell>
+                          <TableCell>
+                            {(() => {
+                              const roles = account.role
+                              if (!roles) return <span className="text-gray-400">--</span>
+                              if (Array.isArray(roles)) {
+                                return roles.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {roles.map((r, idx) => {
+                                      const colors = getRoleColor(r)
+                                      return (
+                                        <Badge 
+                                          key={idx}
+                                          variant="outline" 
+                                          className={`${colors.bg} ${colors.text} ${colors.border}`}
+                                        >
+                                          {r}
+                                        </Badge>
+                                      )
+                                    })}
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-400">--</span>
+                                )
+                              }
+                              const colors = getRoleColor(roles)
+                              return (
+                                <Badge 
+                                  variant="outline" 
+                                  className={`${colors.bg} ${colors.text} ${colors.border}`}
+                                >
+                                  {roles}
+                                </Badge>
+                              )
+                            })()}
+                          </TableCell>
+                          <TableCell>
+                            {account.status ? (
+                              account.status.toLowerCase() === "active" ? (
+                                <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200">
+                                  {account.status}
+                                </Badge>
+                              ) : (
+                                <Badge variant="secondary" className="bg-gray-100 text-gray-700">
+                                  {account.status}
+                                </Badge>
+                              )
+                            ) : (
+                              <span className="text-gray-400">--</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-gray-600 text-sm font-medium">
+                            {account.createdAt || "--"}
+                          </TableCell>
+                          <TableCell className="text-gray-600 text-sm font-medium">
+                            {account.lastLogin || "--"}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={6} className="h-40 text-center">
+                          <div className="flex flex-col items-center justify-center gap-3">
+                            <Users className="h-12 w-12 text-gray-300" />
+                            <span className="text-sm text-gray-500 font-medium">Không có tài khoản nào phù hợp.</span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                <div className="text-sm text-gray-600">
+                  <span className="font-semibold text-gray-900">{accountsData?.totalElements ?? 0}</span> tài khoản · 
+                  Trang <span className="font-semibold text-gray-900">{accountsPage + 1}</span> / 
+                  <span className="font-semibold text-gray-900"> {accountsData?.totalPages ?? 1}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    disabled={accountsPage === 0 || accountsLoading}
+                    onClick={() => handleChangeAccountsPage(accountsPage - 1)}
+                    className="border-gray-300 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    disabled={
+                      accountsLoading ||
+                      !accountsData ||
+                      accountsPage >= (accountsData.totalPages ?? 1) - 1
+                    }
+                    onClick={() => handleChangeAccountsPage(accountsPage + 1)}
+                    className="border-gray-300 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
