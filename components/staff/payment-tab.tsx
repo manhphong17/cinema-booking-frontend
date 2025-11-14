@@ -147,7 +147,8 @@ export function PaymentTab({ showtimeId, onPaymentSuccess }: PaymentTabProps) {
             }
 
             // Gọi API tương ứng
-            if (selectedPaymentName ==="CASH") {
+            if (selectedPaymentCode ==="CASH") {
+
                 const res = await apiClient.post("/payment/checkout-cash", payload)
                 if (res.status === 200) {
                     toast.success("Thanh toán tiền mặt thành công!")

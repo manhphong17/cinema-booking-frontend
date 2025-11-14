@@ -250,7 +250,7 @@ export default function LoginPage() {
                             <div className="flex flex-col items-start">
                                 <span className="text-2xl font-black text-gray-900">
                                     <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-                                        Cinema
+                                        PHT Cinema
                                     </span>
                                 </span>
                                 <span className="text-xs text-gray-500 font-medium -mt-1">Premium Experience</span>

@@ -1,12 +1,27 @@
 "use client"
 
+import type React from "react"
 import type { ReactNode } from "react"
 import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Film, User, ShoppingBag, LogOut, Mail, Phone, MapPin, Facebook, Instagram, Youtube, Menu, X, Clock } from "lucide-react"
+import {
+    Film,
+    User,
+    ShoppingBag,
+    Gift,
+    LogOut,
+    Mail,
+    Phone,
+    MapPin,
+    Facebook,
+    Instagram,
+    Youtube,
+    Menu,
+    X,
+    Clock,
+} from "lucide-react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
 import { jwtDecode } from "jwt-decode"
 import { logout } from "@/src/api/interceptor"
 import { fetchTheaterDetails, TheaterDetails } from "@/app/api/theater/theater"
@@ -36,7 +51,7 @@ export function HomeLayout({ children }: HomeLayoutProps) {
     const [error, setError] = useState<string | null>(null)
     const router = useRouter()
 
-    // ✅ useCallback cho checkAuth để có thể gọi lại trong listener
+    // ✅ checkAuth dùng lại được trong listener
     const checkAuth = useCallback(() => {
         const accessToken = localStorage.getItem("accessToken")
         if (!accessToken) {
@@ -81,21 +96,21 @@ export function HomeLayout({ children }: HomeLayoutProps) {
         loadDetails()
     }, [])
 
-    // ✅ Quản lý Auth & User Info + storage listener
+    // ✅ Quản lý Auth & User Info + storage listener + tokenSet
     useEffect(() => {
         setMounted(true)
         checkAuth()
 
         const loadUserData = () => {
             const storedAvatar = localStorage.getItem("userAvatar")
-            const storedName = localStorage.getItem("userName") || localStorage.getItem("customerName")
+            const storedName =
+                localStorage.getItem("userName") || localStorage.getItem("customerName")
             if (storedAvatar) setUserAvatar(storedAvatar)
             if (storedName) setUserName(storedName)
         }
 
         loadUserData()
 
-        // Listener cho storage và custom event tokenSet (OAuth)
         const handleStorageChange = (e: StorageEvent) => {
             if (e.key === "accessToken") {
                 if (!e.newValue) {
@@ -106,7 +121,8 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                 }
             }
             if (e.key === "userAvatar" && e.newValue) setUserAvatar(e.newValue)
-            if ((e.key === "userName" || e.key === "customerName") && e.newValue) setUserName(e.newValue)
+            if ((e.key === "userName" || e.key === "customerName") && e.newValue)
+                setUserName(e.newValue)
         }
 
         const handleTokenSet = () => {
@@ -164,17 +180,64 @@ export function HomeLayout({ children }: HomeLayoutProps) {
         setMobileMenuOpen(false)
     }
 
-    if (!mounted) return <div className="min-h-screen bg-background"></div>
+    // Skeleton tránh hydration mismatch (giữ idea của bản đầu)
+    if (!mounted) {
+        return (
+            <div className="min-h-screen bg-background">
+                <div className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-border shadow-sm">
+                    <div className="container mx-auto px-4">
+                        <div className="flex items-center justify-between h-16">
+                            {/* Logo skeleton */}
+                            <div className="flex items-center gap-3">
+                                <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 text-white p-3 rounded-xl shadow-lg">
+                                    <Film className="h-5 w-5" />
+                                </div>
+                                <span className="text-xl font-bold text-foreground">
+                                    Cinema
+                                </span>
+                            </div>
+                            {/* Menu skeleton */}
+                            <div className="hidden md:flex items-center gap-2">
+                                <div className="animate-pulse bg-gray-200 h-9 w-16 rounded-lg" />
+                                <div className="animate-pulse bg-gray-200 h-9 w-20 rounded-lg" />
+                                <div className="animate-pulse bg-gray-200 h-9 w-20 rounded-lg" />
+                                <div className="animate-pulse bg-gray-200 h-9 w-18 rounded-lg" />
+                            </div>
+                            {/* Auth skeleton */}
+                            <div className="hidden md:flex items-center gap-3">
+                                <div className="animate-pulse bg-gray-200 h-9 w-20 rounded-lg" />
+                                <div className="animate-pulse bg-gray-200 h-9 w-24 rounded-lg" />
+                            </div>
+                            {/* Mobile skeleton */}
+                            <div className="md:hidden">
+                                <div className="animate-pulse bg-gray-200 h-10 w-10 rounded-full" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div className="pt-16">{children}</div>
+                <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+                    <div className="container mx-auto px-4 py-16">
+                        <div className="animate-pulse space-y-4">
+                            <div className="h-4 bg-slate-700 rounded w-1/4" />
+                            <div className="h-4 bg-slate-700 rounded w-1/2" />
+                            <div className="h-4 bg-slate-700 rounded w-3/4" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="home-layout">
-            {/* ✅ Navbar */}
+            {/* NAVBAR (merge logic + UI) */}
             <nav className="home-navbar fixed top-0 left-0 right-0 bg-white border-b shadow-sm z-50">
                 <div className="container mx-auto px-4">
                     <div className="flex items-center justify-between h-16">
                         {/* Logo */}
                         <div
-                            className="flex items-center gap-3 cursor-pointer group hover:scale-105 transition-all"
+                            className="flex items-center gap-3 cursor-pointer group hover:scale-105 transition-all duration-300"
                             onClick={() => router.push("/")}
                         >
                             <div className="relative">
@@ -183,32 +246,52 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                                 </div>
                             </div>
                             <div className="flex flex-col">
-                <span className="text-2xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-                  Cinema
-                </span>
-                                <span className="text-xs text-muted-foreground font-medium -mt-1">Premium Experience</span>
+                                <span className="text-2xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                                    PHT Cinema
+                                </span>
+                                <span className="text-xs text-muted-foreground font-medium -mt-1">
+                                    Premium Experience
+                                </span>
                             </div>
                         </div>
 
-                        {/* Menu */}
+                        {/* Desktop Menu – union các menu của bản 1 + bản 2 */}
                         <div className="hidden md:flex items-center gap-2">
                             {[
                                 { path: "/home", label: "Trang chủ" },
                                 { path: "/movies/now-showing", label: "Phim đang chiếu" },
                                 { path: "/movies/coming-soon", label: "Phim sắp chiếu" },
-                                ...(isAuthenticated ? [{ path: "/customer?section=orders", label: "Đơn hàng", isOrder: true }] : []),
+                                { path: "/vouchers", label: "Voucher" },
+                                { path: "/news", label: "Tin tức" },
+                                ...(isAuthenticated
+                                    ? [
+                                        {
+                                            path: "/customer?section=orders",
+                                            label: "Đơn hàng",
+                                            isOrder: true,
+                                        } as const,
+                                    ]
+                                    : []),
                             ].map((item) => (
                                 <button
                                     key={item.path}
-                                    onClick={() => item.isOrder ? handleNavigate("orders") : handleMenuClick(item.path)}
+                                    onClick={() =>
+                                        item.isOrder
+                                            ? handleNavigate("orders")
+                                            : handleMenuClick(item.path)
+                                    }
                                     className="relative text-foreground hover:text-blue-600 transition-all duration-300 font-medium text-base py-3 px-4 rounded-lg group hover:bg-blue-50"
                                 >
-                                    <span>{item.label}</span>
+                                    <span className="relative z-10 flex items-center gap-2">
+                                        <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                        {item.label}
+                                    </span>
+                                    <div className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 transition-all duration-300 group-hover:w-full rounded-full" />
                                 </button>
                             ))}
                         </div>
 
-                        {/* Auth */}
+                        {/* Desktop Auth – union logic 2 bên (thêm Voucher trong dropdown) */}
                         <div className="hidden md:flex items-center gap-2">
                             {!isAuthenticated ? (
                                 <>
@@ -227,22 +310,46 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                                 </>
                             ) : (
                                 <div className="relative" data-dropdown>
-                                    <Button variant="ghost" className="h-10 w-10 rounded-full" onClick={handleDropdownClick}>
+                                    <Button
+                                        variant="ghost"
+                                        className="h-10 w-10 rounded-full"
+                                        onClick={handleDropdownClick}
+                                    >
                                         <Avatar>
                                             <AvatarImage src={userAvatar} alt="User avatar" />
-                                            <AvatarFallback>{userName.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                            <AvatarFallback>
+                                                {userName.substring(0, 2).toUpperCase()}
+                                            </AvatarFallback>
                                         </Avatar>
                                     </Button>
                                     {dropdownOpen && (
                                         <div className="absolute right-0 top-12 w-56 bg-white border rounded-md shadow-lg z-[60]">
-                                            <div className="px-4 py-2 text-sm font-medium border-b">Tài khoản của tôi</div>
-                                            <button onClick={() => handleNavigate("profile")} className="flex items-center px-4 py-2 text-sm hover:bg-gray-100 w-full">
+                                            <div className="px-4 py-2 text-sm font-medium border-b">
+                                                Tài khoản của tôi
+                                            </div>
+                                            <button
+                                                onClick={() => handleNavigate("profile")}
+                                                className="flex items-center px-4 py-2 text-sm hover:bg-gray-100 w-full"
+                                            >
                                                 <User className="mr-2 h-4 w-4" /> Hồ sơ
                                             </button>
-                                            <button onClick={() => handleNavigate("orders")} className="flex items-center px-4 py-2 text-sm hover:bg-gray-100 w-full">
-                                                <ShoppingBag className="mr-2 h-4 w-4" /> Đơn hàng của tôi
+                                            <button
+                                                onClick={() => handleNavigate("orders")}
+                                                className="flex items-center px-4 py-2 text-sm hover:bg-gray-100 w-full"
+                                            >
+                                                <ShoppingBag className="mr-2 h-4 w-4" /> Đơn hàng
+                                                của tôi
                                             </button>
-                                            <button onClick={handleLogout} className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full">
+                                            <button
+                                                onClick={() => handleNavigate("vouchers")}
+                                                className="flex items-center px-4 py-2 text-sm hover:bg-gray-100 w-full"
+                                            >
+                                                <Gift className="mr-2 h-4 w-4" /> Voucher của tôi
+                                            </button>
+                                            <button
+                                                onClick={handleLogout}
+                                                className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full border-t"
+                                            >
                                                 <LogOut className="mr-2 h-4 w-4" /> Đăng xuất
                                             </button>
                                         </div>
@@ -251,13 +358,98 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                             )}
                         </div>
 
-                        {/* Mobile Menu Toggle */}
-                        <Button variant="ghost" size="sm" className="md:hidden" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-                            {mobileMenuOpen ? <X className="h-5 w-5 text-primary" /> : <Menu className="h-5 w-5 text-gray-600" />}
-                        </Button>
+                        {/* Mobile Auth + Menu toggle (giữ phiên bản giàu tính năng của bản 1) */}
+                        <div className="md:hidden flex items-center gap-2">
+                            {!isAuthenticated ? (
+                                <>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                            router.push("/register")
+                                            setMobileMenuOpen(false)
+                                        }}
+                                        className="border-primary/30 text-primary hover:bg-primary hover:text-white text-xs px-3"
+                                    >
+                                        Đăng ký
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        onClick={() => {
+                                            router.push("/login")
+                                            setMobileMenuOpen(false)
+                                        }}
+                                        className="text-xs px-3 bg-[#38AAEC] text-white hover:bg-[#3BAEF0]"
+                                    >
+                                        Đăng nhập
+                                    </Button>
+                                </>
+                            ) : (
+                                <div className="relative" data-dropdown>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 w-8 p-0"
+                                        onClick={handleDropdownClick}
+                                    >
+                                        <Avatar className="h-8 w-8">
+                                            <AvatarImage src={userAvatar} alt="User avatar" />
+                                            <AvatarFallback className="text-xs font-bold">
+                                                {userName.substring(0, 2).toUpperCase()}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                    </Button>
+                                    {dropdownOpen && (
+                                        <div className="absolute right-0 top-10 w-48 bg-white border rounded-md shadow-lg z-[60]">
+                                            <div className="px-4 py-2 text-sm font-medium border-b">
+                                                Tài khoản của tôi
+                                            </div>
+                                            <button
+                                                onClick={() => handleNavigate("profile")}
+                                                className="flex items-center w-full px-4 py-2 text-sm hover:bg-gray-100"
+                                            >
+                                                <User className="mr-2 h-4 w-4" /> Hồ sơ
+                                            </button>
+                                            <button
+                                                onClick={() => handleNavigate("orders")}
+                                                className="flex items-center w-full px-4 py-2 text-sm hover:bg-gray-100"
+                                            >
+                                                <ShoppingBag className="mr-2 h-4 w-4" /> Đơn hàng
+                                                của tôi
+                                            </button>
+                                            <button
+                                                onClick={() => handleNavigate("vouchers")}
+                                                className="flex items-center w-full px-4 py-2 text-sm hover:bg-gray-100"
+                                            >
+                                                <Gift className="mr-2 h-4 w-4" /> Voucher của tôi
+                                            </button>
+                                            <button
+                                                onClick={handleLogout}
+                                                className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 border-t"
+                                            >
+                                                <LogOut className="mr-2 h-4 w-4" /> Đăng xuất
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                                className="h-10 w-10 p-0 rounded-full hover:bg-primary/10 transition-all duration-300"
+                            >
+                                {mobileMenuOpen ? (
+                                    <X className="h-5 w-5 text-primary" />
+                                ) : (
+                                    <Menu className="h-5 w-5 text-gray-600" />
+                                )}
+                            </Button>
+                        </div>
                     </div>
 
-                    {/* Mobile Menu */}
+                    {/* Mobile Menu – union menu items (có Voucher + News + Orders) */}
                     {mobileMenuOpen && (
                         <div className="md:hidden border-t border-border bg-white animate-in slide-in-from-top-2 duration-300">
                             <div className="px-4 py-6 grid grid-cols-2 gap-3">
@@ -265,101 +457,183 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                                     { path: "/home", label: "Trang chủ" },
                                     { path: "/movies/now-showing", label: "Phim đang chiếu" },
                                     { path: "/movies/coming-soon", label: "Phim sắp chiếu" },
-                                    ...(isAuthenticated ? [{ path: "/customer?section=orders", label: "Đơn hàng", isOrder: true }] : []),
+                                    { path: "/vouchers", label: "Voucher" },
+                                    { path: "/news", label: "Tin tức" },
+                                    ...(isAuthenticated
+                                        ? [
+                                            {
+                                                path: "/customer?section=orders",
+                                                label: "Đơn hàng",
+                                                isOrder: true,
+                                            } as const,
+                                        ]
+                                        : []),
                                 ].map((item) => (
                                     <button
                                         key={item.path}
-                                        onClick={() => item.isOrder ? handleNavigate("orders") : handleMenuClick(item.path)}
+                                        onClick={() =>
+                                            item.isOrder
+                                                ? handleNavigate("orders")
+                                                : handleMenuClick(item.path)
+                                        }
                                         className="flex flex-col items-center py-4 px-3 rounded-xl hover:bg-primary/5 hover:text-primary transition-all"
                                     >
-                                        <span className="font-medium text-sm">{item.label}</span>
+                                        <span className="font-medium text-sm">
+                                            {item.label}
+                                        </span>
                                     </button>
                                 ))}
                             </div>
-                            {!isAuthenticated && (
-                                <div className="px-4 pb-4 border-t pt-4 flex gap-2">
-                                    <button
-                                        onClick={() => {
-                                            router.push("/register")
-                                            setMobileMenuOpen(false)
-                                        }}
-                                        className="flex-1 py-3 px-4 rounded-lg text-sm font-medium bg-transparent text-[#38AAEC] border border-[#38AAEC] hover:bg-[#38AAEC] hover:text-white transition-all duration-200"
-                                    >
-                                        Đăng ký
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            router.push("/login")
-                                            setMobileMenuOpen(false)
-                                        }}
-                                        className="flex-1 py-3 px-4 rounded-lg text-sm font-medium bg-[#38AAEC] text-white hover:bg-[#3BAEF0] hover:opacity-90 transition-all duration-200"
-                                    >
-                                        Đăng nhập
-                                    </button>
-                                </div>
-                            )}
                         </div>
                     )}
                 </div>
             </nav>
 
-            {/* Main */}
+            {/* MAIN CONTENT */}
             <div className="pt-16">{children}</div>
 
-            {/* ✅ Footer động */}
-            <footer className="relative bg-gradient-to-br from-[#070b12] via-[#0b1220] to-[#070b12] text-white mt-12">
+            {/* FOOTER: layout “Liên hệ và Thông tin Chi tiết” + map động */}
+            <footer className="relative home-footer bg-gradient-to-br from-[#070b12] via-[#0b1220] to-[#070b12] text-white mt-12">
+                {/* glow */}
+                <div
+                    className="pointer-events-none absolute -left-10 top-0 h-56 w-56 rounded-full
+              bg-gradient-to-br from-pink-500/25 via-purple-500/20 to-blue-500/15 blur-3xl"
+                />
+
                 <div className="container mx-auto px-4 py-16">
-                    <div className="flex flex-col md:flex-row justify-between items-center mb-10">
+                    {/* Top row: Logo & Social */}
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-12">
+                        {/* Logo + Name */}
                         <div className="flex items-center gap-4">
-                            <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 text-white p-5 rounded-xl shadow-xl">
+                            <div
+                                className="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600
+                    text-white p-5 rounded-xl shadow-xl ring-1 ring-white/15"
+                            >
                                 <Film className="h-12 w-12" />
                             </div>
-                            <span className="text-3xl font-bold">{isLoading ? "Loading..." : theaterDetails?.name || "Cinema"}</span>
+
+                            <span className="text-3xl font-bold">
+                                {isLoading
+                                    ? "Loading..."
+                                    : theaterDetails?.name || "PHT Cinema"}
+                            </span>
                         </div>
+
+                        {/* Social icons */}
                         <div className="flex gap-3">
                             {[Facebook, Instagram, Youtube].map((Icon, i) => (
-                                <a key={i} href="#" className="bg-gray-800 p-3 rounded-xl hover:bg-red-600 transition-all duration-300 hover:scale-110">
-                                    <Icon className="h-5 w-5 text-gray-300 group-hover:text-white" />
+                                <a
+                                    key={i}
+                                    href="#"
+                                    className="bg-gray-800 p-3 rounded-xl hover:bg-red-600 transition-all duration-300 hover:scale-110"
+                                >
+                                    <Icon className="h-5 w-5 text-gray-300" />
                                 </a>
                             ))}
                         </div>
                     </div>
 
-                    {/* Contact + Map */}
-                    <div className="border-t border-white/10 pt-8">
-                        {isLoading ? (
-                            <p className="animate-pulse text-center text-lg">Đang tải thông tin chi tiết rạp...</p>
-                        ) : error ? (
-                            <p className="text-red-400 text-center text-lg">{error}</p>
-                        ) : (
-                            theaterDetails && (
-                                <>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                        <ContactCard Icon={MapPin} title="Địa chỉ" content={theaterDetails.address} />
-                                        <ContactCard Icon={Phone} title="Hotline" content={theaterDetails.hotline} />
-                                        <ContactCard
-                                            Icon={Clock}
-                                            title="Giờ hoạt động"
-                                            content={`${theaterDetails.openTime.substring(0, 5)} - ${theaterDetails.closeTime.substring(0, 5)}`}
-                                            subContent={theaterDetails.overnight ? "Mở cửa thâu đêm" : "Đóng cửa đúng giờ"}
-                                        />
-                                        <ContactCard Icon={Mail} title="Email" content={theaterDetails.contactEmail} />
-                                    </div>
-                                    {theaterDetails.googleMapUrl && (
-                                        <div className="relative h-64 rounded-xl overflow-hidden shadow-lg border">
-                                            <iframe
-                                                src={getGoogleMapEmbedUrl(theaterDetails.googleMapUrl)}
-                                                width="100%"
-                                                height="100%"
-                                                allowFullScreen
-                                                loading="lazy"
-                                                title="Theater Map"
-                                            />
-                                        </div>
-                                    )}
-                                </>
-                            )
+                    {/* KHỐI: Liên hệ & Thông tin chi tiết */}
+                    <div className="mb-12 border-t border-white/10 pt-8 text-slate-300">
+                        <h3
+                            className="text-3xl font-extrabold mb-6
+        bg-clip-text text-transparent
+        bg-gradient-to-r from-pink-500 to-blue-400"
+                        >
+                            Liên hệ và Thông tin Chi tiết
+                        </h3>
+
+                        {isLoading && (
+                            <p className="animate-pulse text-center text-lg">
+                                Đang tải thông tin chi tiết rạp...
+                            </p>
                         )}
+                        {error && (
+                            <p className="text-red-400 text-center text-lg">
+                                ❌ {error}
+                            </p>
+                        )}
+
+                        {theaterDetails && !isLoading && !error && (
+                            <div className="flex flex-col gap-6">
+                                {/* Hàng 1: 4 cards */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <ContactCard
+                                        Icon={MapPin}
+                                        title="Địa chỉ"
+                                        content={theaterDetails.address}
+                                    />
+                                    <ContactCard
+                                        Icon={Phone}
+                                        title="Hotline"
+                                        content={theaterDetails.hotline}
+                                    />
+                                    <ContactCard
+                                        Icon={Clock}
+                                        title="Giờ hoạt động"
+                                        content={`${theaterDetails.openTime.substring(
+                                            0,
+                                            5
+                                        )} - ${theaterDetails.closeTime.substring(0, 5)}`}
+                                        subContent={
+                                            theaterDetails.overnight
+                                                ? "Mở cửa thâu đêm"
+                                                : "Đóng cửa đúng giờ"
+                                        }
+                                    />
+                                    <ContactCard
+                                        Icon={Mail}
+                                        title="Email"
+                                        content={theaterDetails.contactEmail}
+                                    />
+                                </div>
+
+                                {/* Hàng 2: Google Map */}
+                                {theaterDetails.googleMapUrl && (
+                                    <div className="relative h-48 md:h-64 rounded-xl overflow-hidden shadow-lg border-2 border-white/20">
+                                        <iframe
+                                            src={getGoogleMapEmbedUrl(
+                                                theaterDetails.googleMapUrl
+                                            )}
+                                            width="100%"
+                                            height="100%"
+                                            style={{ border: 0 }}
+                                            allowFullScreen
+                                            loading="lazy"
+                                            referrerPolicy="no-referrer-when-downgrade"
+                                            title="Theater Location"
+                                            className="rounded-xl"
+                                        />
+                                        <div className="absolute bottom-2 right-2">
+                                            <a
+                                                href={theaterDetails.googleMapUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-xs bg-white px-3 py-1.5 rounded-lg shadow-md hover:shadow-lg transition-all text-blue-600 hover:text-blue-700 flex items-center gap-1.5"
+                                            >
+                                                <MapPin className="w-3 h-3" />
+                                                Xem bản đồ
+                                            </a>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Bottom row */}
+                    <div className="border-t border-white/10 pt-8 text-sm text-slate-400 flex flex-col md:flex-row justify-between gap-4">
+                        <span>
+                            © {new Date().getFullYear()} Cinema. All rights reserved.
+                        </span>
+                        <div className="flex gap-4">
+                            <a href="#" className="hover:text-white">
+                                Điều khoản sử dụng
+                            </a>
+                            <a href="#" className="hover:text-white">
+                                Chính sách bảo mật
+                            </a>
+                        </div>
                     </div>
                 </div>
             </footer>

@@ -749,13 +749,11 @@ export default function SeatSelectionPage() {
                                   ? { backgroundColor: '#FD2802', borderColor: '#FD2802' }
                                   : isMaintenance
                                     ? { backgroundColor: '#9CA3AF', borderColor: '#9CA3AF' }
-                                    : isBlocked
-                                      ? { backgroundColor: '#4B5563', borderColor: '#4B5563' }
-                                      : isHeld
-                                        ? { backgroundColor: '#3FB7F9', borderColor: '#3FB7F9' }
-                                        : isSelected
-                                          ? { backgroundColor: '#03599D', borderColor: '#03599D' }
-                                          : { backgroundColor: '#BABBC3', borderColor: '#BABBC3' }
+                                    : isBlocked || isHeld
+                                      ? { backgroundColor: '#3FB7F9', borderColor: '#3FB7F9' }
+                                      : isSelected
+                                        ? { backgroundColor: '#03599D', borderColor: '#03599D' }
+                                        : { backgroundColor: '#BABBC3', borderColor: '#BABBC3' }
                                 }
                                 className={`
                                   w-12 h-12 rounded-xl text-sm font-bold transition-all duration-300 flex items-center justify-center relative border-2
@@ -763,17 +761,15 @@ export default function SeatSelectionPage() {
                                     ? 'text-white cursor-not-allowed shadow-xl' 
                                     : isMaintenance
                                       ? 'text-white cursor-not-allowed shadow-xl'
-                                      : isBlocked
+                                      : isBlocked || isHeld
                                         ? 'text-white cursor-not-allowed shadow-xl'
-                                        : isHeld
-                                          ? 'text-white cursor-not-allowed shadow-xl'
-                                        : isLimitReached
-                                          ? 'opacity-50 cursor-not-allowed'
-                                          : isDifferentType
-                                            ? 'opacity-30 cursor-not-allowed'
+                                      : isLimitReached
+                                        ? 'opacity-50 cursor-not-allowed'
+                                        : isDifferentType
+                                          ? 'opacity-30 cursor-not-allowed'
                                     : isSelected
                                             ? 'text-white scale-110 shadow-2xl ring-2 ring-[#03599D] ring-offset-1 font-extrabold'
-                                        : 'text-white hover:opacity-90 shadow-lg hover:shadow-xl hover:scale-110'
+                                      : 'text-white hover:opacity-90 shadow-lg hover:shadow-xl hover:scale-110'
                                   }
                                   active:scale-95
                                 `}
@@ -811,14 +807,6 @@ export default function SeatSelectionPage() {
                     <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-md border-2 border-gray-200 hover:shadow-lg transition-all">
                       <div className="w-6 h-6 rounded-lg shadow-md" style={{ backgroundColor: '#3FB7F9' }}></div>
                       <span className="text-gray-900 font-semibold">Đang giữ</span>
-                    </div>
-                    <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-md border-2 border-gray-200 hover:shadow-lg transition-all">
-                      <div className="w-6 h-6 rounded-lg shadow-md" style={{ backgroundColor: '#4B5563' }}></div>
-                      <span className="text-gray-900 font-semibold">Ghế bị block</span>
-                    </div>
-                    <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-md border-2 border-gray-200 hover:shadow-lg transition-all">
-                      <div className="w-6 h-6 rounded-lg shadow-md" style={{ backgroundColor: '#9CA3AF' }}></div>
-                      <span className="text-gray-900 font-semibold">Bảo trì</span>
                     </div>
                   </div>
                 </div>
