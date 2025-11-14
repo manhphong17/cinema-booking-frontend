@@ -18,7 +18,6 @@ export interface TheaterDetails {
     openTime: string;
     closeTime: string;
     overnight: boolean;
-    bannerUrl: string;
     information: string;
     representativeName: string;
     representativeTitle: string;
@@ -37,13 +36,13 @@ export interface UpdateTheaterRequest {
     openTime?: string;
     closeTime?: string;
     overnight?: boolean;
-    bannerUrl?: string;
     information?: string;
     representativeName?: string;
     representativeTitle?: string;
     representativePhone?: string;
     representativeEmail?: string;
 }
+
 
 // API functions
 export async function fetchTheaterDetails(): Promise<TheaterDetails> {
@@ -56,6 +55,8 @@ export async function fetchTheaterDetails(): Promise<TheaterDetails> {
     return data.data;
 }
 
+
+
 export async function updateTheaterDetails(payload: UpdateTheaterRequest): Promise<TheaterDetails> {
     console.log('💾 Updating theater details:', payload);
     const { data } = await apiClient.put<ResponseData<TheaterDetails>>("/api/theater_details", payload);
@@ -64,29 +65,3 @@ export async function updateTheaterDetails(payload: UpdateTheaterRequest): Promi
 }
 
 
-// Upload banner image
-export async function uploadBanner(file: File): Promise<string> {
-    console.log('📤 Uploading banner:', file.name);
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const { data } = await apiClient.post<ResponseData<string>>(
-        "/api/theater_banner",
-        formData,
-        {
-            headers: {
-                'Content-Type': 'multipart/form-data'
-            }
-        }
-    );
-
-    console.log('✅ Upload Response:', data);
-
-    if (data.status === 200 && data.data) {
-        console.log('🎉 Banner URL:', data.data);
-        return data.data; // Return banner URL
-    } else {
-        console.error('❌ Upload failed:', data.message);
-        throw new Error(data.message || "Có lỗi xảy ra khi tải ảnh lên");
-    }
-}

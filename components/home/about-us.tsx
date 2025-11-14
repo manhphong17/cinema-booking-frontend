@@ -63,7 +63,7 @@ export function AboutUs() {
 
               <div className="space-y-4 text-foreground/80 leading-relaxed">
                 <p className="text-lg">
-                  Chào mừng bạn đến với <strong className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">Cinema</strong> - rạp chiếu phim hiện đại
+                  Chào mừng bạn đến với <strong className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">PHT Cinema</strong> - rạp chiếu phim hiện đại
                   mang đến trải nghiệm điện ảnh chất lượng cao ngay tại trung tâm thành phố.
                 </p>
                 <p>

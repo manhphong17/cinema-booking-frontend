@@ -206,18 +206,26 @@ export default function CinemaManagement() {
   }
 
   const renderContent = () => {
+    // Get showtimeId from ticket item
+    const ticketItem = cartItems.find(item => item.type === "ticket")
+    const showtimeId = ticketItem?.showtimeId || null
+
     switch (activeTab) {
       case "tickets":
         return <TicketSelection onAddToCart={addToCart} onSyncTicketsToCart={syncTicketsToCart} />
       case "concessions":
-        return <ConcessionsSelection onAddToCart={addToCart} onSyncConcessionsToCart={syncConcessionsToCart} />
+        return (
+          <ConcessionsSelection 
+            onAddToCart={addToCart} 
+            onSyncConcessionsToCart={syncConcessionsToCart}
+            showtimeId={showtimeId}
+            userId={userId}
+          />
+        )
       case "payment":
-        // Get showtimeId from ticket item
-        const ticketItem = cartItems.find(item => item.type === "ticket")
-        
         return (
             <PaymentTab
-                showtimeId={ticketItem?.showtimeId || null}
+                showtimeId={showtimeId}
                 onPaymentSuccess={() => {
                     toast.success("Thanh toán thành công!")
                     setActiveTab("tickets")
