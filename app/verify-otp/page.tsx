@@ -16,8 +16,20 @@ export default function OTPVerifyPage() {
     const [error, setError] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const [isResending, setIsResending] = useState(false)
+    const [email, setEmail] = useState<string | null>(null)
+    const [name, setName] = useState<string | null>(null)
     const router = useRouter()
     const [countdown, setCountdown] = useState(300); // 5 phút = 300 giây
+
+    // Lấy email và name từ sessionStorage chỉ khi component mount (client-side)
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const storedEmail = sessionStorage.getItem("registerEmail")
+            const storedName = sessionStorage.getItem("name")
+            setEmail(storedEmail)
+            setName(storedName)
+        }
+    }, [])
 
     useEffect(() => {
         if (countdown <= 0) return;
@@ -36,17 +48,13 @@ export default function OTPVerifyPage() {
     };
 
 
-    // Lấy email từ sessionStorage
-    const email = sessionStorage.getItem("registerEmail")
-    const name = sessionStorage.getItem("name");
-
-
     const handleVerifyOTP = async (e: React.FormEvent) => {
         e.preventDefault()
         setError("")
 
         if (!email) {
             setError("Không tìm thấy email. Vui lòng quay lại bước đăng ký.")
+            router.push("/register")
             return
         }
 
@@ -83,23 +91,25 @@ export default function OTPVerifyPage() {
         setIsResending(true)
         setError("")
 
-        try {
+        if (!email) {
+            setError("Không tìm thấy email. Vui lòng quay lại bước đăng ký.")
+            router.push("/register")
+            setIsResending(false)
+            return
+        }
 
+        try {
             const response = await fetch(
-                `${BACKEND_BASE_URL}/auth/resend-otp?email=${encodeURIComponent(email || "")}&name=${name || ""}`,
+                `${BACKEND_BASE_URL}/auth/resend-otp?email=${encodeURIComponent(email)}&name=${name || ""}`,
                 {method: "POST"}
             )
 
             if (response.ok) {
-                toast.success("OTP mới đã được gửi lại");
-                setCountdown(300);   // ⬅️ reset lại 5 phút
-            }
-
-            if (response.ok) {
-                toast.success("OTP mới đã được gửi lại ")
+                toast.success("OTP mới đã được gửi lại")
+                setCountdown(300)   // ⬅️ reset lại 5 phút
             } else {
-                setError( "Không thể gửi lại OTP")
-                toast.error( "Không thể gửi lại OTP")
+                setError("Không thể gửi lại OTP")
+                toast.error("Không thể gửi lại OTP")
             }
         } catch (err) {
             setError("Lỗi kết nối khi gửi lại OTP")
