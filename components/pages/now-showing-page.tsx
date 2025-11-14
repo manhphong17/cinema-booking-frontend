@@ -214,7 +214,7 @@ export function NowShowingPageContent() {
         <div className="min-h-screen bg-white">
             {/* Hero Section - Banner Carousel with Container */}
             <section className="py-6 md:py-8 lg:py-10 bg-white">
-                <div className="container mx-auto px-4 max-w-7xl">
+                <div className="container mx-auto px-2 md:px-3 lg:px-4 max-w-[98%] md:max-w-[96%] lg:max-w-[94%] xl:max-w-[92%]">
                     <div className="relative overflow-hidden rounded-2xl shadow-2xl h-[35vh] md:h-[40vh] lg:h-[45vh]">
                         {/* Loading Placeholder */}
                         {isLoadingBanner && (

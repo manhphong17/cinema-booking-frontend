@@ -492,27 +492,40 @@ export function HomeLayout({ children }: HomeLayoutProps) {
             {/* MAIN CONTENT */}
             <div className="pt-16">{children}</div>
 
-            {/* FOOTER: layout “Liên hệ và Thông tin Chi tiết” + map động */}
-            <footer className="relative home-footer bg-gradient-to-br from-[#070b12] via-[#0b1220] to-[#070b12] text-white mt-12">
-                {/* glow */}
+            {/* FOOTER: layout "Liên hệ và Thông tin Chi tiết" + map động */}
+            <footer className="relative home-footer bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 text-white mt-12 overflow-hidden">
+                {/* Background pattern nhẹ */}
+                <div className="absolute inset-0 opacity-5 pointer-events-none" style={{
+                    backgroundImage: 'radial-gradient(circle at 2px 2px, #ffffff 1px, transparent 0)',
+                    backgroundSize: '40px 40px'
+                }} />
+                
+                {/* Decorative Border Top */}
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500" />
+
+                {/* Glow effects - nhẹ hơn */}
                 <div
-                    className="pointer-events-none absolute -left-10 top-0 h-56 w-56 rounded-full
-              bg-gradient-to-br from-pink-500/25 via-purple-500/20 to-blue-500/15 blur-3xl"
+                    className="pointer-events-none absolute -left-10 top-20 h-56 w-56 rounded-full
+              bg-gradient-to-br from-pink-500/15 via-purple-500/10 to-blue-500/8 blur-3xl"
+                />
+                <div
+                    className="pointer-events-none absolute -right-10 bottom-20 h-56 w-56 rounded-full
+              bg-gradient-to-br from-blue-500/15 via-purple-500/10 to-pink-500/8 blur-3xl"
                 />
 
-                <div className="container mx-auto px-4 py-16">
+                <div className="container mx-auto px-4 py-16 relative z-10 max-w-7xl">
                     {/* Top row: Logo & Social */}
                     <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-12">
                         {/* Logo + Name */}
                         <div className="flex items-center gap-4">
                             <div
                                 className="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600
-                    text-white p-5 rounded-xl shadow-xl ring-1 ring-white/15"
+                    text-white p-5 rounded-xl shadow-xl ring-1 ring-white/20 hover:shadow-2xl transition-all duration-300 hover:scale-105"
                             >
                                 <Film className="h-12 w-12" />
                             </div>
 
-                            <span className="text-3xl font-bold">
+                            <span className="text-3xl font-bold text-white">
                                 {isLoading
                                     ? "Loading..."
                                     : theaterDetails?.name || "PHT Cinema"}
@@ -525,31 +538,39 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                                 <a
                                     key={i}
                                     href="#"
-                                    className="bg-gray-800 p-3 rounded-xl hover:bg-red-600 transition-all duration-300 hover:scale-110"
+                                    className="bg-slate-600/60 border-2 border-slate-500/60 p-3 rounded-xl hover:bg-gradient-to-br hover:from-blue-600 hover:via-purple-600 hover:to-pink-600 hover:border-transparent transition-all duration-300 hover:scale-110 hover:shadow-lg group backdrop-blur-sm"
                                 >
-                                    <Icon className="h-5 w-5 text-gray-300" />
+                                    <Icon className="h-5 w-5 text-gray-200 group-hover:text-white transition-colors" />
                                 </a>
                             ))}
                         </div>
                     </div>
 
                     {/* KHỐI: Liên hệ & Thông tin chi tiết */}
-                    <div className="mb-12 border-t border-white/10 pt-8 text-slate-300">
-                        <h3
-                            className="text-3xl font-extrabold mb-6
-        bg-clip-text text-transparent
-        bg-gradient-to-r from-pink-500 to-blue-400"
-                        >
-                            Liên hệ và Thông tin Chi tiết
-                        </h3>
+                    <div className="mb-12 border-t border-slate-600/60 pt-8">
+                        <div className="relative mb-8">
+                            <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-pink-500 to-purple-300 rounded-full" />
+                            <div className="text-[11px] font-bold text-pink-300 uppercase tracking-wider mb-3 px-2 py-1 bg-pink-500/25 rounded-md inline-block border border-pink-400/40">
+                                Contact Us
+                            </div>
+                            <h3 className="text-4xl font-black text-white mb-3 tracking-tight">
+                                <span className="bg-gradient-to-r from-pink-300 via-purple-300 to-blue-300 bg-clip-text text-transparent">
+                                    Liên hệ và Thông tin Chi tiết
+                                </span>
+                            </h3>
+                            <div className="flex items-center gap-2">
+                                <div className="h-1.5 w-20 rounded-full bg-gradient-to-r from-pink-500 to-purple-400" />
+                                <div className="h-1.5 w-2 rounded-full bg-pink-400" />
+                            </div>
+                        </div>
 
                         {isLoading && (
-                            <p className="animate-pulse text-center text-lg">
+                            <p className="animate-pulse text-center text-lg text-gray-300 font-medium">
                                 Đang tải thông tin chi tiết rạp...
                             </p>
                         )}
                         {error && (
-                            <p className="text-red-400 text-center text-lg">
+                            <p className="text-red-300 text-center text-lg font-medium bg-red-500/25 border border-red-400/40 rounded-lg px-4 py-3">
                                 ❌ {error}
                             </p>
                         )}
@@ -590,7 +611,7 @@ export function HomeLayout({ children }: HomeLayoutProps) {
 
                                 {/* Hàng 2: Google Map */}
                                 {theaterDetails.googleMapUrl && (
-                                    <div className="relative h-48 md:h-64 rounded-xl overflow-hidden shadow-lg border-2 border-white/20">
+                                    <div className="relative h-48 md:h-64 rounded-xl overflow-hidden shadow-xl border-2 border-slate-600/60 hover:border-pink-400/60 transition-all duration-300 hover:shadow-2xl">
                                         <iframe
                                             src={getGoogleMapEmbedUrl(
                                                 theaterDetails.googleMapUrl
@@ -609,7 +630,7 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                                                 href={theaterDetails.googleMapUrl}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="text-xs bg-white px-3 py-1.5 rounded-lg shadow-md hover:shadow-lg transition-all text-blue-600 hover:text-blue-700 flex items-center gap-1.5"
+                                                className="text-xs bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-lg shadow-lg hover:shadow-xl transition-all text-blue-600 hover:text-blue-700 hover:bg-white flex items-center gap-1.5 font-medium border border-white/30 hover:border-blue-400"
                                             >
                                                 <MapPin className="w-3 h-3" />
                                                 Xem bản đồ
@@ -622,15 +643,15 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                     </div>
 
                     {/* Bottom row */}
-                    <div className="border-t border-white/10 pt-8 text-sm text-slate-400 flex flex-col md:flex-row justify-between gap-4">
-                        <span>
-                            © {new Date().getFullYear()} Cinema. All rights reserved.
+                    <div className="border-t border-slate-600/60 pt-8 text-sm text-gray-300 flex flex-col md:flex-row justify-between gap-4">
+                        <span className="font-medium">
+                            © {new Date().getFullYear()} {theaterDetails?.name || "PHT Cinema"}. All rights reserved.
                         </span>
-                        <div className="flex gap-4">
-                            <a href="#" className="hover:text-white">
+                        <div className="flex gap-6">
+                            <a href="#" className="hover:text-pink-300 transition-colors font-medium">
                                 Điều khoản sử dụng
                             </a>
-                            <a href="#" className="hover:text-white">
+                            <a href="#" className="hover:text-pink-300 transition-colors font-medium">
                                 Chính sách bảo mật
                             </a>
                         </div>

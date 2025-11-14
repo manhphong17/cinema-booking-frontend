@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { QrCode, Scan, CheckCircle, XCircle, Clock, User, MapPin, Calendar } from "lucide-react"
+import { QrCode, Scan, CheckCircle, XCircle, Clock, User, MapPin, Calendar, Loader2 } from "lucide-react"
+import { verifyTicket, markTicketAsUsed, TicketCheckResult } from "@/src/api/orders"
+import { toast } from "sonner"
 
 interface TicketInfo {
   code: string
@@ -18,66 +20,98 @@ interface TicketInfo {
   purchaseDate: string
   status: "valid" | "used" | "expired" | "invalid"
   totalAmount: number
-}
-
-// Mock ticket database
-const mockTickets: Record<string, TicketInfo> = {
-  TK001234567: {
-    code: "TK001234567",
-    movieTitle: "Spider-Man: No Way Home",
-    showtime: "2024-01-15 19:30",
-    theater: "Phòng chiếu 1",
-    seats: ["A5", "A6"],
-    customerName: "Nguyễn Văn A",
-    purchaseDate: "2024-01-10 14:30",
-    status: "valid",
-    totalAmount: 200000,
-  },
-  TK001234568: {
-    code: "TK001234568",
-    movieTitle: "The Batman",
-    showtime: "2024-01-15 16:00",
-    theater: "Phòng chiếu 2",
-    seats: ["B3", "B4", "B5"],
-    customerName: "Trần Thị B",
-    purchaseDate: "2024-01-12 10:15",
-    status: "used",
-    totalAmount: 300000,
-  },
-  TK001234569: {
-    code: "TK001234569",
-    movieTitle: "Top Gun: Maverick",
-    showtime: "2024-01-10 21:00",
-    theater: "Phòng chiếu 3",
-    seats: ["C1", "C2"],
-    customerName: "Lê Văn C",
-    purchaseDate: "2024-01-08 16:45",
-    status: "expired",
-    totalAmount: 180000,
-  },
+  orderId?: number
 }
 
 export function ETicketScanner() {
   const [ticketCode, setTicketCode] = useState("")
   const [scannedTicket, setScannedTicket] = useState<TicketInfo | null>(null)
   const [isScanning, setIsScanning] = useState(false)
+  const [isVerifying, setIsVerifying] = useState(false)
+  const [isMarkingAsUsed, setIsMarkingAsUsed] = useState(false)
   const [scanHistory, setScanHistory] = useState<TicketInfo[]>([])
 
-  const handleManualScan = () => {
+  // Convert API response to TicketInfo format
+  const convertToTicketInfo = (result: TicketCheckResult, code: string): TicketInfo => {
+    // Format showtime for display
+    const formatShowtime = (showtime: string | null) => {
+      if (!showtime) return ""
+      try {
+        const date = new Date(showtime)
+        return date.toLocaleString("vi-VN", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      } catch {
+        return showtime
+      }
+    }
+
+    // Format purchase date
+    const formatPurchaseDate = (date: string) => {
+      try {
+        const d = new Date(date)
+        return d.toLocaleString("vi-VN", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      } catch {
+        return date
+      }
+    }
+
+    return {
+      code: code || result.orderCode,
+      movieTitle: result.movieName || "Không có thông tin",
+      showtime: formatShowtime(result.showtimeStart),
+      theater: result.roomName || "Không có thông tin",
+      seats: result.seats,
+      customerName: result.customerName || "Không có thông tin",
+      purchaseDate: formatPurchaseDate(result.purchaseDate),
+      status: result.status,
+      totalAmount: result.totalAmount,
+      orderId: result.orderId,
+    }
+  }
+
+  const handleManualScan = async () => {
     if (!ticketCode.trim()) return
 
-    const ticket = mockTickets[ticketCode.trim().toUpperCase()]
-    if (ticket) {
+    setIsVerifying(true)
+    try {
+      const result = await verifyTicket(ticketCode.trim())
+      const ticket = convertToTicketInfo(result, ticketCode.trim())
+      
       setScannedTicket(ticket)
+      
       // Add to scan history if not already there
       setScanHistory((prev) => {
-        const exists = prev.find((t) => t.code === ticket.code)
+        const exists = prev.find((t) => t.code === ticket.code || t.orderId === ticket.orderId)
         if (!exists) {
           return [ticket, ...prev.slice(0, 9)] // Keep last 10 scans
         }
         return prev
       })
-    } else {
+      
+      if (ticket.status === "valid") {
+        toast.success("Vé hợp lệ!")
+      } else if (ticket.status === "used") {
+        toast.warning("Vé đã được sử dụng")
+      } else if (ticket.status === "expired") {
+        toast.error("Vé đã hết hạn")
+      } else {
+        toast.error("Vé không hợp lệ")
+      }
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message || error?.message || "Không tìm thấy vé với mã này"
+      toast.error(errorMessage)
+      
       setScannedTicket({
         code: ticketCode.trim().toUpperCase(),
         movieTitle: "Không tìm thấy",
@@ -89,39 +123,52 @@ export function ETicketScanner() {
         status: "invalid",
         totalAmount: 0,
       })
+    } finally {
+      setIsVerifying(false)
+      setTicketCode("")
     }
-    setTicketCode("")
   }
 
-  const handleQRScan = () => {
+  const handleQRScan = async () => {
     setIsScanning(true)
-    // Simulate QR scanning process
-    setTimeout(() => {
-      // Mock QR scan result - in real app, this would use camera
-      const mockQRResult = "TK001234567"
-      const ticket = mockTickets[mockQRResult]
-      if (ticket) {
-        setScannedTicket(ticket)
-        setScanHistory((prev) => {
-          const exists = prev.find((t) => t.code === ticket.code)
-          if (!exists) {
-            return [ticket, ...prev.slice(0, 9)]
-          }
-          return prev
-        })
-      }
-      setIsScanning(false)
-    }, 2000)
+    // In a real app, this would use a camera QR scanner library
+    // For now, we'll prompt the user to enter the QR code manually
+    // You can integrate libraries like html5-qrcode or react-qr-reader here
+    toast.info("Tính năng quét QR sẽ được tích hợp camera. Vui lòng nhập mã vé thủ công.")
+    setIsScanning(false)
+    
+    // Example: If you have a QR scanner library, you would do:
+    // const qrCode = await scanQRCode() // Your QR scanner function
+    // if (qrCode) {
+    //   await handleVerifyTicket(qrCode)
+    // }
   }
 
-  const markTicketAsUsed = () => {
-    if (scannedTicket && scannedTicket.status === "valid") {
-      const updatedTicket = { ...scannedTicket, status: "used" as const }
+  const handleMarkTicketAsUsed = async () => {
+    if (!scannedTicket || scannedTicket.status !== "valid" || !scannedTicket.orderId) {
+      return
+    }
+
+    setIsMarkingAsUsed(true)
+    try {
+      const result = await markTicketAsUsed(scannedTicket.orderId)
+      const updatedTicket = convertToTicketInfo(result, scannedTicket.code)
+      
       setScannedTicket(updatedTicket)
-      // Update mock database
-      mockTickets[scannedTicket.code] = updatedTicket
+      
       // Update scan history
-      setScanHistory((prev) => prev.map((t) => (t.code === scannedTicket.code ? updatedTicket : t)))
+      setScanHistory((prev) =>
+        prev.map((t) =>
+          t.code === updatedTicket.code || t.orderId === updatedTicket.orderId ? updatedTicket : t
+        )
+      )
+      
+      toast.success("Đã xác nhận sử dụng vé thành công!")
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message || error?.message || "Không thể xác nhận sử dụng vé"
+      toast.error(errorMessage)
+    } finally {
+      setIsMarkingAsUsed(false)
     }
   }
 
@@ -192,8 +239,15 @@ export function ETicketScanner() {
                 onKeyPress={(e) => e.key === "Enter" && handleManualScan()}
                 className="flex-1"
               />
-              <Button onClick={handleManualScan} disabled={!ticketCode.trim()}>
-                Kiểm tra
+              <Button onClick={handleManualScan} disabled={!ticketCode.trim() || isVerifying}>
+                {isVerifying ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Đang kiểm tra...
+                  </>
+                ) : (
+                  "Kiểm tra"
+                )}
               </Button>
             </div>
           </div>
@@ -240,9 +294,15 @@ export function ETicketScanner() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-3">
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Mã vé:</label>
+                      <label className="text-sm font-medium text-muted-foreground">Mã đơn hàng:</label>
                       <p className="font-mono text-lg">{scannedTicket.code}</p>
                     </div>
+                    {scannedTicket.orderId && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">ID đơn hàng:</label>
+                        <p className="font-mono text-sm text-muted-foreground">#{scannedTicket.orderId}</p>
+                      </div>
+                    )}
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Phim:</label>
                       <p className="font-semibold">{scannedTicket.movieTitle}</p>
@@ -274,6 +334,10 @@ export function ETicketScanner() {
                         {scannedTicket.customerName}
                       </p>
                     </div>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Ngày mua:</label>
+                      <p className="text-sm">{scannedTicket.purchaseDate}</p>
+                    </div>
                   </div>
                 </div>
 
@@ -287,8 +351,15 @@ export function ETicketScanner() {
                     </p>
                   </div>
                   {scannedTicket.status === "valid" && (
-                    <Button onClick={markTicketAsUsed} size="lg">
-                      Xác nhận sử dụng vé
+                    <Button onClick={handleMarkTicketAsUsed} size="lg" disabled={isMarkingAsUsed}>
+                      {isMarkingAsUsed ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Đang xác nhận...
+                        </>
+                      ) : (
+                        "Xác nhận sử dụng vé"
+                      )}
                     </Button>
                   )}
                 </div>
