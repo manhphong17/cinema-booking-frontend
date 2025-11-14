@@ -120,10 +120,23 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                     checkAuth()
                 }
             }
-            if (e.key === "userAvatar" && e.newValue) setUserAvatar(e.newValue)
-            if ((e.key === "userName" || e.key === "customerName") && e.newValue)
-                setUserName(e.newValue)
+
+            // 🔹 Nếu có giá trị mới -> set avatar đó
+            // 🔹 Nếu bị xóa (newValue === null) -> về avatar mặc định
+            if (e.key === "userAvatar") {
+                setUserAvatar(e.newValue || "/customer-avatar.jpg")
+            }
+
+            if ((e.key === "userName" || e.key === "customerName")) {
+                if (e.newValue) {
+                    setUserName(e.newValue)
+                } else {
+                    // Khi xoá tên user thì reset về mặc định
+                    setUserName("KH")
+                }
+            }
         }
+
 
         const handleTokenSet = () => {
             setTimeout(() => {
@@ -155,8 +168,21 @@ export function HomeLayout({ children }: HomeLayoutProps) {
     const handleLogout = () => {
         setIsAuthenticated(false)
         setDropdownOpen(false)
+
+        // 🔹 Reset avatar + name trên UI
+        setUserAvatar("/customer-avatar.jpg")
+        setUserName("KH")
+
+        // 🔹 Xoá trong localStorage để tránh “dính” user trước
+        if (typeof window !== "undefined") {
+            localStorage.removeItem("userAvatar")
+            localStorage.removeItem("userName")
+            localStorage.removeItem("customerName")
+        }
+
         logout()
     }
+
 
     const handleDropdownClick = (e: React.MouseEvent) => {
         e.preventDefault()

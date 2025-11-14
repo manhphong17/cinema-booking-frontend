@@ -35,14 +35,14 @@
         const [loading, setLoading] = useState(false)
         const [filterType, setFilterType] = useState("recurring")
         const [currentYear, setCurrentYear] = useState(new Date().getFullYear())
+        const handleRefreshHolidays = () => {
+            fetchHolidays(filterType, currentYear);
+        };
 
 
-
-    // 🧩 Hàm thay đổi filter
+        //  Hàm thay đổi filter
         const onFilterTypeChange = (type: string) => {
             setFilterType(type)
-            // Có thể gọi lại API nếu cần, ví dụ:
-            fetchHolidays(type, currentYear)
         }
 
     // 🟢 Fetch holidays theo filterType
@@ -71,10 +71,10 @@
                 setLoading(false);
             }
         };
-
         useEffect(() => {
-            fetchHolidays(filterType)
-        }, [filterType])  // 🟢 Gọi lại mỗi khi đổi dropdown
+              fetchHolidays(filterType, currentYear)
+        }, [filterType, currentYear]) // 🟢 Gọi lại mỗi khi đổi dropdown
+
 
         useEffect(() => {
             const fetchData = async () => {
@@ -142,6 +142,7 @@
                        setCurrentYear(year);
                        fetchHolidays(filterType, year);
                      }}
+                        onRefresh={handleRefreshHolidays}
                     />
 
 

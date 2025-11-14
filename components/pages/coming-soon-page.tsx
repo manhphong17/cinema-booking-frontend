@@ -440,18 +440,10 @@ export function ComingSoonPageContent() {
                                         <h3 className="movie-page-title">
                                             {movie.name || movie.title}
                                         </h3>
-                                        <div className="movie-page-buttons">
-                                            <button 
-                                                className="movie-page-btn movie-page-btn-primary"
-                                                onClick={(e) => {
-                                                    e.stopPropagation()
-                                                    router.push(`/booking?movieId=${movie.id}`)
-                                                }}
-                                            >
-                                                Đặt vé
-                                            </button>
+                                        <div className="movie-page-buttons justify-center" style={{ gap: 0 }}>
                                             <button 
                                                 className="movie-page-btn movie-page-btn-secondary"
+                                                style={{ flex: 'none', minWidth: '120px' }}
                                                 onClick={(e) => {
                                                     e.stopPropagation()
                                                     router.push(`/movie/${movie.id}`)

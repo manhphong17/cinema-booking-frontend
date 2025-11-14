@@ -1,6 +1,6 @@
 "use client"
 
-import type React from "react"
+import React, {useEffect} from "react"
 import {useState} from "react"
 import {useRouter, useSearchParams} from "next/navigation"
 import {Button} from "@/components/ui/button"
@@ -17,7 +17,24 @@ export default function OTPVerifyPage() {
     const [isLoading, setIsLoading] = useState(false)
     const [isResending, setIsResending] = useState(false)
     const router = useRouter()
-    const searchParams = useSearchParams()
+    const [countdown, setCountdown] = useState(300); // 5 phút = 300 giây
+
+    useEffect(() => {
+        if (countdown <= 0) return;
+
+        const timer = setInterval(() => {
+            setCountdown((prev) => prev - 1);
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [countdown]);
+
+    const formatTime = (sec: number) => {
+        const m = Math.floor(sec / 60).toString().padStart(2, "0");
+        const s = (sec % 60).toString().padStart(2, "0");
+        return `${m}:${s}`;
+    };
+
 
     // Lấy email từ sessionStorage
     const email = sessionStorage.getItem("registerEmail")
@@ -45,11 +62,11 @@ export default function OTPVerifyPage() {
                 {method: "POST"}
             )
 
-            const data = await response.json()
+
 
             if (response.ok) {
                 toast.success( "Xác minh thành công!")
-                router.push("/login")
+                router.push("/home")
             } else {
                 setError("OTP không hợp lệ")
                 toast.error( "OTP không hợp lệ")
@@ -73,7 +90,10 @@ export default function OTPVerifyPage() {
                 {method: "POST"}
             )
 
-            const data = await response.json()
+            if (response.ok) {
+                toast.success("OTP mới đã được gửi lại");
+                setCountdown(300);   // ⬅️ reset lại 5 phút
+            }
 
             if (response.ok) {
                 toast.success("OTP mới đã được gửi lại ")
@@ -114,6 +134,11 @@ export default function OTPVerifyPage() {
                         Đã gửi mã OTP xác minh tài khoản về email của bạn,
                         hãy kiểm tra và nhập vào đây để tiếp tục.
                     </CardDescription>
+
+                    <p className="text-center text-sm text-gray-600 mt-1">
+                        OTP của bạn còn hiệu lực trong <span className="font-semibold text-red-600">{formatTime(countdown)}</span>
+                    </p>
+
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleVerifyOTP} className="space-y-6">
