@@ -236,18 +236,10 @@ export function HomeComingSoonCarousel() {
                                     <h3 className="home-movie-title font-bold text-gray-800">
                                         {movie.name || movie.title}
                                     </h3>
-                                    <div className="home-movie-buttons">
-                                        <button
-                                            className="home-movie-btn home-movie-btn-primary"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                router.push(`/booking?movieId=${movie.id}`);
-                                            }}
-                                        >
-                                            Đặt vé
-                                        </button>
+                                    <div className="home-movie-buttons justify-center" style={{ gap: 0 }}>
                                         <button
                                             className="home-movie-btn home-movie-btn-secondary"
+                                            style={{ flex: 'none', minWidth: '120px' }}
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 router.push(`/movie/${movie.id}`);

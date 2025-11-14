@@ -205,7 +205,7 @@ export function ComingSoonPageContent() {
         <div className="min-h-screen bg-white">
             {/* Hero Section - Banner Carousel with Container */}
             <section className="py-6 md:py-8 lg:py-10 bg-white">
-                <div className="container mx-auto px-4 max-w-7xl">
+                <div className="container mx-auto px-2 md:px-3 lg:px-4 max-w-[98%] md:max-w-[96%] lg:max-w-[94%] xl:max-w-[92%]">
                     <div className="relative overflow-hidden rounded-2xl shadow-2xl h-[35vh] md:h-[40vh] lg:h-[45vh]">
                         {/* Loading Placeholder */}
                         {isLoadingBanner && (
@@ -440,18 +440,10 @@ export function ComingSoonPageContent() {
                                         <h3 className="movie-page-title">
                                             {movie.name || movie.title}
                                         </h3>
-                                        <div className="movie-page-buttons">
-                                            <button 
-                                                className="movie-page-btn movie-page-btn-primary"
-                                                onClick={(e) => {
-                                                    e.stopPropagation()
-                                                    router.push(`/booking?movieId=${movie.id}`)
-                                                }}
-                                            >
-                                                Đặt vé
-                                            </button>
+                                        <div className="movie-page-buttons justify-center" style={{ gap: 0 }}>
                                             <button 
                                                 className="movie-page-btn movie-page-btn-secondary"
+                                                style={{ flex: 'none', minWidth: '120px' }}
                                                 onClick={(e) => {
                                                     e.stopPropagation()
                                                     router.push(`/movie/${movie.id}`)

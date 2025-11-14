@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -18,12 +18,15 @@ interface ConcessionsSelectionProps {
     details?: string
   }) => void
   onSyncConcessionsToCart?: (selectedConcessions: Record<string, number>, concessions: any[]) => void
+  showtimeId?: number | null
+  userId?: number | null
 }
 
-export function ConcessionsSelection({ onAddToCart, onSyncConcessionsToCart }: ConcessionsSelectionProps) {
+export function ConcessionsSelection({ onAddToCart, onSyncConcessionsToCart, showtimeId, userId }: ConcessionsSelectionProps) {
   const [concessions, setConcessions] = useState<any[]>([])
   const [loadingConcessions, setLoadingConcessions] = useState(false)
   const [selectedConcessions, setSelectedConcessions] = useState<Record<string, number>>({})
+  const isUpdatingOrderSessionRef = useRef(false)
 
   // Fetch concessions from API
   useEffect(() => {
@@ -56,6 +59,62 @@ export function ConcessionsSelection({ onAddToCart, onSyncConcessionsToCart }: C
       onSyncConcessionsToCart(selectedConcessions, concessions)
     }
   }, [selectedConcessions, concessions, onSyncConcessionsToCart])
+
+  // Update order-session immediately when selectedConcessions changes (only need userId)
+  useEffect(() => {
+    const updateOrderSession = async () => {
+      // Only need userId to update order-session (showtimeId can be null/0 for staff orders without tickets)
+      if (!userId || isUpdatingOrderSessionRef.current) {
+        return
+      }
+
+      try {
+        isUpdatingOrderSessionRef.current = true
+        
+        // Prepare concession data
+        const concessionsData = Object.entries(selectedConcessions)
+          .map(([comboId, quantity]) => ({ 
+            comboId: parseInt(comboId), 
+            quantity 
+          }))
+          .filter(item => item.quantity > 0)
+
+        // Use showtimeId if available, otherwise use 0 as default for staff orders without tickets
+        const finalShowtimeId = showtimeId || 0
+
+        // Call API to update order-session
+        // Backend should auto-create order-session if it doesn't exist
+        await apiClient.post("/bookings/order-session/concessions", {
+          showtimeId: finalShowtimeId,
+          userId: userId,
+          concessions: concessionsData
+        })
+
+        // Success - no need to show toast for every update
+        console.log("Order-session updated successfully")
+      } catch (error: any) {
+        console.error("Error updating order-session:", error)
+        
+        // If order-session doesn't exist, it might need to be created first
+        // But since user said it works without tickets, backend should handle this
+        // Just log the error for debugging
+        if (error?.response?.data?.errorCode === 'REDIS_KEY_NOT_FOUND' || 
+            error?.response?.data?.message?.includes('not found')) {
+          console.warn("Order-session not found, backend should auto-create it")
+        }
+        // Don't show error toast for every update, just log it
+      } finally {
+        isUpdatingOrderSessionRef.current = false
+      }
+    }
+
+    // Debounce to avoid too many API calls
+    const timeoutId = setTimeout(() => {
+      updateOrderSession()
+    }, 300) // Wait 300ms after last change
+
+    return () => clearTimeout(timeoutId)
+  }, [selectedConcessions, showtimeId, userId])
 
   const updateConcessionQuantity = (concessionId: string, quantity: number) => {
     const concession = concessions.find(c => c.concessionId.toString() === concessionId)
