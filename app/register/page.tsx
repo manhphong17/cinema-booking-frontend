@@ -7,7 +7,6 @@ import {Button} from "@/components/ui/button"
 import {Input} from "@/components/ui/input"
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
 import {Label} from "@/components/ui/label"
-import {Alert, AlertDescription} from "@/components/ui/alert"
 import {Eye, EyeOff, Film} from "lucide-react"
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
 import {toast} from "sonner"
@@ -23,7 +22,6 @@ export default function RegisterPage() {
     const [gender, setGender] = useState("")
     const [showPassword, setShowPassword] = useState(false)
     const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-    const [error, setError] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const router = useRouter()
     const [address, setAddress] = useState("");
@@ -31,19 +29,19 @@ export default function RegisterPage() {
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault()
-        setError("")
         setIsLoading(true)
 
         // Kiểm tra mật khẩu nhập lại
         if (password !== confirmPassword) {
-            setError("Mật khẩu và Xác nhận mật khẩu không khớp")
+            toast.error("Mật khẩu và Xác nhận mật khẩu không khớp");
             setIsLoading(false)
             return
         }
 
         // Kiểm tra bắt buộc nhập
         if (!email || !password || !name || !dateOfBirth || !gender) {
-            setError("Vui lòng điền đầy đủ các trường bắt buộc")
+            toast.error("Vui lòng điền đầy đủ các trường bắt buộc");
+
             setIsLoading(false)
             return
         }
@@ -51,16 +49,35 @@ export default function RegisterPage() {
         // Kiểm tra định dạng email
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
         if (!emailRegex.test(email)) {
-            setError("Email không hợp lệ")
+            toast.error("Email không hợp lệ");
             setIsLoading(false)
             return
         }
 
         // Kiểm tra độ dài mật khẩu
         if (password.length < 8) {
-            setError("Mật khẩu phải có ít nhất 8 ký tự")
+            toast.error("Mật khẩu phải có ít nhất 8 ký tự");
             setIsLoading(false)
             return
+        }
+
+        // Validate ngày sinh
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+        if (!dateRegex.test(dateOfBirth)) {
+            toast.error("Ngày sinh không hợp lệ");
+            setIsLoading(false);
+            return;
+        }
+
+        const dobDate = new Date(dateOfBirth);
+        const now = new Date();
+
+        const age = now.getFullYear() - dobDate.getFullYear();
+        if (age > 120) {
+            toast.error("Ngày sinh không hợp lệ");
+            setIsLoading(false);
+            return;
         }
 
         try {
@@ -83,24 +100,22 @@ export default function RegisterPage() {
             const data = await response.json()
 
             if (data.status === 201) {
-                toast.success(data.message || "Vui lòng kiểm tra email để xác thực OTP.")
+                toast.success( "Vui lòng kiểm tra email để xác thực OTP.")
                 sessionStorage.setItem("registerEmail", email)
 
                 sessionStorage.setItem("registerEmail", email);
                 sessionStorage.setItem("registerName",name)
                 router.push("/verify-otp")
             } else {
-                setError(data.message || "Đăng ký thất bại. Vui lòng thử lại.")
-                toast.error(data.message || "Đăng ký thất bại. Vui lòng thử lại.")
+                toast.error( "Đăng ký thất bại. Vui lòng thử lại.")
             }
+
         } catch (err: unknown) {
             if (err instanceof Error) {
                 console.error("Lỗi khi đăng ký:", err.message)
-                setError("Lỗi kết nối mạng. Vui lòng kiểm tra lại và thử lại.")
                 toast.error("Lỗi kết nối mạng. Vui lòng kiểm tra lại và thử lại.")
             } else {
                 console.error("Lỗi không xác định:", err)
-                setError("Đã xảy ra lỗi. Vui lòng thử lại.")
                 toast.error("Đã xảy ra lỗi. Vui lòng thử lại.")
             }
         } finally {
@@ -257,11 +272,6 @@ export default function RegisterPage() {
                             </div>
                         </div>
 
-                        {error && (
-                            <Alert variant="destructive" className="text-sm">
-                                <AlertDescription>{error}</AlertDescription>
-                            </Alert>
-                        )}
 
                         <Button
                             type="submit"

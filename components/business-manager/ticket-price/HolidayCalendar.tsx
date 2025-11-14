@@ -9,6 +9,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import apiClient from "@/src/api/interceptor"
+import {onRefresh} from "next/dist/client/components/react-dev-overlay/pages/client";
 
 // ==========================
 // 🔹 Kiểu dữ liệu thống nhất
@@ -33,6 +34,7 @@ interface HolidayCalendarProps {
     filterType: string
     onFilterTypeChange: (type: string) => void
     onYearChange?: (year: number) => void
+    onRefresh: () => void
 }
 
 export function HolidayCalendar({
@@ -42,6 +44,7 @@ export function HolidayCalendar({
                                     filterType,
                                     onFilterTypeChange,
                                     onYearChange,
+                                    onRefresh
                                 }: HolidayCalendarProps) {
     const [currentDate, setCurrentDate] = useState(new Date(2025, 0, 1))
     const [selectedDays, setSelectedDays] = useState<string[]>([])
@@ -271,7 +274,7 @@ export function HolidayCalendar({
                 open={dialogOpen}
                 onClose={() => setDialogOpen(false)}
                 selectedDays={selectedDays}
-                onSave={handleAddHolidays}
+                onSave={() => onRefresh()}
             />
         </Card>
     )
