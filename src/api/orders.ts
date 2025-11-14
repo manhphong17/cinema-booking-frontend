@@ -238,12 +238,34 @@ export type TicketCheckResult = {
 const normalizeTicketCheck = (raw: any): TicketCheckResult => {
   const orderStatus = String(raw?.orderStatus ?? raw?.status ?? "").toUpperCase();
   
+  // Handle tickets array from OrderCheckTicketResponse
+  const tickets = Array.isArray(raw?.tickets) ? raw.tickets : [];
+  const firstTicket = tickets.length > 0 ? tickets[0] : null;
+  
+  // Get movie name and room name from first ticket or root level
+  const movieName = firstTicket?.movieName ?? raw?.movieName ?? raw?.movie ?? null;
+  const roomName = firstTicket?.roomName ?? raw?.roomName ?? null;
+  const showtimeStart = firstTicket?.showtimeStart ?? raw?.showtimeStart ?? raw?.showtime ?? null;
+  const showtimeEnd = firstTicket?.showtimeEnd ?? raw?.showtimeEnd ?? null;
+  
+  // Extract seats from tickets array if available
+  let seats: string[] = [];
+  if (tickets.length > 0) {
+    seats = tickets
+      .map((ticket: any) => ticket?.seatCode ?? ticket?.seat ?? null)
+      .filter((seat: any) => seat != null)
+      .map((s: any) => String(s));
+  } else if (Array.isArray(raw?.seats)) {
+    seats = raw.seats.map((s: any) => String(s));
+  } else if (typeof raw?.seats === "string") {
+    seats = raw.seats.split(/[\,\s]+/).filter(Boolean);
+  }
+  
   // Determine ticket status based on order status and other factors
   let status: "valid" | "used" | "expired" | "invalid" = "invalid";
   
   if (orderStatus === "COMPLETED" || orderStatus === "PAID") {
     const qrExpired = Boolean(raw?.qrExpired ?? false);
-    const showtimeStart = raw?.showtimeStart ?? raw?.showtime ?? null;
     
     // Check if showtime has passed (expired)
     if (showtimeStart) {
@@ -269,13 +291,11 @@ const normalizeTicketCheck = (raw: any): TicketCheckResult => {
     orderId: raw?.orderId ?? raw?.id ?? 0,
     orderCode: raw?.orderCode ?? raw?.code ?? "",
     bookingCode: raw?.bookingCode ?? null,
-    movieName: raw?.movieName ?? raw?.movie ?? null,
-    roomName: raw?.roomName ?? null,
-    showtimeStart: raw?.showtimeStart ?? raw?.showtime ?? null,
-    showtimeEnd: raw?.showtimeEnd ?? null,
-    seats: Array.isArray(raw?.seats)
-      ? raw.seats.map((s: any) => String(s))
-      : (typeof raw?.seats === "string" ? raw.seats.split(/[\,\s]+/).filter(Boolean) : []),
+    movieName,
+    roomName,
+    showtimeStart,
+    showtimeEnd,
+    seats,
     customerName: raw?.userName ?? raw?.customerName ?? raw?.user_name ?? "",
     purchaseDate: raw?.createdAt ?? raw?.purchaseDate ?? new Date().toISOString(),
     totalAmount: Number(raw?.totalPrice ?? raw?.totalAmount ?? raw?.total ?? 0),
@@ -293,29 +313,30 @@ const normalizeTicketCheck = (raw: any): TicketCheckResult => {
  */
 export async function verifyTicket(ticketCode: string): Promise<TicketCheckResult> {
   try {
-    // Try to verify as QR JWT token first
-    const response = await apiClient.post("/orders/verify", {
-      qrToken: ticketCode,
+    // Use the correct endpoint: GET /orders/check-ticket?orderCode={orderCode}
+    const response = await apiClient.get("/orders/check-ticket", {
+      params: {
+        orderCode: ticketCode.trim(),
+      },
     });
     
     const data = response?.data;
     const payload = data?.data ?? data;
     return normalizeTicketCheck(payload);
   } catch (error: any) {
-    // If QR verification fails, try to get order by code
-    if (error?.response?.status === 404 || error?.response?.status === 400) {
-      try {
-        // Try to get order by order code
-        const orderResponse = await apiClient.get(`/orders/code/${ticketCode}`);
-        const orderData = orderResponse?.data;
-        const orderPayload = orderData?.data ?? orderData;
-        return normalizeTicketCheck(orderPayload);
-      } catch (orderError) {
-        // If both fail, return invalid ticket
-        throw new Error("Không tìm thấy vé với mã này");
-      }
+    // Handle different error statuses
+    const status = error?.response?.status;
+    const errorMessage = error?.response?.data?.message || error?.message || "Không tìm thấy vé với mã này";
+    
+    if (status === 404 || status === 400) {
+      throw new Error("Không tìm thấy vé với mã này");
+    } else if (status === 401 || status === 403) {
+      throw new Error("Bạn không có quyền kiểm tra vé. Vui lòng đăng nhập với tài khoản STAFF.");
+    } else if (status === 500) {
+      throw new Error("Lỗi server khi kiểm tra vé. Vui lòng thử lại sau.");
+    } else {
+      throw new Error(errorMessage);
     }
-    throw error;
   }
 }
 
