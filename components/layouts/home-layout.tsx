@@ -261,8 +261,6 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                                 { path: "/home", label: "Trang chủ" },
                                 { path: "/movies/now-showing", label: "Phim đang chiếu" },
                                 { path: "/movies/coming-soon", label: "Phim sắp chiếu" },
-                                { path: "/vouchers", label: "Voucher" },
-                                { path: "/news", label: "Tin tức" },
                                 ...(isAuthenticated
                                     ? [
                                         {
@@ -449,7 +447,7 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                         </div>
                     </div>
 
-                    {/* Mobile Menu – union menu items (có Voucher + News + Orders) */}
+                    {/* Mobile Menu – union menu items */}
                     {mobileMenuOpen && (
                         <div className="md:hidden border-t border-border bg-white animate-in slide-in-from-top-2 duration-300">
                             <div className="px-4 py-6 grid grid-cols-2 gap-3">
@@ -457,8 +455,6 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                                     { path: "/home", label: "Trang chủ" },
                                     { path: "/movies/now-showing", label: "Phim đang chiếu" },
                                     { path: "/movies/coming-soon", label: "Phim sắp chiếu" },
-                                    { path: "/vouchers", label: "Voucher" },
-                                    { path: "/news", label: "Tin tức" },
                                     ...(isAuthenticated
                                         ? [
                                             {
