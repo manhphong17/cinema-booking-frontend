@@ -1,5 +1,8 @@
 "use client"
 
+// ===============================
+// 1️⃣ IMPORT & CONFIG CHUNG
+// ===============================
 import type React from "react"
 import {useEffect, useState} from "react"
 import {useRouter} from "next/navigation"
@@ -31,6 +34,9 @@ import {toast} from "sonner"
 import {apiClient} from "../../src/api/interceptor"
 import {useAuthGuard} from "../../src/api/auth-guard"
 
+// ===============================
+// 2️⃣ TYPE DEFINITIONS
+// ===============================
 interface Movie {
     id: number
     actor: string
@@ -51,8 +57,6 @@ interface Movie {
 
 type FeaturedMap = Record<number, boolean>
 
-
-
 interface Genre {
     id: number
     name: string
@@ -68,46 +72,36 @@ interface Country {
     name: string
 }
 
+// ===============================
+// 3️⃣ COMPONENT CHÍNH
+// ===============================
 export function MovieManagement() {
     const router = useRouter()
+    
+    // =======================================
+    // 🟢 STATE CHÍNH & DATA
+    // =======================================
     const [movies, setMovies] = useState<Movie[]>([])
     const [genres, setGenres] = useState<Genre[]>([])
     const [languages, setLanguages] = useState<Language[]>([])
     const [countries, setCountries] = useState<Country[]>([])
+    const [featuredByMovieId, setFeaturedByMovieId] = useState<FeaturedMap>({}) // Local featured (Banner/Nổi bật) state map by movie id
+
+    // =======================================
+    // 🟢 STATE LOADING & DIALOG
+    // =======================================
     const [isLoading, setIsLoading] = useState(false)
-    const [confirmDeleteMovie, setConfirmDeleteMovie] = useState<Movie | null>(null)
     const [isDeleting, setIsDeleting] = useState(false)
-    // Check auth on component mount
-    useAuthGuard()
     const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false)
     const [editingMovie, setEditingMovie] = useState<Movie | null>(null)
+    const [confirmDeleteMovie, setConfirmDeleteMovie] = useState<Movie | null>(null)
+
+    // =======================================
+    // 🟢 STATE FORM & GENRE SELECTION
+    // =======================================
     const [selectedGenres, setSelectedGenres] = useState<Genre[]>([])
     const [genreSearch, setGenreSearch] = useState("")
     const [showGenreDropdown, setShowGenreDropdown] = useState(false)
-
-    const [searchQuery, setSearchQuery] = useState("")
-    const [selectedGenre, setSelectedGenre] = useState<string>("all")
-    const [selectedLanguage, setSelectedLanguage] = useState<string>("all")
-    const [dateFrom, setDateFrom] = useState("")
-    const [dateTo, setDateTo] = useState("")
-    const [dateError, setDateError] = useState("")
-    const [statusFilters, setStatusFilters] = useState<{ upcoming: boolean; "now-showing": boolean; ended: boolean }>({
-        upcoming: false,
-        "now-showing": false,
-        ended: false,
-    })
-
-
-    const [sortField, setSortField] = useState<"id" | "name" | "releaseDate">("id")
-    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
-
-    const [currentPage, setCurrentPage] = useState(1)
-    const [pageSize, setPageSize] = useState(10)
-    const [totalMovies, setTotalMovies] = useState(0)
-
-    // Local featured (Banner/Nổi bật) state map by movie id
-    const [featuredByMovieId, setFeaturedByMovieId] = useState<FeaturedMap>({})
-
     const [formData, setFormData] = useState({
         name: "",
         genreIds: [] as number[],
@@ -125,12 +119,44 @@ export function MovieManagement() {
         trailerUrl: "",
     })
 
+    // =======================================
+    // 🟢 STATE FILTER & SORT
+    // =======================================
+    const [searchQuery, setSearchQuery] = useState("")
+    const [selectedGenre, setSelectedGenre] = useState<string>("all")
+    const [selectedLanguage, setSelectedLanguage] = useState<string>("all")
+    const [dateFrom, setDateFrom] = useState("")
+    const [dateTo, setDateTo] = useState("")
+    const [dateError, setDateError] = useState("")
+    const [statusFilters, setStatusFilters] = useState<{ upcoming: boolean; "now-showing": boolean; ended: boolean }>({
+        upcoming: false,
+        "now-showing": false,
+        ended: false,
+    })
+    const [sortField, setSortField] = useState<"id" | "name" | "releaseDate">("id")
+    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
+
+    // =======================================
+    // 🟢 STATE PAGINATION
+    // =======================================
+    const [currentPage, setCurrentPage] = useState(1)
+    const [pageSize, setPageSize] = useState(10)
+    const [totalMovies, setTotalMovies] = useState(0)
+
+    // =======================================
+    // 🟢 AUTH GUARD
+    // =======================================
+    useAuthGuard()
+
+    // =======================================
+    // 🟢 FETCH API: LẤY DANH SÁCH
+    // =======================================
     const fetchGenres = async () => {
         try {
             const response = await apiClient.get('/movies/movie-genres')
             setGenres(response.data.data || [])
         } catch (error) {
-            console.error("Failed to fetch genres:", error)
+            console.error("Lỗi khi tải danh sách thể loại:", error)
         }
     }
 
@@ -139,7 +165,7 @@ export function MovieManagement() {
             const response = await apiClient.get('/movies/languages')
             setLanguages(response.data.data || [])
         } catch (error) {
-            console.error("Failed to fetch languages:", error)
+            console.error("Lỗi khi tải danh sách ngôn ngữ:", error)
         }
     }
 
@@ -148,16 +174,17 @@ export function MovieManagement() {
             const response = await apiClient.get('/movies/countries')
             setCountries(response.data.data || [])
         } catch (error) {
-            console.error("Failed to fetch countries:", error)
+            console.error("Lỗi khi tải danh sách quốc gia:", error)
         }
     }
 
-    // Filter genres based on search
+    // =======================================
+    // 🟢 HELPER FUNCTIONS
+    // =======================================
     const filteredGenres = genres.filter(genre => 
         genre.name.toLowerCase().includes(genreSearch.toLowerCase())
     )
 
-    // Handle genre selection
     const handleGenreSelect = (genre: Genre) => {
         if (!selectedGenres.find(g => g.id === genre.id)) {
             const newSelectedGenres = [...selectedGenres, genre]
@@ -183,13 +210,16 @@ export function MovieManagement() {
         })
     }
 
+    // =======================================
+    // 🟢 FETCH API: LẤY DANH SÁCH PHIM
+    // =======================================
     const fetchMovies = async () => {
         setIsLoading(true)
         try {
             const statuses = Object.entries(statusFilters)
                 .filter(([_, v]) => v)
                 .map(([k]) => {
-                    // Map frontend status to backend enum
+                    // Map trạng thái frontend sang enum backend
                     switch (k) {
                         case 'upcoming':
                             return 'UPCOMING'
@@ -202,14 +232,14 @@ export function MovieManagement() {
                     }
                 })
 
-            // Build query parameters only for non-empty values
+            // Xây dựng query parameters chỉ cho các giá trị không rỗng
             const queryParams: Record<string, string> = {
                 pageNo: currentPage.toString(),
                 pageSize: pageSize.toString(),
                 sortBy: `${sortField}:${sortDirection}`,
             }
 
-            // Only add filter parameters if they have values
+            // Chỉ thêm tham số filter nếu chúng có giá trị
             if (searchQuery.trim()) {
                 queryParams.keyword = searchQuery.trim()
             }
@@ -228,14 +258,14 @@ export function MovieManagement() {
 
             const query = new URLSearchParams()
 
-            // Add all parameters
+            // Thêm tất cả parameters
             Object.entries(queryParams).forEach(([key, value]) => {
                 if (key !== 'statuses') {
                     query.append(key, value)
                 }
             })
 
-            // Add statuses as multiple parameters
+            // Thêm statuses như multiple parameters
             if (statuses && statuses.length > 0) {
                 statuses.forEach(status => {
                     query.append('statuses', status)
@@ -246,8 +276,8 @@ export function MovieManagement() {
             
             const items = response.data.data.items || []
             setMovies(items)
-            // Initialize featured map for new items if not already present
-
+            
+            // Khởi tạo featured map cho items mới nếu chưa có
             const newFeatureMap: FeaturedMap = {}
             for (const m of items){
                 newFeatureMap[m.id] = m.isFeatured
@@ -263,22 +293,28 @@ export function MovieManagement() {
         }
     }
 
+    // =======================================
+    // 🟢 CRUD: CẬP NHẬT / XOÁ / TOGGLE FEATURED
+    // =======================================
     const handleToggleFeatured = async (movieId: number, checked: boolean) => {
-        // lưu trạng thái trước khi gọi API
+        // Lưu trạng thái trước khi gọi API
         const previousValue = featuredByMovieId[movieId]
         setFeaturedByMovieId(prev => ({...prev, [movieId]: checked}))
         try {
-            //call api update feature
+            // Gọi API update feature
             await apiClient.patch(`/movies/update-feature/${movieId}`, {isFeatured: checked})
             toast.success(checked ? "Đã bật Banner" : "Đã tắt Banner")
         }
         catch (error){
-            //hoan tac trang thai
+            // Hoàn tác trạng thái
             setFeaturedByMovieId(prev => ({...prev, [movieId]: previousValue}))
             toast.error("Không thể cập nhật trạng thái nổi bật.")
         }
     }
 
+    // =======================================
+    // 🟢 useEffect — INIT & LOAD DATA
+    // =======================================
     useEffect(() => {
         const loadData = async () => {
             await Promise.all([
@@ -291,7 +327,9 @@ export function MovieManagement() {
         loadData()
     }, [])
 
-    // Close genre dropdown when clicking outside
+    // =======================================
+    // 🟢 useEffect — CLOSE GENRE DROPDOWN
+    // =======================================
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             const target = event.target as HTMLElement
@@ -306,6 +344,9 @@ export function MovieManagement() {
         }
     }, [showGenreDropdown])
 
+    // =======================================
+    // 🟢 useEffect — FETCH MOVIES KHI FILTER THAY ĐỔI
+    // =======================================
     useEffect(() => {
         const loadMovies = async () => {
             await fetchMovies()
@@ -313,7 +354,9 @@ export function MovieManagement() {
         loadMovies()
     }, [currentPage, pageSize, sortField, sortDirection, searchQuery, selectedGenre, selectedLanguage, dateFrom, dateTo, statusFilters])
 
-
+    // =======================================
+    // 🟢 VALIDATION FUNCTIONS
+    // =======================================
     const validateDateRange = (from: string, to: string) => {
         if (from && to && new Date(from) > new Date(to)) {
             toast.warning("Ngày bắt đầu không được lớn hơn ngày kết thúc")
@@ -356,6 +399,9 @@ export function MovieManagement() {
         return true
     }
 
+    // =======================================
+    // 🟢 EVENT HANDLERS
+    // =======================================
     const handleSubmit = async () => {
         if (!validateForm()) return
         
@@ -399,6 +445,9 @@ export function MovieManagement() {
         }
     }
 
+    // =======================================
+    // 🟢 HELPER FUNCTIONS: RESET & UTILS
+    // =======================================
     const resetForm = () => {
         setFormData({
             name: "",
@@ -441,6 +490,9 @@ export function MovieManagement() {
         }
     }
 
+    // =======================================
+    // 🟢 UI HELPER FUNCTIONS
+    // =======================================
     const getStatusBadge = (status: Movie["status"]) => {
         switch (status) {
             case "UPCOMING":
@@ -470,9 +522,14 @@ export function MovieManagement() {
         }
     }
 
-
+    // =======================================
+    // 🟢 COMPUTED VALUES
+    // =======================================
     const totalPages = totalMovies > 0 ? Math.ceil(totalMovies / pageSize) : 0
 
+    // =======================================
+    // 🟢 BULK UPLOAD FUNCTIONS
+    // =======================================
     const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
@@ -508,12 +565,12 @@ export function MovieManagement() {
     const openEditDialog = async (movie: Movie) => {
         setEditingMovie(movie)
         
-        // Ensure countries are loaded before opening dialog
+        // Đảm bảo countries đã được load trước khi mở dialog
         if (countries.length === 0) {
             await fetchCountries()
         }
         
-        // Set selected genres from movie data
+        // Set selected genres từ dữ liệu phim
         const movieGenres = movie.genre || []
         setSelectedGenres(movieGenres)
         
@@ -535,7 +592,6 @@ export function MovieManagement() {
         })
     }
 
-
     const downloadTemplate = () => {
         const csvContent = `title,genre,language,duration,releaseDate,description,director,actors,ageRating,year,country,status,poster_filename
 Spider-Man: No Way Home,Action,English,148,2024-12-15,A superhero film,Jon Watts,Tom Holland; Zendaya,T13,2024,USA,upcoming,spider-man.jpg
@@ -549,7 +605,9 @@ Top Gun: Maverick,Action,English,130,2024-11-20,An action drama,Joseph Kosinski,
         toast.info("Đã tải xuống file mẫu CSV")
     }
 
-
+    // =======================================
+    // 🟢 RETURN UI
+    // =======================================
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">

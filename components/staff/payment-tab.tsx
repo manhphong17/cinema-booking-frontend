@@ -47,7 +47,10 @@ export function PaymentTab({ showtimeId, onPaymentSuccess }: PaymentTabProps) {
     // 2️⃣ Fetch order session
     useEffect(() => {
         async function fetchOrderSession() {
-            if (!showtimeId || !userId) return
+            if (!showtimeId || !userId) {
+                setIsLoading(false)
+                return
+            }
             setIsLoading(true)
             try {
                 const res = await apiClient.get(`/bookings/order-session`, {
@@ -56,8 +59,8 @@ export function PaymentTab({ showtimeId, onPaymentSuccess }: PaymentTabProps) {
                 const session = res.data.data
                 console.log("[Staff] Order session:", session)
 
-                const ticketIds = session.ticketIds || []
-                const concessionOrders = session.concessionOrders || []
+                const ticketIds = session?.ticketIds || []
+                const concessionOrders = session?.concessionOrders || []
                 setTicketIds(ticketIds)
 
                 // Fetch ticket details
@@ -66,6 +69,8 @@ export function PaymentTab({ showtimeId, onPaymentSuccess }: PaymentTabProps) {
                         params: { ids: ticketIds.join(",") },
                     })
                     setSeatData(seatRes.data.data || [])
+                } else {
+                    setSeatData([])
                 }
 
                 // Fetch concession details
@@ -80,10 +85,17 @@ export function PaymentTab({ showtimeId, onPaymentSuccess }: PaymentTabProps) {
                     const map: Record<string, number> = {}
                     concessionOrders.forEach((c: any) => (map[c.comboId] = c.quantity))
                     setComboQty(map)
+                } else {
+                    setConcessions([])
+                    setComboQty({})
                 }
             } catch (err) {
                 console.error("Failed to fetch order session:", err)
                 toast.error("Không thể tải thông tin đơn hàng")
+                setSeatData([])
+                setConcessions([])
+                setTicketIds([])
+                setComboQty({})
             } finally {
                 setIsLoading(false)
             }

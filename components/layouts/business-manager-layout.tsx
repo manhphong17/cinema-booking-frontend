@@ -5,7 +5,7 @@ import type React from "react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {Film, LayoutDashboard, Package, Gift, DollarSign, LogOut, Menu, X, ShoppingBag} from "lucide-react"
+import {Film, LayoutDashboard, Package, DollarSign, LogOut, Menu, X, ShoppingBag} from "lucide-react"
 import { useRouter } from "next/navigation"
 import { logout } from "@/src/api/interceptor"
 
@@ -21,7 +21,6 @@ export function BusinessManagerLayout({ children, activeSection }: BusinessManag
     const menuItems = [
         { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/business-manager/dashboard" },
         { id: "concession", label: "Quản lý Bắp Nước", icon: Package, path: "/business-manager/concession" },
-        { id: "voucher", label: "Quản lý Voucher", icon: Gift, path: "/business-manager/voucher" },
         { id: "ticket-price", label: "Quản lý Giá Vé", icon: DollarSign, path: "/business-manager/ticket-price" },
         { id: "orders", label: "Quản lý Bán Hàng", icon: ShoppingBag, path: "/business-manager/orders" },
 
