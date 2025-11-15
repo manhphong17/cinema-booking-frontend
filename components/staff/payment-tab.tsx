@@ -153,7 +153,10 @@ export function PaymentTab({ showtimeId, onPaymentSuccess }: PaymentTabProps) {
             if (selectedPaymentCode ==="CASH") {
                 const res = await apiClient.post("/payment/checkout-cash", payload)
                 if (res.status === 200) {
-                    const orderId = res.data?.data?.orderId || res.data?.orderId || res.data?.order?.orderId
+                    const orderId = res.data?.data
+                    console.log("Payment response:", res.data)
+                    console.log("OrderId from response:", orderId)
+                    
                     toast.success("Thanh toán tiền mặt thành công!")
                     setPaymentSuccess(true)
                     
@@ -161,7 +164,9 @@ export function PaymentTab({ showtimeId, onPaymentSuccess }: PaymentTabProps) {
                     if (orderId) {
                         setIsFetchingOrder(true)
                         try {
+                            console.log("Fetching order details for orderId:", orderId)
                             const order = await getOrderDetail(orderId)
+                            console.log("Order details fetched:", order)
                             setOrderDetail(order)
                         } catch (err) {
                             console.error("Failed to fetch order details:", err)
