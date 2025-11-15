@@ -351,27 +351,16 @@ export function ETicketScanner() {
                     </p>
                   </div>
                   {scannedTicket.status === "valid" && (
-                    <div className="flex gap-3">
-                      <Button 
-                        onClick={() => window.print()} 
-                        variant="outline" 
-                        size="lg"
-                        className="flex items-center gap-2"
-                      >
-                        <Printer className="h-4 w-4" />
-                        In vé
-                      </Button>
-                      <Button onClick={handleMarkTicketAsUsed} size="lg" disabled={isMarkingAsUsed}>
-                        {isMarkingAsUsed ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Đang xác nhận...
-                          </>
-                        ) : (
-                          "Xác nhận sử dụng vé"
-                        )}
-                      </Button>
-                    </div>
+                    <Button onClick={handleMarkTicketAsUsed} size="lg" disabled={isMarkingAsUsed}>
+                      {isMarkingAsUsed ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Đang xác nhận...
+                        </>
+                      ) : (
+                        "Xác nhận sử dụng vé"
+                      )}
+                    </Button>
                   )}
                 </div>
               </div>

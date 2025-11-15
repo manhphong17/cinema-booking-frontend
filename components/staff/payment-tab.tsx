@@ -3,10 +3,11 @@
 import { useEffect, useState, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { Loader2, CheckCircle2 } from "lucide-react"
+import { Loader2, CheckCircle2, Printer } from "lucide-react"
 import { toast } from "sonner"
 import { jwtDecode } from "jwt-decode"
 import { apiClient } from "@/src/api/interceptor"
+import { getOrderDetail, OrderDetail } from "@/src/api/orders"
 import BookingOrderSummary, { SeatInfo, ConcessionInfo } from "@/components/booking/booking-order-summary"
 import PaymentMethodCardStaff from "@/components/staff/payment-method-card-staff"
 
@@ -27,6 +28,7 @@ export function PaymentTab({ showtimeId, onPaymentSuccess }: PaymentTabProps) {
     const [selectedPaymentName, setSelectedPaymentName] = useState<string | null>(null)
     const [isProcessing, setIsProcessing] = useState(false)
     const [paymentSuccess, setPaymentSuccess] = useState(false)
+    const [orderDetail, setOrderDetail] = useState<OrderDetail | null>(null)
 
     // 1️⃣ Decode userId từ accessToken
     useEffect(() => {
@@ -148,15 +150,21 @@ export function PaymentTab({ showtimeId, onPaymentSuccess }: PaymentTabProps) {
 
             // Gọi API tương ứng
             if (selectedPaymentCode ==="CASH") {
-
                 const res = await apiClient.post("/payment/checkout-cash", payload)
                 if (res.status === 200) {
+                    const orderId = res.data?.data?.orderId || res.data?.orderId
                     toast.success("Thanh toán tiền mặt thành công!")
                     setPaymentSuccess(true)
-                    setTimeout(() => {
-                        setPaymentSuccess(false)
-                        onPaymentSuccess()
-                    }, 2000)
+                    
+                    // Fetch order details để hiển thị thông tin vé
+                    if (orderId) {
+                        try {
+                            const order = await getOrderDetail(orderId)
+                            setOrderDetail(order)
+                        } catch (err) {
+                            console.error("Failed to fetch order details:", err)
+                        }
+                    }
                 }
             } else {
                 const res = await apiClient.post("/payment/checkout", payload)
@@ -193,10 +201,73 @@ export function PaymentTab({ showtimeId, onPaymentSuccess }: PaymentTabProps) {
                     </CardHeader>
                     <CardContent>
                         {paymentSuccess ? (
-                            <div className="text-center space-y-4 py-8">
-                                <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto" />
-                                <h3 className="text-2xl font-semibold text-green-600">Thanh toán thành công!</h3>
-                                <p className="text-muted-foreground">Đơn hàng đã được ghi nhận</p>
+                            <div className="space-y-6">
+                                <div className="text-center space-y-4">
+                                    <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto" />
+                                    <h3 className="text-2xl font-semibold text-green-600">Thanh toán thành công!</h3>
+                                    <p className="text-muted-foreground">Đơn hàng đã được ghi nhận</p>
+                                </div>
+                                
+                                {orderDetail && (
+                                    <>
+                                        <div className="border-t pt-4 space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-sm font-medium text-muted-foreground">Mã đơn hàng:</span>
+                                                <span className="font-mono font-semibold">{orderDetail.orderCode}</span>
+                                            </div>
+                                            {orderDetail.movieName && (
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-sm font-medium text-muted-foreground">Phim:</span>
+                                                    <span className="font-semibold">{orderDetail.movieName}</span>
+                                                </div>
+                                            )}
+                                            {orderDetail.roomName && (
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-sm font-medium text-muted-foreground">Phòng:</span>
+                                                    <span>{orderDetail.roomName}</span>
+                                                </div>
+                                            )}
+                                            {orderDetail.showtimeStart && (
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-sm font-medium text-muted-foreground">Suất chiếu:</span>
+                                                    <span>{new Date(orderDetail.showtimeStart).toLocaleString("vi-VN")}</span>
+                                                </div>
+                                            )}
+                                            {orderDetail.seats && orderDetail.seats.length > 0 && (
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-sm font-medium text-muted-foreground">Ghế:</span>
+                                                    <span className="font-semibold">{orderDetail.seats.join(", ")}</span>
+                                                </div>
+                                            )}
+                                            <div className="flex items-center justify-between pt-2 border-t">
+                                                <span className="text-sm font-medium text-muted-foreground">Tổng tiền:</span>
+                                                <span className="text-lg font-bold text-green-600">{orderDetail.totalPrice.toLocaleString("vi-VN")}đ</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <Button 
+                                            onClick={() => window.print()} 
+                                            variant="outline" 
+                                            className="w-full"
+                                            size="lg"
+                                        >
+                                            <Printer className="h-4 w-4 mr-2" />
+                                            In vé
+                                        </Button>
+                                        
+                                        <Button
+                                            onClick={() => {
+                                                setPaymentSuccess(false)
+                                                setOrderDetail(null)
+                                                onPaymentSuccess()
+                                            }}
+                                            className="w-full"
+                                            size="lg"
+                                        >
+                                            Tiếp tục đặt vé
+                                        </Button>
+                                    </>
+                                )}
                             </div>
                         ) : (
                             <Button
