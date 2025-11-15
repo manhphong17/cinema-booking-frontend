@@ -9,6 +9,7 @@ import { ChevronLeft, ChevronRight, ShoppingBag } from "lucide-react"
 import { searchOrdersByDate, getOrderDetail, type CustomerOrder, type OrderDetail } from "@/src/api/orders"
 import { Input } from "@/components/ui/input"
 import { OrderDetailModal } from "./order-detail-modal"
+import { toast } from "sonner"
 
 export function CustomerOrders() {
   const [orders, setOrders] = useState<CustomerOrder[]>([])
@@ -49,7 +50,17 @@ export function CustomerOrders() {
     }
   }, [currentPage, itemsPerPage, selectedDate])
 
-  const handleViewDetail = async (orderId: string) => {
+  const handleViewDetail = async (orderId: string, orderStatus?: string) => {
+    // Kiểm tra nếu đơn hàng đã hủy (hỗ trợ cả CANCELED và CANCELLED)
+    const statusUpper = orderStatus?.toUpperCase()
+    if (statusUpper === "CANCELED" || statusUpper === "CANCELLED") {
+      toast.error("Bạn đã hủy", {
+        description: "Không thể xem chi tiết đơn hàng đã hủy",
+        duration: 3000,
+      })
+      return
+    }
+
     try {
       setDetailLoading(true)
       setModalOpen(true)
@@ -60,6 +71,9 @@ export function CustomerOrders() {
     } catch (e: any) {
       console.error("Failed to load order detail:", e)
       setSelectedOrder(null)
+      toast.error("Không thể tải chi tiết đơn hàng", {
+        description: e?.message || "Vui lòng thử lại sau",
+      })
     } finally {
       setDetailLoading(false)
     }
@@ -195,14 +209,25 @@ export function CustomerOrders() {
                       }) : "-"}
                     </TableCell>
                     <TableCell className="px-6 py-4 text-center">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="h-9 text-sm font-semibold border-2 border-blue-300 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all duration-300"
-                        onClick={() => handleViewDetail(order.id)}
-                      >
-                        Xem chi tiết
-                      </Button>
+                      {(() => {
+                        const statusUpper = order.status?.toUpperCase()
+                        const isCancelled = statusUpper === "CANCELED" || statusUpper === "CANCELLED"
+                        return (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className={`h-9 text-sm font-semibold border-2 transition-all duration-300 ${
+                              isCancelled
+                                ? "border-gray-300 text-gray-500 cursor-not-allowed opacity-50"
+                                : "border-blue-300 hover:bg-blue-600 hover:text-white hover:border-blue-600"
+                            }`}
+                            onClick={() => handleViewDetail(order.id, order.status)}
+                            disabled={isCancelled}
+                          >
+                            Xem chi tiết
+                          </Button>
+                        )
+                      })()}
                     </TableCell>
                   </TableRow>
                 ))}
