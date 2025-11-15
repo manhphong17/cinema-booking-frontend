@@ -20,11 +20,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Search, Edit, Shield, Users, Eye, EyeOff, Loader2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-/** 🔧 BACKEND CONFIG */
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8885";
 const PAGE_SIZE = 20;
 
-/** ===================== Role constants (khớp DB) ===================== */
 type RoleCode = "ADMIN" | "CUSTOMER" | "OPERATION" | "STAFF" | "BUSINESS";
 
 const ROLE_OPTIONS: { id: number; code: RoleCode; label: string }[] = [
@@ -45,10 +43,9 @@ const ROLE_ID_BY_CODE: Record<RoleCode, number> = ROLE_OPTIONS.reduce((m, r) => 
     return m;
 }, {} as Record<RoleCode, number>);
 
-/** ===================== Types (khớp với backend) ===================== */
 type RoleItemFromApi = {
     id: number;
-    name: RoleCode; // BE trả name = ADMIN/CUSTOMER/...
+    name: RoleCode;
 };
 
 type AccountStatusUI = "active" | "inactive";
@@ -84,7 +81,6 @@ type ResponseData<T> = {
     payload?: T;
 };
 
-/** ===================== Helpers ===================== */
 function unwrap<T = unknown>(raw: ResponseData<T> | T): T | undefined {
     if (raw && typeof raw === "object" && ("data" in raw || "result" in raw || "payload" in raw)) {
         const r = raw as ResponseData<T>;
@@ -126,7 +122,6 @@ function mapStatusUItoBE(s: AccountStatusUI): AccountStatusBE {
     return s === "active" ? "ACTIVE" : "DEACTIVATED";
 }
 function normalizeName(acc: any): string {
-    // BE nay đã trả name phẳng từ users -> AccountResponse.name
     return acc.name ?? acc.user?.name ?? acc.fullName ?? acc.email ?? `#${acc.id ?? "?"}`;
 }
 function normalizeRoleInfo(acc: any): { roleLabel?: string; roleId?: number; roleCode?: RoleCode } {
@@ -142,28 +137,22 @@ function normalizeRoleInfo(acc: any): { roleLabel?: string; roleId?: number; rol
     return {};
 }
 
-/** ===================== Component ===================== */
 function AccountManagement() {
-    // server data
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [page, setPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
     const [totalElements, setTotalElements] = useState(0);
 
-    // ui state
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // filters
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedRole, setSelectedRole] = useState<string>("all");
     const [selectedStatus, setSelectedStatus] = useState<string>("all");
 
-    // dialogs
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
-    // form states
     const [editingUser, setEditingUser] = useState<Account | null>(null);
 
     const [createForm, setCreateForm] = useState({
@@ -186,7 +175,6 @@ function AccountManagement() {
 
     const mounted = useRef(false);
 
-    /** ===================== Load list ===================== */
     const loadAccounts = async (p = 0) => {
         setLoading(true);
         setError(null);
@@ -230,10 +218,8 @@ function AccountManagement() {
         if (mounted.current) return;
         mounted.current = true;
         loadAccounts(0);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    /** ===================== Derived ===================== */
     const filteredAccounts = useMemo(() => {
         return accounts.filter((acc) => {
             const q = searchTerm.trim().toLowerCase();
@@ -250,7 +236,6 @@ function AccountManagement() {
     const totalTicketStaff = useMemo(() => accounts.filter((a) => a.roleCode === "STAFF").length, [accounts]);
     const totalManagers = useMemo(() => accounts.filter((a) => ["BUSINESS", "OPERATION"].includes(String(a.roleCode))).length, [accounts]);
 
-    /** ===================== CRUD: CREATE ===================== */
     const handleCreate = async () => {
         if (!createForm.name || !createForm.email || !createForm.roleId) {
             setError("Vui lòng nhập họ tên, email và vai trò");
@@ -269,7 +254,6 @@ function AccountManagement() {
             setError(null);
             setLoading(true);
 
-            // DTO AccountCreateRequest
             const body = {
                 name: createForm.name,
                 email: createForm.email,
@@ -300,7 +284,6 @@ function AccountManagement() {
         }
     };
 
-    /** ===================== CRUD: EDIT OPEN ===================== */
     const handleEditClick = (acc: Account) => {
         setEditingUser({ ...acc });
         setShowPasswordFields(false);
@@ -313,7 +296,6 @@ function AccountManagement() {
         setIsEditDialogOpen(true);
     };
 
-    /** ===================== CRUD: SAVE INFO (PUT /accounts/{id}) ===================== */
     const handleSaveEdit = async () => {
         if (!editingUser) return;
         if (!editingUser.name) {
@@ -332,11 +314,10 @@ function AccountManagement() {
                 roleId = ROLE_ID_BY_CODE[editingUser.roleCode];
             }
 
-            // ✅ KHÔNG gửi newPassword ở đây
             const payload: any = {
                 name: editingUser.name,
                 status: statusBE,
-                roleIds: roleId != null ? [roleId] : [], // [] => clear hết role
+                roleIds: roleId != null ? [roleId] : [],
             };
 
             await fetchJson(`${API_BASE_URL}/accounts/${editingUser.id}`, {
@@ -355,7 +336,6 @@ function AccountManagement() {
         }
     };
 
-    /** ===================== ADMIN CHANGE PASSWORD (POST /accounts/{id}/admin-change-password) ===================== */
     const handleAdminChangePassword = async () => {
         if (!editingUser) return;
 
@@ -372,7 +352,6 @@ function AccountManagement() {
             setLoading(true);
             setError(null);
 
-            // DTO AccountChangePasswordRequest
             const body = {
                 newPassword: passwordForm.newPassword,
                 confirmPassword: passwordForm.confirmPassword,
@@ -386,7 +365,6 @@ function AccountManagement() {
                 }
             );
 
-            // reset UI
             setShowPasswordFields(false);
             setPasswordForm({
                 newPassword: "",
@@ -402,7 +380,6 @@ function AccountManagement() {
     };
 
 
-    /** ===================== UI helpers ===================== */
     const getStatusBadge = (status: string) =>
         status === "active" ? (
             <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Active</Badge>
@@ -410,10 +387,8 @@ function AccountManagement() {
             <Badge variant="secondary">Inactive</Badge>
         );
 
-    /** ===================== Render ===================== */
     return (
         <div className="space-y-6">
-            {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900">Quản lý tài khoản</h1>
@@ -538,10 +513,8 @@ function AccountManagement() {
                 </Dialog>
             </div>
 
-            {/* Errors */}
             {error ? <div className="text-sm text-red-600 bg-red-50 border border-red-200 p-3 rounded">{error}</div> : null}
 
-            {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Card className="bg-white border-blue-100 shadow-md">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -577,7 +550,6 @@ function AccountManagement() {
                 </Card>
             </div>
 
-            {/* Filters */}
             <Card className="bg-white border-blue-100 shadow-md">
                 <CardContent className="pt-6">
                     <div className="flex flex-col sm:flex-row gap-4">
@@ -619,7 +591,6 @@ function AccountManagement() {
                 </CardContent>
             </Card>
 
-            {/* Table */}
             <Card className="bg-white border-blue-100 shadow-md">
                 <CardHeader>
                     <CardTitle className="text-gray-900">Danh sách tài khoản</CardTitle>
@@ -659,7 +630,6 @@ function AccountManagement() {
                                                 <Button variant="ghost" size="sm" onClick={() => handleEditClick(acc)}>
                                                     <Edit className="w-4 h-4" />
                                                 </Button>
-                                                {/* Không có nút xóa theo yêu cầu */}
                                             </div>
                                         </TableCell>
                                     </TableRow>
@@ -676,7 +646,6 @@ function AccountManagement() {
                         </Table>
                     </div>
 
-                    {/* Pagination */}
                     <div className="flex items-center justify-between mt-4">
                         <div className="text-sm text-gray-600">
                             Trang {page + 1}/{Math.max(totalPages, 1)} • Tổng {totalElements} bản ghi
@@ -698,7 +667,6 @@ function AccountManagement() {
                 </CardContent>
             </Card>
 
-            {/* Edit Dialog */}
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
                 <DialogContent className="bg-white border-blue-100 shadow-lg sm:max-w-2xl">
                     <DialogHeader>
@@ -785,7 +753,6 @@ function AccountManagement() {
                                 </div>
                             </div>
 
-                            {/* Admin change password */}
                             <div className="border-t pt-4">
                                 <Button variant="outline" onClick={() => setShowPasswordFields(!showPasswordFields)} className="w-full justify-between">
                                     <div className="flex items-center gap-2">

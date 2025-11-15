@@ -152,7 +152,7 @@ export default function LoginPage() {
             if (res.ok) {
                 toast.success("Email xác minh đã được gửi lại. Vui lòng nhập mã OTP để xác minh tài khoản.")
                 setShowVerifyModal(false)
-                sessionStorage.setItem("verifyEmail", email)
+                sessionStorage.setItem("registerEmail", email)
                 sessionStorage.setItem("verifyContext", "login")
                 router.push("/verify-otp")
             } else {

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { KeyRound } from "lucide-react"
-import { friendlyFromPayload, type ApiEnvelope } from "../../src/utils/server-error"
+import { friendlyFromPayload, type BackendErrorResponse } from "../../src/utils/server-error"
 import { BACKEND_BASE_URL } from "@/src/utils/config"
 const EMAIL_RE =
     /^(?=.{1,64}@)[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$/;
@@ -15,7 +15,7 @@ const EMAIL_RE =
 type VerifyOtpResetData = { resetToken?: string; token?: string }
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null
 
-const extractResetToken = (resp: ApiEnvelope<unknown>): string | undefined => {
+const extractResetToken = (resp: BackendErrorResponse): string | undefined => {
     if (isRecord(resp?.data)) {
         const d = resp.data as Record<string, unknown>
         if (typeof d.resetToken === "string") return d.resetToken
@@ -26,15 +26,15 @@ const extractResetToken = (resp: ApiEnvelope<unknown>): string | undefined => {
     return undefined
 }
 
-async function postJson<T>(url: string, body: any): Promise<ApiEnvelope<T>> {
+async function postJson<T>(url: string, body: any): Promise<BackendErrorResponse> {
     const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
     })
-    let data: ApiEnvelope<T>
-    try { data = (await res.json()) as ApiEnvelope<T> }
-    catch { data = { status: res.status, message: res.statusText } as ApiEnvelope<T> }
+    let data: BackendErrorResponse
+    try { data = (await res.json()) as BackendErrorResponse }
+    catch { data = { status: res.status, message: res.statusText } as BackendErrorResponse }
 
     const ok = data?.status ? data.status === 200 || data.status === 201 : res.ok
     if (!ok) {
@@ -88,12 +88,11 @@ export default function VerifyOtpPage() {
 
         setIsLoading(true)
         try {
-            // ❗ Chỉ gửi đúng field BE: { email, otpInput }
             const resp = await postJson<VerifyOtpResetData>(`${BACKEND_BASE_URL}/auth/verify-otp-reset`, {
                 email: emailTrim,
-                otpInput: otpTrim, // service layer bạn dùng tên này
-                otp: otpTrim,      // nếu Controller/DTO dùng 'otp'
-                otpCode: otpTrim,  // nếu Controller/DTO dùng 'otpCode'
+                otpInput: otpTrim,
+                otp: otpTrim,
+                otpCode: otpTrim,
             })
 
             const resetToken = extractResetToken(resp)
@@ -103,7 +102,7 @@ export default function VerifyOtpPage() {
             toast.success("Xác minh OTP thành công. Hãy đặt lại mật khẩu.")
             router.push("/reset-password")
         } catch (err: any) {
-            const payload = err?.payload as ApiEnvelope | undefined
+            const payload = err?.payload as BackendErrorResponse | undefined
             toast.error(friendlyFromPayload(payload, err?.message))
         } finally {
             setIsLoading(false)
@@ -121,14 +120,14 @@ export default function VerifyOtpPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email: emailTrim }),
             })
-            let env: ApiEnvelope<unknown>
+            let env: BackendErrorResponse
             try { env = await res.json() } catch { env = { status: res.status, message: res.statusText } }
             const ok = env?.status ? env.status === 200 || env.status === 201 : res.ok
             if (!ok) throw Object.assign(new Error(env?.message || "Yêu cầu không thành công"), { payload: env })
 
             toast.success(env?.message || "Nếu email tồn tại, chúng tôi đã gửi mã mới")
         } catch (err: any) {
-            const payload = err?.payload as ApiEnvelope | undefined
+            const payload = err?.payload as BackendErrorResponse | undefined
             toast.error(friendlyFromPayload(payload, err?.message))
         }
     }

@@ -651,8 +651,7 @@ export default function ConcessionPage() {
                                     <TableHead>Số lượng</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead>Chỉnh sửa</TableHead>
-                                    <TableHead>Xóa</TableHead>
-                                    <TableHead className="text-right">Bật/tắt bán hàng</TableHead>
+                                    <TableHead className="text-right">Thao tác</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -709,76 +708,74 @@ export default function ConcessionPage() {
                                             ) }
                                         </TableCell>
 
-                                        {/* Nút Chỉnh sửa */}
-                                        <TableCell>
-                                            <TooltipProvider>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                                            onClick={() => {
-                                                                setSelectedProduct(product)
-                                                                setIsEditDialogOpen(true)
-                                                            }}
-                                                            disabled={product.concessionStatus === "INACTIVE"}
-                                                        >
-                                                            <Edit className="w-4 h-4" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent side="top">Chỉnh sửa</TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
-                                        </TableCell>
+                                        {/* Thao tác */}
 
-                                        {/* Nút Xóa */}
-                                        <TableCell>
-                                            <TooltipProvider>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                            onClick={() =>  openDeleteDialog(product.id)}
-                                                            disabled={product.concessionStatus === "INACTIVE"}
-                                                        >
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent side="top">Xóa</TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
-                                        </TableCell>
-
-                                        {/* Nút Bật/Tắt kinh doanh */}
                                         <TableCell className="text-right">
-                                            <TooltipProvider>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className={
-                                                                product.concessionStatus === "ACTIVE"
-                                                                    ? "text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                                    : "text-green-600 hover:text-green-700 hover:bg-green-50"
-                                                            }
-                                                            onClick={() => openToggleDialog(product)}
-                                                        >
-                                                            {product.concessionStatus === "ACTIVE" ? (
-                                                                <XCircle className="w-4 h-4" /> // ngừng bán
-                                                            ) : (
-                                                                <PlayCircle className="w-4 h-4" /> // bật lại
-                                                            )}
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent side="top">
-                                                        {product.concessionStatus === "ACTIVE" ? "Ngừng kinh doanh" : "Mở bán lại"}
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
+                                            <div className="flex items-center justify-end gap-2">
+                                                <TooltipProvider>
+                                                    {/* Nút Chỉnh sửa */}
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                                onClick={() => {
+                                                                    setSelectedProduct(product)
+                                                                    setIsEditDialogOpen(true)
+                                                                }}
+                                                                disabled={product.concessionStatus === "INACTIVE"}
+                                                            >
+                                                                <Edit className="w-4 h-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="top">Chỉnh sửa</TooltipContent>
+                                                    </Tooltip>
+
+                                                    {/* Nút Xóa */}
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                onClick={() =>  openDeleteDialog(product.id)}
+                                                                disabled={product.concessionStatus === "INACTIVE"}
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="top">Xóa</TooltipContent>
+                                                    </Tooltip>
+
+
+                                                    {/* Nút Bật/Tắt kinh doanh */}
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className={
+                                                                    product.concessionStatus === "ACTIVE"
+                                                                        ? "text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                        : "text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                                }
+                                                                onClick={() => openToggleDialog(product)}
+                                                            >
+                                                                {product.concessionStatus === "ACTIVE" ? (
+                                                                    <XCircle className="w-4 h-4" /> // ngừng bán
+                                                                ) : (
+                                                                    <PlayCircle className="w-4 h-4" /> // bật lại
+                                                                )}
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="top">
+                                                            {product.concessionStatus === "ACTIVE" ? "Ngừng kinh doanh" : "Mở bán lại"}
+                                                        </TooltipContent>
+                                                    </Tooltip>
+
+                                                </TooltipProvider>
+                                            </div>
                                         </TableCell>
 
                                     </TableRow>
