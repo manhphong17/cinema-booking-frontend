@@ -6,7 +6,7 @@ import {useRouter, usePathname} from "next/navigation"
 import Link from "next/link"
 import {Button} from "@/components/ui/button"
 import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar"
-import {Calendar, DoorOpen, Film, LayoutDashboard, LogOut, Newspaper, ChevronLeft, ChevronRight} from "lucide-react"
+import {Calendar, DoorOpen, Film, LayoutDashboard, LogOut, ChevronLeft, ChevronRight} from "lucide-react"
 import { logout } from "@/src/api/interceptor"
 
 interface OperatorLayoutProps {
@@ -18,7 +18,6 @@ const sidebarItems = [
     {id: "movies", label: "Movie Management", icon: Film},
     {id: "showtimes", label: "Showtime Management", icon: Calendar},
     {id: "rooms", label: "Room Management", icon: DoorOpen},
-    {id: "news", label: "News Management", icon: Newspaper},
 ]
 
 // Memoized sidebar item component for better performance
