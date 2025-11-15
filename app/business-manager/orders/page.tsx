@@ -18,10 +18,18 @@ interface OrderDTO {
 }
 
 export default function OrderManagementPage() {
+    // Helper function to format date in local timezone (yyyy-MM-dd)
+    const formatDateLocal = (date: Date): string => {
+        const year = date.getFullYear()
+        const month = String(date.getMonth() + 1).padStart(2, '0')
+        const day = String(date.getDate()).padStart(2, '0')
+        return `${year}-${month}-${day}`
+    }
+
     const [orders, setOrders] = useState<OrderDTO[]>([])
     const [status, setStatus] = useState<string>("ALL")
     const [loading, setLoading] = useState(true)
-    const [date, setDate] = useState<string>(new Date().toISOString().split("T")[0]) // yyyy-MM-dd
+    const [date, setDate] = useState<string>(formatDateLocal(new Date())) // yyyy-MM-dd
     const [page, setPage] = useState(0)
     const [totalPages, setTotalPages] = useState(0)
     const [totalElements, setTotalElements] = useState(0)
@@ -29,7 +37,7 @@ export default function OrderManagementPage() {
     const changeDate = (days: number) => {
         const d = new Date(date)
         d.setDate(d.getDate() + days)
-        setDate(d.toISOString().split("T")[0])
+        setDate(formatDateLocal(d))
     }
     const [summary, setSummary] = useState({
         totalRevenueToday: 0,
