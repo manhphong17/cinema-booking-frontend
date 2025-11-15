@@ -44,7 +44,7 @@ export default function OrderManagementPage() {
             try {
                 setLoading(true)
                 const res = await apiClient.get(
-                    `/orders/sales?status=${status === "ALL" ? "" : status}&date=${date}&page=${page}&size=8`
+                    `/orders/sales?status=${status === "ALL" ? "" : status}&date=${date}&page=${page}`
                 )
 
                 if (res.data?.status === 200) {

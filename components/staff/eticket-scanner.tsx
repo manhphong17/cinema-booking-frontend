@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { QrCode, Scan, CheckCircle, XCircle, Clock, User, MapPin, Calendar, Loader2, Printer } from "lucide-react"
-import { verifyTicket, markTicketAsUsed, TicketCheckResult } from "@/src/api/orders"
+import { QrCode, Scan, CheckCircle, XCircle, Clock, MapPin, Calendar, Loader2 } from "lucide-react"
+import { verifyTicket, markTicketAsUsed, TicketCheckResult, Concession } from "@/src/api/orders"
 import { toast } from "sonner"
 
 interface TicketInfo {
@@ -21,6 +21,7 @@ interface TicketInfo {
   status: "valid" | "used" | "expired" | "invalid"
   totalAmount: number
   orderId?: number
+  concessions?: Concession[]
 }
 
 export function ETicketScanner() {
@@ -77,49 +78,44 @@ export function ETicketScanner() {
       status: result.status,
       totalAmount: result.totalAmount,
       orderId: result.orderId,
+      concessions: result.concessions || [],
     }
   }
 
   const handleManualScan = async () => {
     if (!ticketCode.trim()) return
 
-    const orderCode = ticketCode.trim()
-
-    toast.info(`📱 Đã quét mã: ${orderCode}`, {
-      duration: 2000,
-    })
-
     setIsVerifying(true)
     try {
-      const result = await verifyTicket(orderCode)
-      const ticket = convertToTicketInfo(result, orderCode)
-
+      const result = await verifyTicket(ticketCode.trim())
+      const ticket = convertToTicketInfo(result, ticketCode.trim())
+      
       setScannedTicket(ticket)
-
+      
+      // Add to scan history if not already there
       setScanHistory((prev) => {
         const exists = prev.find((t) => t.code === ticket.code || t.orderId === ticket.orderId)
         if (!exists) {
-          return [ticket, ...prev.slice(0, 9)]
+          return [ticket, ...prev.slice(0, 9)] // Keep last 10 scans
         }
         return prev
       })
-
+      
       if (ticket.status === "valid") {
-        toast.success("✅ Vé hợp lệ!")
+        toast.success("Đơn hàng hợp lệ!")
       } else if (ticket.status === "used") {
-        toast.warning("⚠️ Vé đã được sử dụng")
+        toast.warning("Đơn hàng đã được sử dụng")
       } else if (ticket.status === "expired") {
-        toast.error("⏰ Vé đã hết hạn")
+        toast.error("Đơn hàng đã hết hạn")
       } else {
-        toast.error("❌ Vé không hợp lệ")
+        toast.error("Đơn hàng không hợp lệ")
       }
     } catch (error: any) {
-      const errorMessage = error?.response?.data?.message || error?.message || "Không tìm thấy vé với mã này"
-      toast.error(`❌ ${errorMessage}`)
-
-      // Clear scanned ticket on error
+      const errorMessage = error?.response?.data?.message || error?.message || "Không tìm thấy đơn hàng với mã này"
+      toast.error(errorMessage)
+      
       setScannedTicket({
-        code: orderCode,
+        code: ticketCode.trim().toUpperCase(),
         movieTitle: "Không tìm thấy",
         showtime: "",
         theater: "",
@@ -128,6 +124,7 @@ export function ETicketScanner() {
         purchaseDate: "",
         status: "invalid",
         totalAmount: 0,
+        concessions: [],
       })
     } finally {
       setIsVerifying(false)
@@ -135,13 +132,12 @@ export function ETicketScanner() {
     }
   }
 
-
   const handleQRScan = async () => {
     setIsScanning(true)
     // In a real app, this would use a camera QR scanner library
     // For now, we'll prompt the user to enter the QR code manually
     // You can integrate libraries like html5-qrcode or react-qr-reader here
-    toast.info("Tính năng quét QR sẽ được tích hợp camera. Vui lòng nhập mã vé thủ công.")
+    toast.info("Tính năng quét QR sẽ được tích hợp camera. Vui lòng nhập mã đơn hàng thủ công.")
     setIsScanning(false)
     
     // Example: If you have a QR scanner library, you would do:
@@ -170,9 +166,9 @@ export function ETicketScanner() {
         )
       )
       
-      toast.success("Đã xác nhận sử dụng vé thành công!")
+      toast.success("Đã xác nhận sử dụng đơn hàng thành công!")
     } catch (error: any) {
-      const errorMessage = error?.response?.data?.message || error?.message || "Không thể xác nhận sử dụng vé"
+      const errorMessage = error?.response?.data?.message || error?.message || "Không thể xác nhận sử dụng đơn hàng"
       toast.error(errorMessage)
     } finally {
       setIsMarkingAsUsed(false)
@@ -231,16 +227,16 @@ export function ETicketScanner() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Scan className="h-5 w-5" />
-            Quét vé điện tử
+            Kiểm tra đơn hàng
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Manual Input */}
           <div className="space-y-3">
-            <label className="text-sm font-medium">Nhập mã vé thủ công:</label>
+            <label className="text-sm font-medium">Nhập mã đơn hàng:</label>
             <div className="flex gap-2">
               <Input
-                placeholder="Nhập mã vé (VD: TK001234567)"
+                placeholder="Nhập mã đơn hàng (VD: ORD001234567)"
                 value={ticketCode}
                 onChange={(e) => setTicketCode(e.target.value)}
                 onKeyPress={(e) => e.key === "Enter" && handleManualScan()}
@@ -265,17 +261,17 @@ export function ETicketScanner() {
             <Separator className="flex-1" />
           </div>
 
-          {/* QR Scanner */}
+            {/* QR Scanner */}
           <div className="text-center space-y-3">
             <Button onClick={handleQRScan} disabled={isScanning} size="lg" className="w-full">
               <QrCode className="h-5 w-5 mr-2" />
-              {isScanning ? "Đang quét..." : "Quét mã QR"}
+              {isScanning ? "Đang quét..." : "Quét mã QR đơn hàng"}
             </Button>
             {isScanning && (
               <div className="p-8 border-2 border-dashed border-primary rounded-lg bg-primary/5">
                 <div className="animate-pulse text-center">
                   <QrCode className="h-16 w-16 mx-auto mb-2 text-primary" />
-                  <p className="text-sm text-muted-foreground">Đang quét mã QR...</p>
+                  <p className="text-sm text-muted-foreground">Đang quét mã QR đơn hàng...</p>
                 </div>
               </div>
             )}
@@ -288,7 +284,7 @@ export function ETicketScanner() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              <span>Kết quả quét</span>
+              <span>Kết quả kiểm tra</span>
               <div className="flex items-center gap-2">
                 {getStatusIcon(scannedTicket.status)}
                 <Badge className={getStatusColor(scannedTicket.status)}>{getStatusText(scannedTicket.status)}</Badge>
@@ -298,45 +294,12 @@ export function ETicketScanner() {
           <CardContent>
             {scannedTicket.status !== "invalid" ? (
               <div className="space-y-4">
-                {/* Highlight Order ID and Username from QR */}
-                {(scannedTicket.orderId || scannedTicket.customerName) && (
-                  <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 mb-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <QrCode className="h-5 w-5 text-blue-600" />
-                      <span className="text-sm font-semibold text-blue-900">Thông tin từ QR Code</span>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {scannedTicket.orderId && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-blue-700">Order ID:</span>
-                          <Badge variant="outline" className="font-mono font-bold text-blue-700 border-blue-300">
-                            #{scannedTicket.orderId}
-                          </Badge>
-                        </div>
-                      )}
-                      {scannedTicket.customerName && (
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-blue-600" />
-                          <span className="text-sm font-medium text-blue-700">Khách hàng:</span>
-                          <span className="text-sm font-semibold text-blue-900">{scannedTicket.customerName}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-3">
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Mã đơn hàng:</label>
                       <p className="font-mono text-lg">{scannedTicket.code}</p>
                     </div>
-                    {scannedTicket.orderId && (
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">ID đơn hàng:</label>
-                        <p className="font-mono text-sm text-muted-foreground">#{scannedTicket.orderId}</p>
-                      </div>
-                    )}
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Phim:</label>
                       <p className="font-semibold">{scannedTicket.movieTitle}</p>
@@ -362,28 +325,50 @@ export function ETicketScanner() {
                       <p className="font-semibold">{scannedTicket.seats.join(", ")}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Khách hàng:</label>
-                      <p className="flex items-center gap-2">
-                        <User className="h-4 w-4" />
-                        {scannedTicket.customerName}
-                      </p>
-                    </div>
-                    <div>
                       <label className="text-sm font-medium text-muted-foreground">Ngày mua:</label>
                       <p className="text-sm">{scannedTicket.purchaseDate}</p>
                     </div>
                   </div>
                 </div>
 
+                {/* Concessions/Combo Section */}
+                {scannedTicket.concessions && scannedTicket.concessions.length > 0 && (
+                  <>
+                    <Separator />
+                    <div className="space-y-3">
+                      <label className="text-sm font-medium text-muted-foreground">Combo/Đồ ăn kèm:</label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {scannedTicket.concessions.map((concession, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center gap-3 p-3 border rounded-lg bg-slate-50"
+                          >
+                            {concession.urlImage && (
+                              <img
+                                src={concession.urlImage}
+                                alt={concession.name}
+                                className="w-16 h-16 rounded-lg object-cover"
+                              />
+                            )}
+                            <div className="flex-1">
+                              <p className="font-medium text-sm">{concession.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Số lượng: {concession.quantity} × {concession.unitPrice.toLocaleString("vi-VN")}đ
+                              </p>
+                              <p className="text-xs font-semibold text-primary mt-1">
+                                = {(concession.quantity * concession.unitPrice).toLocaleString("vi-VN")}đ
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
                 <Separator />
 
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Tổng tiền:</label>
-                    <p className="text-xl font-bold text-primary">
-                      {scannedTicket.totalAmount.toLocaleString("vi-VN")}đ
-                    </p>
-                  </div>
+                <div className="flex items-center justify-end">
                   {scannedTicket.status === "valid" && (
                     <Button onClick={handleMarkTicketAsUsed} size="lg" disabled={isMarkingAsUsed}>
                       {isMarkingAsUsed ? (
@@ -392,7 +377,7 @@ export function ETicketScanner() {
                           Đang xác nhận...
                         </>
                       ) : (
-                        "Xác nhận sử dụng vé"
+                        "Xác nhận sử dụng đơn hàng"
                       )}
                     </Button>
                   )}
@@ -401,9 +386,9 @@ export function ETicketScanner() {
             ) : (
               <div className="text-center py-8">
                 <XCircle className="h-16 w-16 mx-auto mb-4 text-red-500" />
-                <h3 className="text-lg font-semibold mb-2">Vé không hợp lệ</h3>
+                <h3 className="text-lg font-semibold mb-2">Đơn hàng không hợp lệ</h3>
                 <p className="text-muted-foreground">
-                  Không tìm thấy thông tin vé với mã: <span className="font-mono">{scannedTicket.code}</span>
+                  Không tìm thấy thông tin đơn hàng với mã: <span className="font-mono">{scannedTicket.code}</span>
                 </p>
               </div>
             )}
@@ -415,7 +400,7 @@ export function ETicketScanner() {
       {scanHistory.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Lịch sử quét vé</CardTitle>
+            <CardTitle>Lịch sử kiểm tra</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">

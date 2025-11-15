@@ -644,7 +644,6 @@ export default function ConcessionPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-
                                     <TableHead>ID</TableHead>
                                     <TableHead>Tên sản phẩm</TableHead>
                                     <TableHead>Loại sản phẩm</TableHead>
@@ -652,9 +651,10 @@ export default function ConcessionPage() {
                                     <TableHead>Mô tả</TableHead>
                                     <TableHead>Ảnh</TableHead>
                                     <TableHead>Số lượng</TableHead>
-                                    <TableHead>Trạng thái</TableHead>
-                                    <TableHead className="text-right">Thao tác</TableHead>
-
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Chỉnh sửa</TableHead>
+                                    <TableHead>Xóa</TableHead>
+                                    <TableHead className="text-right">Bật/tắt bán hàng</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
