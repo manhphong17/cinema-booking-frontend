@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Calendar, Clock, MapPin, Ticket, CreditCard, User, QrCode, Loader2, RefreshCw, ShoppingBag } from "lucide-react"
 import { OrderDetail, generateQRCode } from "@/src/api/orders"
 import { QRCodeSVG } from "qrcode.react"
+import { extractQRInfo, extractQRInfoFromString, createQRJSON } from "@/src/utils/qr-decoder"
 
 interface OrderDetailModalProps {
   open: boolean
@@ -353,36 +354,77 @@ export function OrderDetailModal({ open, onOpenChange, orderDetail, loading, onQ
                           </p>
                       )}
                     </div>
-                ) : orderDetail.qrJwt ? (
-                    // Trạng thái có QR dạng JWT
-                    <div className="flex flex-col items-center gap-4">
-                      <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-md">
-                        <QRCodeSVG
-                            value={orderDetail.qrJwt}
-                            size={220}          // nhỏ lại 1 chút cho đỡ “chi chít”
-                            level="H"
-                            includeMargin={true}
-                        />
-                      </div>
-                      <div className="text-center space-y-1">
-                        <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs px-3 py-1 rounded-full">
-                          Mã QR hợp lệ
-                        </Badge>
-                        <p className="text-sm text-gray-600">
-                          Hãy đưa mã này cho nhân viên soát vé hoặc đặt trước máy quét để check-in.
-                        </p>
-                        {orderDetail.graceMinutes && (
-                            <p className="text-xs text-gray-500">
-                              Thời gian gia hạn: {orderDetail.graceMinutes} phút
+                ) : orderDetail.qrJwt || orderDetail.payloadJson ? (
+                    // Trạng thái có QR - dùng JSON trực tiếp (dễ đọc hơn JWT)
+                    (() => {
+                      // Tạo JSON từ orderDetail để encode vào QR (format mới - đơn giản)
+                      const qrJSON = createQRJSON({
+                        orderId: orderDetail.orderId,
+                        orderCode: orderDetail.orderCode,
+                        reservationCode: orderDetail.reservationCode,
+                        orderStatus: orderDetail.orderStatus,
+                        movieName: orderDetail.movieName,
+                        roomName: orderDetail.roomName,
+                        showtimeStart: orderDetail.showtimeStart,
+                        showtimeEnd: orderDetail.showtimeEnd,
+                        seats: orderDetail.seats,
+                        userName: orderDetail.userName,
+                        userId: orderDetail.userId,
+                      })
+                      
+                      // Extract thông tin để hiển thị
+                      const qrInfo = extractQRInfoFromString(qrJSON)
+                      
+                      return (
+                        <div className="flex flex-col items-center gap-4">
+                          <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-md">
+                            <QRCodeSVG
+                                value={qrJSON}
+                                size={220}
+                                level="H"
+                                includeMargin={true}
+                            />
+                          </div>
+                          <div className="text-center space-y-2 w-full">
+                            <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs px-3 py-1 rounded-full">
+                              Mã QR hợp lệ
+                            </Badge>
+                            
+                            {/* Hiển thị Order ID và Username từ QR */}
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2 mt-2">
+                              {qrInfo.orderId && (
+                                <div className="flex items-center justify-center gap-2">
+                                  <Ticket className="h-4 w-4 text-blue-600" />
+                                  <span className="text-sm text-gray-700">Order ID:</span>
+                                  <span className="text-sm font-bold text-blue-700">#{qrInfo.orderId}</span>
+                                </div>
+                              )}
+                              {qrInfo.userName && (
+                                <div className="flex items-center justify-center gap-2">
+                                  <User className="h-4 w-4 text-blue-600" />
+                                  <span className="text-sm text-gray-700">Khách hàng:</span>
+                                  <span className="text-sm font-semibold text-blue-700">{qrInfo.userName}</span>
+                                </div>
+                              )}
+                            </div>
+                            
+                            <p className="text-sm text-gray-600">
+                              Quét mã này sẽ hiển thị thông tin đơn hàng dễ đọc. Hãy đưa cho nhân viên soát vé.
                             </p>
-                        )}
-                        {orderDetail.qrExpiryAt && (
-                            <p className="text-xs text-gray-400">
-                              Hết hạn: {new Date(orderDetail.qrExpiryAt).toLocaleString("vi-VN")}
-                            </p>
-                        )}
-                      </div>
-                    </div>
+                            {orderDetail.graceMinutes && (
+                                <p className="text-xs text-gray-500">
+                                  Thời gian gia hạn: {orderDetail.graceMinutes} phút
+                                </p>
+                            )}
+                            {orderDetail.qrExpiryAt && (
+                                <p className="text-xs text-gray-400">
+                                  Hết hạn: {new Date(orderDetail.qrExpiryAt).toLocaleString("vi-VN")}
+                                </p>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })()
                 ) : orderDetail.qrImageUrl ? (
                     // Trạng thái có QR dạng ảnh
                     <div className="flex flex-col items-center gap-4">

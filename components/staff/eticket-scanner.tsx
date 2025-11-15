@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator"
 import { QrCode, Scan, CheckCircle, XCircle, Clock, User, MapPin, Calendar, Loader2 } from "lucide-react"
 import { verifyTicket, markTicketAsUsed, TicketCheckResult } from "@/src/api/orders"
 import { toast } from "sonner"
+import { extractQRInfoFromString } from "@/src/utils/qr-decoder"
 
 interface TicketInfo {
   code: string
@@ -83,10 +84,56 @@ export function ETicketScanner() {
   const handleManualScan = async () => {
     if (!ticketCode.trim()) return
 
+    // Extract thông tin từ QR (hỗ trợ cả JSON và JWT)
+    const qrInfo = extractQRInfoFromString(ticketCode.trim())
+    
+    // Nếu là JWT token và có thông tin, hiển thị ngay lập tức
+    if (qrInfo.userName || qrInfo.orderId) {
+      // Hiển thị thông tin dễ đọc thay vì token dài
+      const displayCode = qrInfo.orderCode || (qrInfo.orderId ? `Order #${qrInfo.orderId}` : ticketCode.trim().substring(0, 20) + "...")
+      
+      // Tạo ticket info từ QR ngay lập tức (không cần chờ API)
+      const quickTicket: TicketInfo = {
+        code: displayCode,
+        movieTitle: qrInfo.movie || "Đang tải...",
+        showtime: qrInfo.start 
+          ? new Date(qrInfo.start).toLocaleString("vi-VN", {
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "Đang tải...",
+        theater: qrInfo.room || "Đang tải...",
+        seats: qrInfo.seats || [],
+        customerName: qrInfo.userName || "Đang tải...",
+        purchaseDate: "Đang tải...",
+        status: "valid", // Tạm thời, sẽ update sau khi verify
+        totalAmount: 0,
+        orderId: qrInfo.orderId || undefined,
+      }
+      
+      // Hiển thị thông tin ngay lập tức
+      setScannedTicket(quickTicket)
+      toast.info(`📱 Đã quét QR: ${qrInfo.userName || "Khách hàng"}${qrInfo.orderId ? ` | Order #${qrInfo.orderId}` : ''}`, { 
+        duration: 2000 
+      })
+    }
+
     setIsVerifying(true)
     try {
+      // Verify với backend để lấy đầy đủ thông tin và verify signature
       const result = await verifyTicket(ticketCode.trim())
-      const ticket = convertToTicketInfo(result, ticketCode.trim())
+      const ticket = convertToTicketInfo(result, qrInfo.orderCode || ticketCode.trim())
+      
+      // Ưu tiên thông tin từ QR JWT nếu có (nhanh hơn, không cần chờ API)
+      if (qrInfo.userName && !ticket.customerName) {
+        ticket.customerName = qrInfo.userName
+      }
+      if (qrInfo.orderId && !ticket.orderId) {
+        ticket.orderId = qrInfo.orderId
+      }
       
       setScannedTicket(ticket)
       
@@ -100,29 +147,50 @@ export function ETicketScanner() {
       })
       
       if (ticket.status === "valid") {
-        toast.success("Vé hợp lệ!")
+        toast.success("✅ Vé hợp lệ!")
       } else if (ticket.status === "used") {
-        toast.warning("Vé đã được sử dụng")
+        toast.warning("⚠️ Vé đã được sử dụng")
       } else if (ticket.status === "expired") {
-        toast.error("Vé đã hết hạn")
+        toast.error("⏰ Vé đã hết hạn")
       } else {
-        toast.error("Vé không hợp lệ")
+        toast.error("❌ Vé không hợp lệ")
       }
     } catch (error: any) {
       const errorMessage = error?.response?.data?.message || error?.message || "Không tìm thấy vé với mã này"
-      toast.error(errorMessage)
       
-      setScannedTicket({
-        code: ticketCode.trim().toUpperCase(),
-        movieTitle: "Không tìm thấy",
-        showtime: "",
-        theater: "",
-        seats: [],
-        customerName: "",
-        purchaseDate: "",
-        status: "invalid",
-        totalAmount: 0,
-      })
+      // Nếu là QR JWT, vẫn giữ thông tin đã extract (ngay cả khi verify fail)
+      if (qrInfo.userName || qrInfo.orderId) {
+        // Cập nhật status thành invalid nhưng giữ thông tin từ QR
+        if (scannedTicket) {
+          setScannedTicket({
+            ...scannedTicket,
+            status: "invalid",
+            movieTitle: scannedTicket.movieTitle === "Đang tải..." ? "Không tìm thấy" : scannedTicket.movieTitle,
+            showtime: scannedTicket.showtime === "Đang tải..." ? "" : scannedTicket.showtime,
+            theater: scannedTicket.theater === "Đang tải..." ? "Không tìm thấy" : scannedTicket.theater,
+          })
+        }
+        
+        toast.error(errorMessage, {
+          description: qrInfo.userName 
+            ? `Khách hàng: ${qrInfo.userName}${qrInfo.orderId ? ` | Order ID: #${qrInfo.orderId}` : ''}`
+            : undefined
+        })
+      } else {
+        toast.error(errorMessage)
+        
+        setScannedTicket({
+          code: ticketCode.trim().toUpperCase(),
+          movieTitle: "Không tìm thấy",
+          showtime: "",
+          theater: "",
+          seats: [],
+          customerName: "",
+          purchaseDate: "",
+          status: "invalid",
+          totalAmount: 0,
+        })
+      }
     } finally {
       setIsVerifying(false)
       setTicketCode("")
@@ -291,6 +359,33 @@ export function ETicketScanner() {
           <CardContent>
             {scannedTicket.status !== "invalid" ? (
               <div className="space-y-4">
+                {/* Highlight Order ID and Username from QR */}
+                {(scannedTicket.orderId || scannedTicket.customerName) && (
+                  <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <QrCode className="h-5 w-5 text-blue-600" />
+                      <span className="text-sm font-semibold text-blue-900">Thông tin từ QR Code</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {scannedTicket.orderId && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-blue-700">Order ID:</span>
+                          <Badge variant="outline" className="font-mono font-bold text-blue-700 border-blue-300">
+                            #{scannedTicket.orderId}
+                          </Badge>
+                        </div>
+                      )}
+                      {scannedTicket.customerName && (
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-blue-600" />
+                          <span className="text-sm font-medium text-blue-700">Khách hàng:</span>
+                          <span className="text-sm font-semibold text-blue-900">{scannedTicket.customerName}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-3">
                     <div>
