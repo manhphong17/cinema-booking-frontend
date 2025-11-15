@@ -1,8 +1,15 @@
 "use client";
+
+// ===============================
+// 1️⃣ IMPORT & CONFIG CHUNG
+// ===============================
 import SockJS from "sockjs-client";
 import { Client, IMessage } from "@stomp/stompjs";
 import { BACKEND_BASE_URL } from "@/src/utils/config";
 
+// ===============================
+// 2️⃣ TYPE DEFINITIONS
+// ===============================
 export type SeatAction = "SELECT_SEAT" | "DESELECT_SEAT";
 
 export type SeatTicketDTO = {
@@ -16,7 +23,7 @@ export type SeatTicketDTO = {
 export type SeatUpdateMessage = {
   seats: SeatTicketDTO[];
   status: string; // 'HELD' | 'RELEASED' | 'FAILED' | 'EXPIRED' | 'BOOKED'
-  userId?: number; // Optional - may not be present for BOOKED status
+  userId?: number; // Optional - có thể không có cho trạng thái BOOKED
   showtimeId: number;
 };
 
@@ -27,6 +34,9 @@ export type SeatSelectRequest = {
   ticketIds: number[];
 };
 
+// ===============================
+// 3️⃣ WEBSOCKET CONNECTION
+// ===============================
 export async function connectSeatSocket(
   showtimeId: number,
   onSeatUpdate: (message: SeatUpdateMessage) => void,
@@ -37,34 +47,28 @@ export async function connectSeatSocket(
   const client = new Client({
     webSocketFactory: () => socket,
     reconnectDelay: 5000,
-    debug: (str) => {
-      console.log("[WebSocket Debug]:", str);
-    },
     onConnect: () => {
-      console.log("[WebSocket] Connected successfully");
-
-      // Subscribe to seat updates for this showtime
+      // Subscribe để nhận cập nhật ghế cho showtime này
       client.subscribe(`/topic/seat/${showtimeId}`, (message: IMessage) => {
         try {
           const data = JSON.parse(message.body) as SeatUpdateMessage;
-          console.log("[WebSocket] Received seat update:", data);
           onSeatUpdate(data);
         } catch (error) {
-          console.error("[WebSocket] Error parsing message:", error);
           onError?.(error);
         }
       });
     },
     onStompError: (frame) => {
-      console.error("[WebSocket] STOMP error:", frame);
+      // Xử lý lỗi ở tầng STOMP protocol (khác với lỗi WebSocket cơ bản)
+      // Ví dụ: lỗi khi subscribe, publish, authentication, authorization
       onError?.(frame);
     },
     onWebSocketError: (event) => {
-      console.error("[WebSocket] WebSocket error:", event);
+      // Xử lý lỗi ở tầng WebSocket cơ bản (kết nối mạng, timeout, v.v.)
       onError?.(event);
     },
     onDisconnect: () => {
-      console.log("[WebSocket] Disconnected");
+      // Disconnected
     },
   });
 
@@ -72,13 +76,14 @@ export async function connectSeatSocket(
   return client;
 }
 
+// ===============================
+// 4️⃣ SEND SEAT ACTION
+// ===============================
 export function sendSeatAction(client: Client, request: SeatSelectRequest) {
   if (!client.connected) {
-    console.warn("[WebSocket] Cannot send message: not connected");
     return;
   }
 
-  console.log("[WebSocket] Sending seat action:", request);
   client.publish({
     destination: "/app/seat/select",
     body: JSON.stringify(request),
