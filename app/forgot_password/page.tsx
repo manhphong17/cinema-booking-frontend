@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { Mail } from "lucide-react"
-import { friendlyFromPayload, type ApiEnvelope } from "../../src/utils/server-error"
+import { friendlyFromPayload, type BackendErrorResponse } from "../../src/utils/server-error"
 import { BACKEND_BASE_URL } from "@/src/utils/config"
 const EMAIL_RE =
     /^(?=.{1,64}@)[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$/;
@@ -18,19 +18,18 @@ export default function VerifyMailPage() {
     const [isLoading, setIsLoading] = useState(false)
     const router = useRouter()
 
-    const postJson = async <T,>(url: string, body: any): Promise<ApiEnvelope<T>> => {
+    const postJson = async <T,>(url: string, body: any): Promise<BackendErrorResponse> => {
         const res = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body),
         })
-        let data: ApiEnvelope<T>
-        try { data = (await res.json()) as ApiEnvelope<T> }
-        catch { data = { status: res.status, message: res.statusText } as ApiEnvelope<T> }
+        let data: BackendErrorResponse
+        try { data = (await res.json()) as BackendErrorResponse }
+        catch { data = { status: res.status, message: res.statusText } as BackendErrorResponse }
 
         const ok = data?.status ? (data.status === 200 || data.status === 201) : res.ok
         if (!ok) {
-            // ⬇️ đính kèm header để helper đọc code/message
             ;(data as any).__headers = {
                 "x-error-code": res.headers.get("x-error-code"),
                 "x-app-error-code": res.headers.get("x-app-error-code"),
@@ -60,7 +59,7 @@ export default function VerifyMailPage() {
             toast.success( "Mã xác nhận đã được gửi tới email của bạn")
             router.push("/verify-otp-reset")
         } catch (err: any) {
-            const payload = err?.payload as ApiEnvelope | undefined
+            const payload = err?.payload as BackendErrorResponse | undefined
             toast.error(friendlyFromPayload(payload, err?.message))
         } finally {
             setIsLoading(false)

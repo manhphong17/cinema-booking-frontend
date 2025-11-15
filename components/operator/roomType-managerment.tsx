@@ -1,24 +1,5 @@
 "use client"
 
-// ===================================================================================
-// TỔNG QUAN COMPONENT: RoomTypesManager
-//
-// Chức năng:
-// - Cung cấp một giao diện hoàn chỉnh để quản lý "Loại phòng" (ví dụ: 2D, 3D, IMAX).
-// - Cho phép người dùng thực hiện các thao tác CRUD: Thêm, Sửa, và thay đổi trạng thái
-//   (Kích hoạt/Vô hiệu hóa) các loại phòng.
-// - Tích hợp các tính năng tìm kiếm và lọc danh sách theo trạng thái.
-//
-// Đầu vào:
-// - `roomTypesApi`: Một object chứa các phương thức gọi API (list, create, update, etc.).
-// - Tương tác của người dùng: Nhập liệu vào form, click nút, chọn bộ lọc.
-//
-// Đầu ra:
-// - Một giao diện người dùng bao gồm form nhập liệu và bảng hiển thị dữ liệu.
-// - Các lệnh gọi API để cập nhật dữ liệu trên backend.
-// - Các thông báo (toast) cho người dùng về kết quả của các thao tác.
-// ===================================================================================
-
 import { useEffect, useMemo, useState, useRef, RefObject, useCallback } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -26,24 +7,17 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Filter, Pencil, Plus, Search } from "lucide-react" // Removed Trash2
+import { Filter, Pencil, Plus, Search } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { roomTypesApi } from "@/app/api/room/room-types"
 import type { RoomTypeDto } from "@/app/api/room/rooms"
 import { friendlyFromPayload } from "@/src/utils/server-error"
 
-// Định nghĩa kiểu dữ liệu cho trạng thái trên UI
 type Status = "active" | "inactive"
 
-// Chức năng: Chuyển đổi trạng thái từ `Status` của UI sang `boolean` mà backend yêu cầu.
-// Đầu vào: s - chuỗi "active" hoặc "inactive".
-// Đầu ra: boolean (true nếu "active", ngược lại là false).
 const toBool = (s: Status): boolean => s === "active"
 
-// Chức năng: Chuyển đổi trạng thái `boolean` từ backend sang `Status` để UI hiển thị.
-// Đầu vào: b - giá trị boolean từ API.
-// Đầu ra: chuỗi "active" hoặc "inactive".
 const toStatus = (b: boolean): Status => (b ? "active" : "inactive")
 
 interface RoomTypesManagerProps {
@@ -53,32 +27,21 @@ interface RoomTypesManagerProps {
 export default function RoomTypesManager({ scrollContainerRef }: RoomTypesManagerProps) {
     const { toast } = useToast()
 
-    // -------------------------------------------------------------------------------
-    // KHỐI QUẢN LÝ STATE
-    // -------------------------------------------------------------------------------
-    const [loading, setLoading] = useState(false) // Cờ báo hiệu một thao tác bất đồng bộ đang diễn ra.
-    const [items, setItems] = useState<RoomTypeDto[]>([]) // Danh sách các loại phòng từ API.
-    const [search, setSearch] = useState("") // State cho ô tìm kiếm.
-    const [statusFilter, setStatusFilter] = useState<"all" | Status>("all") // State cho bộ lọc trạng thái.
+    const [loading, setLoading] = useState(false)
+    const [items, setItems] = useState<RoomTypeDto[]>([])
+    const [search, setSearch] = useState("")
+    const [statusFilter, setStatusFilter] = useState<"all" | Status>("all")
     const [form, setForm] = useState<{ id?: number; name: string; description: string; status: Status }>({
         id: undefined,
         name: "",
         description: "",
         status: "active",
-    }) // State cho form Thêm/Sửa.
+    })
 
-    // -------------------------------------------------------------------------------
-    // KHỐI LẤY DỮ LIỆU VÀ XỬ LÝ SIDE EFFECT
-    // -------------------------------------------------------------------------------
-
-    // Chức năng: Cuộn container cha lên đầu.
     const scrollToTop = useCallback(() => {
         scrollContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" })
     }, [scrollContainerRef])
 
-    // Chức năng: Tải danh sách các loại phòng từ API.
-    // Đầu vào: `statusFilter` từ state để quyết định có lọc theo trạng thái không.
-    // Đầu ra: Cập nhật state `items` với dữ liệu mới, hoặc hiển thị toast báo lỗi.
     const fetchList = async () => {
         setLoading(true)
         try {
@@ -92,26 +55,14 @@ export default function RoomTypesManager({ scrollContainerRef }: RoomTypesManage
         }
     }
 
-    // Chức năng: Tự động gọi `fetchList` khi bộ lọc thay đổi hoặc khi component được tải lần đầu.
-    // Đầu vào: `statusFilter` - dependency của effect.
-    // Đầu ra: Một lần gọi hàm `fetchList`.
     useEffect(() => {
         fetchList()
     }, [statusFilter])
 
-    // -------------------------------------------------------------------------------
-    // KHỐI CÁC HÀM XỬ LÝ SỰ KIỆN (ACTION HANDLERS)
-    // -------------------------------------------------------------------------------
-
-    // Chức năng: Đưa form về trạng thái mặc định (chế độ "Thêm mới").
     const resetForm = () => setForm({ id: undefined, name: "", description: "", status: "active" })
 
-    // Chức năng: Xóa tất cả các bộ lọc.
     const clearFilters = () => { setSearch(""); setStatusFilter("all"); }
 
-    // Chức năng: Xử lý việc submit form (Thêm mới hoặc Cập nhật).
-    // Đầu vào: State `form`.
-    // Đầu ra: Gọi API tương ứng, hiển thị toast, tải lại danh sách và reset form.
     const onSubmit = async () => {
         if (!form.name.trim()) {
             toast({ title: "Thiếu tên", description: "Vui lòng nhập tên loại phòng" })
@@ -140,9 +91,6 @@ export default function RoomTypesManager({ scrollContainerRef }: RoomTypesManage
         }
     }
 
-    // Chức năng: Đổ dữ liệu của một mục vào form để bắt đầu chỉnh sửa.
-    // Đầu vào: `it` - Object `RoomTypeDto` từ hàng được chọn trong bảng.
-    // Đầu ra: Cập nhật state `form` với dữ liệu của mục đó.
     const onEdit = (it: RoomTypeDto) => {
         setForm({
             id: it.id,
@@ -150,12 +98,9 @@ export default function RoomTypesManager({ scrollContainerRef }: RoomTypesManage
             description: it.description || "",
             status: toStatus((it as any).active ?? (it as any).status === "active"),
         })
-        scrollToTop() // Tự động cuộn lên đầu khi nhấn sửa
+        scrollToTop()
     }
 
-    // Chức năng: Chuyển đổi trạng thái active/inactive của một loại phòng.
-    // Đầu vào: `id` của mục và `currentActive` (trạng thái hiện tại).
-    // Đầu ra: Gọi API `activate` hoặc `deactivate`, sau đó tải lại danh sách.
     const onToggle = async (id: number, currentActive: boolean) => {
         try {
             if (currentActive) await roomTypesApi.deactivate(id)
@@ -166,14 +111,6 @@ export default function RoomTypesManager({ scrollContainerRef }: RoomTypesManage
         }
     }
 
-    // -------------------------------------------------------------------------------
-    // KHỐI DỮ LIỆU PHÁI SINH (DERIVED DATA - useMemo)
-    // -------------------------------------------------------------------------------
-
-    // Chức năng: Lọc danh sách `items` dựa trên `search` và `statusFilter`.
-    // `useMemo` giúp việc lọc chỉ chạy lại khi dependency thay đổi, tối ưu hiệu suất.
-    // Đầu vào: `items`, `search`, `statusFilter`.
-    // Đầu ra: Mảng `filtered` chứa các mục đã được lọc để hiển thị trong bảng.
     const filtered = useMemo(() => {
         return items.filter(it => {
             const q = search.toLowerCase()
@@ -184,12 +121,8 @@ export default function RoomTypesManager({ scrollContainerRef }: RoomTypesManage
         })
     }, [items, search, statusFilter])
 
-    // -------------------------------------------------------------------------------
-    // KHỐI RENDER GIAO DIỆN (UI RENDERING)
-    // -------------------------------------------------------------------------------
     return (
         <div className="space-y-6 overflow-x-hidden">
-            {/* Card Form: Dùng để thêm mới hoặc cập nhật loại phòng */}
             <Card className="bg-card border border-border/60 rounded-md shadow-sm p-4">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
                     <div className="lg:col-span-4 space-y-2 min-w-0">
@@ -210,7 +143,6 @@ export default function RoomTypesManager({ scrollContainerRef }: RoomTypesManage
                 </div>
             </Card>
 
-            {/* Card Filters: Dùng để tìm kiếm và lọc danh sách */}
             <Card className="bg-card border border-border/60 rounded-md shadow-sm p-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="space-y-2 min-w-0">
@@ -242,7 +174,6 @@ export default function RoomTypesManager({ scrollContainerRef }: RoomTypesManage
                 </div>
             </Card>
 
-            {/* Card Table: Hiển thị danh sách các loại phòng đã được lọc */}
             <Card className="bg-card border border-border/60 rounded-md shadow-sm p-4">
                 <Table>
                     <TableHeader>
@@ -280,11 +211,6 @@ export default function RoomTypesManager({ scrollContainerRef }: RoomTypesManage
                                                 <Button type="button" size="sm" variant="ghost" onClick={() => onToggle(it.id, active)} className="hover:bg-muted">
                                                     {active ? "Tắt" : "Bật"}
                                                 </Button>
-                                                {/* Nút xóa đã bị vô hiệu hóa trong UI, vì vậy hàm onDelete không được sử dụng.
-                                                <Button type="button" size="sm" variant="ghost" onClick={() => onDelete(it.id)} className="text-destructive hover:bg-destructive/10">
-                                                    <Trash2 className="w-4 h-4" />
-                                                </Button>
-                                                */}
                                             </div>
                                         </TableCell>
                                     </TableRow>

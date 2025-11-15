@@ -1,25 +1,5 @@
 "use client"
 
-// ===================================================================================
-// TỔNG QUAN COMPONENT: RoomManagement
-//
-// Chức năng:
-// - Là giao diện chính để người vận hành (operator) quản lý toàn bộ phòng chiếu.
-// - Hiển thị danh sách phòng chiếu với bộ lọc, tìm kiếm và phân trang.
-// - Cho phép thực hiện các thao tác CRUD (Thêm, Sửa, Kích hoạt/Vô hiệu hóa) cho phòng chiếu.
-// - Đóng vai trò là điểm khởi đầu để điều hướng đến giao diện "Thiết lập ghế" (SeatSetup).
-// - Mở các dialog để quản lý các thực thể liên quan như "Loại phòng" và "Loại ghế".
-//
-// Đầu vào:
-// - `onSelectRoom`: Một callback prop để thông báo cho component cha khi một phòng được chọn.
-// - Tương tác của người dùng (nhập liệu vào form, click nút, chọn bộ lọc).
-// - Dữ liệu từ các API (rooms, seats, room-types).
-//
-// Đầu ra:
-// - Một giao diện người dùng hoàn chỉnh, có tính tương tác cao.
-// - Các lệnh gọi API để cập nhật dữ liệu trên backend.
-// ===================================================================================
-
 import { useCallback, useEffect, useMemo, useState, useRef } from "react"
 import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
@@ -38,16 +18,11 @@ import {
     updateRoom as updateRoomApi,
     type RoomDto, type RoomTypeDto, type SeatTypeDto,
 } from "@/app/api/room/rooms"
-import { roomTypesApi } from "@/app/api/room/room-types" // Thêm import này
+import { roomTypesApi } from "@/app/api/room/room-types"
 import { fetchSeatMatrix, saveSeatMatrix, type SeatCellDto } from "@/app/api/room/seats"
-import { seatTypesApi } from "@/app/api/room/seat-types" // Thêm import này
-import { friendlyFromPayload } from "@/src/utils/server-error" // Import friendlyFromPayload
+import { seatTypesApi } from "@/app/api/room/seat-types"
+import { friendlyFromPayload } from "@/src/utils/server-error"
 
-// Chức năng: Tải động (lazy-load) các component quản lý con.
-// Lý do: Tối ưu hiệu suất. Các component này chỉ được tải về trình duyệt khi người dùng
-//       mở dialog tương ứng, giúp giảm kích thước gói JavaScript ban đầu.
-// Đầu vào: Đường dẫn đến component.
-// Đầu ra: Component được tải về phía client, với một placeholder "Đang tải..." hiển thị trong khi chờ.
 const RoomTypeManager = dynamic(
     () =>
         import("@/components/operator/roomType-managerment").then(
@@ -63,13 +38,6 @@ const SeatTypeManager = dynamic(
     { ssr: false, loading: () => <div className="p-6 text-muted-foreground">Đang tải Loại ghế…</div> },
 )
 
-// ===================================================================================
-// CÁC ĐỊNH NGHĨA TYPE CỤC BỘ (VIEW MODELS)
-// Chức năng: Định nghĩa cấu trúc dữ liệu chỉ được sử dụng trong giao diện của component này.
-// ===================================================================================
-
-// Chức năng: Định nghĩa cấu trúc dữ liệu cho một phòng chiếu khi hiển thị trong bảng danh sách.
-// Nó là một phiên bản đã được "làm phẳng" và thân thiện với UI của `RoomDto` từ API.
 interface RoomItem {
     id: number
     name: string
@@ -83,18 +51,15 @@ interface RoomItem {
     screenType?: string | null
 }
 
-// Chức năng: Định nghĩa props cho component RoomManagement.
 interface RoomManagementProps {
     onSelectRoom: (roomId: number) => void
 }
 
-// Chức năng: Gom nhóm dữ liệu cần thiết khi chuyển sang màn hình thiết lập ghế.
 interface SelectedRoomData {
     room: RoomItem
     matrix: SeatCell[][]
 }
 
-// Chức năng: Định nghĩa cấu trúc cho state của form Thêm/Sửa phòng chiếu.
 interface FormState {
     name: string
     roomTypeId: string
@@ -103,36 +68,28 @@ interface FormState {
     status: "ACTIVE" | "INACTIVE"
 }
 
-// ===================================================================================
-// COMPONENT CHÍNH: RoomManagement
-// ===================================================================================
 export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
-    // Refs để điều khiển việc cuộn trong các dialog
     const roomTypeScrollRef = useRef<HTMLDivElement>(null)
     const seatTypeScrollRef = useRef<HTMLDivElement>(null)
 
     const { toast } = useToast()
 
-    // -------------------------------------------------------------------------------
-    // KHỐI QUẢN LÝ STATE
-    // Chức năng: Khai báo tất cả các state cần thiết cho hoạt động của component.
-    // -------------------------------------------------------------------------------
-    const [rooms, setRooms] = useState<RoomItem[]>([]) // Danh sách phòng chiếu hiển thị trên bảng.
-    const [roomTypes, setRoomTypes] = useState<RoomTypeDto[]>([]) // Danh sách loại phòng, dùng cho bộ lọc và form.
-    const [seatTypes, setSeatTypes] = useState<SeatTypeDto[]>([]) // Danh sách loại ghế, truyền cho SeatSetup và build payload.
-    const [loading, setLoading] = useState(false) // Cờ (flag) cho biết có thao tác bất đồng bộ (API call) đang chạy.
-    const [isCreateOpen, setCreateOpen] = useState(false) // Cờ điều khiển việc đóng/mở dialog Thêm/Sửa phòng.
-    const [isRoomTypeOpen, setRoomTypeOpen] = useState(false) // Cờ điều khiển dialog quản lý Loại phòng.
-    const [isSeatTypeOpen, setSeatTypeOpen] = useState(false) // Cờ điều khiển dialog quản lý Loại ghế.
-    const [editingRoom, setEditingRoom] = useState<RoomItem | null>(null) // Lưu thông tin phòng đang được sửa.
-    const [selectedRoom, setSelectedRoom] = useState<SelectedRoomData | null>(null) // Lưu phòng đang được thiết lập ghế, kích hoạt chế độ SeatSetup.
-    const [searchTerm, setSearchTerm] = useState("") // State cho ô tìm kiếm.
-    const [typeFilter, setTypeFilter] = useState<string>("all") // State cho bộ lọc Loại phòng.
-    const [statusFilter, setStatusFilter] = useState<string>("all") // State cho bộ lọc Trạng thái.
-    const [capacityFilter, setCapacityFilter] = useState<string>("all") // State cho bộ lọc Sức chứa.
-    const [currentPage, setCurrentPage] = useState(1) // Trang hiện tại của bảng danh sách.
-    const [itemsPerPage] = useState(10) // Số mục trên mỗi trang.
-    const [formData, setFormData] = useState<FormState>({ // State cho các trường trong form Thêm/Sửa.
+    const [rooms, setRooms] = useState<RoomItem[]>([])
+    const [roomTypes, setRoomTypes] = useState<RoomTypeDto[]>([])
+    const [seatTypes, setSeatTypes] = useState<SeatTypeDto[]>([])
+    const [loading, setLoading] = useState(false)
+    const [isCreateOpen, setCreateOpen] = useState(false)
+    const [isRoomTypeOpen, setRoomTypeOpen] = useState(false)
+    const [isSeatTypeOpen, setSeatTypeOpen] = useState(false)
+    const [editingRoom, setEditingRoom] = useState<RoomItem | null>(null)
+    const [selectedRoom, setSelectedRoom] = useState<SelectedRoomData | null>(null)
+    const [searchTerm, setSearchTerm] = useState("")
+    const [typeFilter, setTypeFilter] = useState<string>("all")
+    const [statusFilter, setStatusFilter] = useState<string>("all")
+    const [capacityFilter, setCapacityFilter] = useState<string>("all")
+    const [currentPage, setCurrentPage] = useState(1)
+    const [itemsPerPage] = useState(10)
+    const [formData, setFormData] = useState<FormState>({
         name: "",
         roomTypeId: "",
         rows: "",
@@ -140,16 +97,6 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         status: "ACTIVE",
     })
 
-    // -------------------------------------------------------------------------------
-    // KHỐI CÁC HÀM TIỆN ÍCH VÀ CHUYỂN ĐỔI DỮ LIỆU (useCallback)
-    // Chức năng: Xử lý việc chuyển đổi dữ liệu giữa định dạng của API (backend)
-    // và định dạng của UI (frontend). `useCallback` được dùng để tối ưu,
-    // tránh việc tạo lại hàm một cách không cần thiết sau mỗi lần render.
-    // -------------------------------------------------------------------------------
-
-    // Chức năng: Chuyển đổi ma trận ghế từ định dạng DTO của backend sang định dạng `SeatCell` của frontend.
-    // Đầu vào: `matrixData` - Mảng 2 chiều từ API `fetchSeatMatrix`.
-    // Đầu ra: Mảng 2 chiều `SeatCell[][]` mà component `SeatSetup` có thể hiểu và hiển thị.
     const transformSeatMatrix = useCallback(
         (matrixData: (SeatCellDto | null)[][]): SeatCell[][] => {
             return (matrixData ?? []).map((row, rIndex) =>
@@ -172,9 +119,6 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         [],
     )
 
-    // Chức năng: Chuyển đổi ma trận ghế từ định dạng `SeatCell` của UI sang payload mà API lưu trữ của backend yêu cầu.
-    // Đầu vào: `matrix` - Mảng `SeatCell[][]` từ sự kiện `onSave` của `SeatSetup`.
-    // Đầu ra: Một object payload hợp lệ cho API `saveSeatMatrix`.
     const buildMatrixPayload = useCallback(
         (matrix: SeatCell[][]) => {
             const fallbackSeatTypeId = seatTypes[0]?.id;
@@ -183,12 +127,12 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                     row.map((cell) => {
                         if (!cell) return null;
                         if (cell.seatTypeId === -1) {
-                            if (fallbackSeatTypeId === undefined) return null; // Trường hợp an toàn nếu không có loại ghế nào
+                            if (fallbackSeatTypeId === undefined) return null;
                             return {
                                 id: cell.id ? Number(cell.id) : null,
                                 rowIndex: cell.row + 1,
                                 columnIndex: cell.column + 1,
-                                seatTypeId: fallbackSeatTypeId, // Dùng một ID hợp lệ làm placeholder
+                                seatTypeId: fallbackSeatTypeId,
                                 status: "BLOCKED",
                             };
                         }
@@ -203,26 +147,18 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                 ),
             }
         },
-        [seatTypes], // Phụ thuộc vào `seatTypes` để có `fallbackSeatTypeId`
+        [seatTypes],
     )
 
-    // -------------------------------------------------------------------------------
-    // KHỐI LẤY DỮ LIỆU TỪ SERVER (DATA FETCHING)
-    // -------------------------------------------------------------------------------
-
-    // Chức năng: Tải các dữ liệu "meta" như loại phòng và loại ghế.
-    // Đầu vào: Không có.
-    // Đầu ra: Cập nhật state `roomTypes` và `seatTypes`, hoặc hiển thị toast báo lỗi.
     const loadMeta = useCallback(async () => {
         try {
-            // Sử dụng Promise.all để tải đồng thời, tăng hiệu suất
             const [activeRoomTypes, seatTypesRes] = await Promise.all([
-                roomTypesApi.list(true), // Chỉ lấy các loại phòng đang hoạt động
-                seatTypesApi.list(true) // Lấy seatTypes đang hoạt động
+                roomTypesApi.list(true),
+                seatTypesApi.list(true)
             ]);
             if (activeRoomTypes && seatTypesRes) {
                 setRoomTypes(activeRoomTypes ?? [])
-                setSeatTypes(seatTypesRes ?? []) // Cập nhật seatTypes từ API mới
+                setSeatTypes(seatTypesRes ?? [])
             } else {
                 toast({ title: "Không thể tải metadata", description: "Vui lòng thử lại sau." })
             }
@@ -232,13 +168,10 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         }
     }, [toast])
 
-    // Chức năng: Tải danh sách các phòng chiếu.
-    // Đầu vào: Tham số phân trang (hiện đang hardcode để lấy tất cả).
-    // Đầu ra: Cập nhật state `rooms` với dữ liệu đã được chuyển đổi sang `RoomItem`, hoặc báo lỗi.
     const loadRooms = useCallback(async () => {
         setLoading(true)
         try {
-            const res = await fetchRooms({ page: 0, size: 500 }) // Lấy tối đa 500 phòng
+            const res = await fetchRooms({ page: 0, size: 500 })
             if (res.status === 200 && res.data) {
                 const mapped: RoomItem[] = (res.data.items ?? []).map((room: RoomDto) => ({
                     id: room.id,
@@ -264,22 +197,11 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         }
     }, [toast])
 
-    // Chức năng: Effect để tải dữ liệu lần đầu khi component được mount.
-    // Đầu vào: `loadMeta`, `loadRooms`.
-    // Đầu ra: Chạy 2 hàm trên để lấy dữ liệu ban đầu.
     useEffect(() => {
         loadMeta()
         loadRooms()
     }, [loadMeta, loadRooms])
 
-    // -------------------------------------------------------------------------------
-    // KHỐI DỮ LIỆU PHÁI SINH (DERIVED DATA - useMemo)
-    // -------------------------------------------------------------------------------
-
-    // Chức năng: Lọc danh sách phòng chiếu dựa trên các state filter.
-    // `useMemo` giúp việc lọc chỉ chạy lại khi các giá trị phụ thuộc thay đổi, tối ưu hiệu suất.
-    // Đầu vào: `rooms`, `searchTerm`, `typeFilter`, `statusFilter`, `capacityFilter`.
-    // Đầu ra: Mảng `filteredRooms` đã được lọc.
     const filteredRooms = useMemo(() => {
         return rooms.filter((room) => {
             const matchesSearch = room.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -294,27 +216,16 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         })
     }, [rooms, searchTerm, typeFilter, statusFilter, capacityFilter])
 
-    // Chức năng: Tính toán các giá trị cho việc phân trang.
-    // Đầu vào: `filteredRooms`, `itemsPerPage`, `currentPage`.
-    // Đầu ra: `totalPages`, `paginatedRooms` (mảng chứa các phòng của trang hiện tại).
     const totalPages = Math.max(1, Math.ceil(filteredRooms.length / itemsPerPage))
     const startIndex = (currentPage - 1) * itemsPerPage
     const endIndex = startIndex + itemsPerPage
     const paginatedRooms = filteredRooms.slice(startIndex, endIndex)
 
-    // -------------------------------------------------------------------------------
-    // KHỐI CÁC HÀM XỬ LÝ SỰ KIỆN (ACTION HANDLERS)
-    // -------------------------------------------------------------------------------
-
-    // Chức năng: Reset form về trạng thái ban đầu.
     const resetForm = () => {
         setFormData({ name: "", roomTypeId: "", rows: "", columns: "", status: "ACTIVE" })
         setEditingRoom(null)
     }
 
-    // Chức năng: Xử lý việc submit form Thêm/Sửa phòng.
-    // Đầu vào: State `formData` và `editingRoom`.
-    // Đầu ra: Gọi API `createRoomApi` hoặc `updateRoomApi`, hiển thị toast, tải lại danh sách.
     const handleSubmit = async () => {
         const rows = Number(formData.rows)
         const columns = Number(formData.columns)
@@ -327,7 +238,6 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
             toast({
                 title: "kích thước không hợp lệ",
                 description: "Số hàng và số cột không được nhỏ hơn 1 hoặc lớn hơn 12",
-                // variant: "destructive",
             })
             return
         }
@@ -352,13 +262,11 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         }
     }
 
-    // Chức năng: Cập nhật trạng thái của phòng (helper function).
     const updateRoomStatus = async (room: RoomItem, status: "ACTIVE" | "INACTIVE") => {
         const payload = { name: room.name, roomTypeId: room.roomTypeId ?? 0, rows: room.rows, columns: room.columns, status }
         await updateRoomApi(room.id, payload)
     }
 
-    // Chức năng: Vô hiệu hóa một phòng.
     const deactivateRoom = async (room: RoomItem) => {
         try {
             setLoading(true)
@@ -372,7 +280,6 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         }
     }
 
-    // Chức năng: Kích hoạt lại một phòng.
     const activateRoom = async (room: RoomItem) => {
         try {
             setLoading(true)
@@ -386,7 +293,6 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         }
     }
 
-    // Chức năng: Mở dialog sửa và điền thông tin của phòng đã chọn vào form.
     const openEditDialog = (room: RoomItem) => {
         setEditingRoom(room)
         setFormData({
@@ -399,9 +305,6 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         setCreateOpen(true)
     }
 
-    // Chức năng: Xử lý khi người dùng nhấn nút "Thiết lập ghế".
-    // Đầu vào: `room` được chọn từ bảng.
-    // Đầu ra: Gọi API lấy ma trận ghế, chuyển đổi dữ liệu và cập nhật `selectedRoom` để chuyển sang màn hình `SeatSetup`.
     const handleSelectRoom = async (room: RoomItem) => {
         onSelectRoom(room.id)
         try {
@@ -422,15 +325,10 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         }
     }
 
-    // Chức năng: Xử lý khi người dùng nhấn nút "Quay lại" từ màn hình `SeatSetup`.
-    // Đầu ra: Reset `selectedRoom` về `null` để quay lại màn hình danh sách.
     const handleBackFromSeatSetup = () => {
         setSelectedRoom(null)
     }
 
-    // Chức năng: Xử lý khi người dùng nhấn "Lưu cấu hình" từ `SeatSetup`.
-    // Đầu vào: `matrix` - Dữ liệu ma trận ghế mới nhất từ `SeatSetup`.
-    // Đầu ra: Gọi API `saveSeatMatrix`, hiển thị toast, và quay về màn hình danh sách.
     const handleSaveSeatConfig = async (matrix: SeatCell[][]) => {
         if (!selectedRoom) return
         try {
@@ -448,7 +346,6 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         }
     }
 
-    // Chức năng: Xử lý thay đổi các bộ lọc và reset phân trang về trang 1.
     const handleFilterChange = (type: string, value: string) => {
         setCurrentPage(1)
         if (type === "search") setSearchTerm(value)
@@ -457,7 +354,6 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         else if (type === "capacity") setCapacityFilter(value)
     }
 
-    // Chức năng: Xóa tất cả các bộ lọc.
     const clearFilters = () => {
         setSearchTerm("")
         setTypeFilter("all")
@@ -466,20 +362,14 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         setCurrentPage(1)
     }
 
-    // Chức năng: Xử lý việc đóng mở dialog quản lý loại phòng và tải lại dữ liệu khi cần.
-    // Đầu vào: `open` - boolean cho biết dialog đang mở hay đóng.
-    // Đầu ra: Cập nhật state `isRoomTypeOpen` và gọi `loadMeta` nếu dialog vừa được đóng.
     const handleRoomTypeDialogChange = (open: boolean) => {
         setRoomTypeOpen(open);
         if (!open) {
-            loadRooms(); // Tải lại danh sách phòng để cập nhật trạng thái
+            loadRooms();
             loadMeta();
         }
     }
 
-    // Chức năng: Xử lý việc đóng mở dialog quản lý loại ghế và tải lại dữ liệu khi cần.
-    // Đầu vào: `open` - boolean cho biết dialog đang mở hay đóng.
-    // Đầu ra: Cập nhật state `isSeatTypeOpen` và gọi `loadMeta` nếu dialog vừa được đóng.
     const handleSeatTypeDialogChange = (open: boolean) => {
         setSeatTypeOpen(open);
         if (!open) {
@@ -487,20 +377,11 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         }
     }
 
-    // -------------------------------------------------------------------------------
-    // KHỐI RENDER GIAO DIỆN (UI RENDERING)
-    // -------------------------------------------------------------------------------
-
-    // Chức năng: Render có điều kiện. Nếu có một phòng đang được chọn để thiết lập ghế,
-    // thì render component `SeatSetup`.
-    // Đầu vào: State `selectedRoom`.
-    // Đầu ra: Giao diện `SeatSetup`.
     if (selectedRoom) {
         return (
             <SeatSetup
                 room={selectedRoom.room}
                 initialMatrix={selectedRoom.matrix}
-                // Bây giờ seatTypes đã được lọc sẵn từ API, không cần filter ở đây nữa
                 seatTypes={seatTypes}
                 onBack={handleBackFromSeatSetup}
                 onSave={handleSaveSeatConfig}
@@ -508,12 +389,8 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
         )
     }
 
-    // Chức năng: Render giao diện chính (danh sách phòng, bộ lọc, dialogs) khi không ở chế độ `SeatSetup`.
-    // Đầu vào: Toàn bộ state của component.
-    // Đầu ra: Giao diện quản lý phòng chiếu hoàn chỉnh.
     return (
         <div className="space-y-6">
-            {/* Header và các nút hành động chính */}
             <div className="flex items-start justify-between gap-4">
                 <div className="space-y-1.5">
                     <h1 className="text-3xl font-bold text-foreground">Quản lý phòng chiếu</h1>
@@ -521,7 +398,7 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" onClick={() => setRoomTypeOpen(true)}>Quản lý loại phòng</Button>
-                    <Button variant="outline" onClick={() => setSeatTypeOpen(true)}>Quản lý loại ghế</Button>
+                    {/*<Button variant="outline" onClick={() => setSeatTypeOpen(true)}>Quản lý loại ghế</Button>*/}
                     <Button onClick={() => setCreateOpen(true)} disabled={loading} className="bg-primary text-primary-foreground hover:bg-primary/90">
                         <Plus className="w-4 h-4 mr-2" />
                         Thêm phòng
@@ -529,14 +406,12 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                 </div>
             </div>
 
-            {/* Card chứa các bộ lọc */}
             <Card className="bg-card border-border">
                 <CardHeader>
                     <div className="flex items-center gap-2 text-muted-foreground"><Filter className="w-4 h-4" />Bộ lọc & tìm kiếm</div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                        {/* Các input và select cho bộ lọc */}
                         <div className="space-y-2">
                             <Label htmlFor="search" className="text-sm font-medium text-foreground">Tìm kiếm theo tên</Label>
                             <div className="relative">
@@ -585,7 +460,6 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                 </CardContent>
             </Card>
 
-            {/* Card chứa bảng danh sách phòng chiếu */}
             <Card className="bg-card border-border">
                 <CardHeader>
                     <div className="flex items-center justify-between">
@@ -637,7 +511,6 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                         </TableBody>
                     </Table>
 
-                    {/* Phân trang */}
                     <div className="flex items-center justify-between">
                         <p className="text-sm text-muted-foreground">Trang {currentPage} / {totalPages} — Tổng {filteredRooms.length} phòng</p>
                         <div className="flex items-center gap-2">
@@ -649,12 +522,10 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                 </CardContent>
             </Card>
 
-            {/* Dialog Thêm/Sửa phòng chiếu */}
             <Dialog open={isCreateOpen} onOpenChange={setCreateOpen}>
                 <DialogContent className="bg-card text-card-foreground border border-border/60 sm:max-w-lg">
                     <DialogHeader><DialogTitle className="text-foreground">{editingRoom ? "Sửa phòng chiếu" : "Thêm phòng mới"}</DialogTitle></DialogHeader>
                     <div className="space-y-4">
-                        {/* Các trường input của form */}
                         <div className="grid gap-2"><Label htmlFor="name" className="text-foreground">Tên phòng</Label><Input id="name" value={formData.name} onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))} className="bg-input border-border text-foreground" /></div>
                         <div className="grid gap-2"><Label className="text-foreground">Loại phòng</Label><Select value={formData.roomTypeId} onValueChange={(value) => setFormData((prev) => ({ ...prev, roomTypeId: value }))}><SelectTrigger className="bg-input border-border text-foreground"><SelectValue placeholder="Chọn loại phòng" /></SelectTrigger><SelectContent className="bg-popover border-border">{roomTypes.map((type) => (<SelectItem key={type.id} value={type.id.toString()}>{type.name}</SelectItem>))}</SelectContent></Select></div>
                         <div className="grid grid-cols-2 gap-4">
@@ -670,7 +541,6 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                 </DialogContent>
             </Dialog>
 
-            {/* Dialog Quản lý Loại phòng */}
             <Dialog open={isRoomTypeOpen} onOpenChange={handleRoomTypeDialogChange}>
                 <DialogContent className="bg-card text-card-foreground border border-border/60 w-[85vw] max-w-[85vw] h-[92vh] p-0 rounded-lg shadow-xl sm:max-w-none">
                     <DialogHeader className="sticky top-0 z-10 bg-card px-5 py-3 border-b border-border/60 rounded-t-lg">
@@ -682,7 +552,6 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                 </DialogContent>
             </Dialog>
 
-            {/* Dialog Quản lý Loại ghế */}
             <Dialog open={isSeatTypeOpen} onOpenChange={handleSeatTypeDialogChange}>
                 <DialogContent className="bg-card text-card-foreground border border-border/60 w-[85vw] max-w-[85vw] h-[92vh] p-0 rounded-lg shadow-xl sm:max-w-none">
                     <DialogHeader className="sticky top-0 z-10 bg-card px-5 py-3 border-b border-border/60 rounded-t-lg">
