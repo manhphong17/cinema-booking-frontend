@@ -256,43 +256,11 @@ export function extractQRInfoFromJSON(payloadJson: string | null | undefined): {
 }
 
 /**
- * Tạo JSON string từ OrderDetail để encode vào QR
- * @param orderDetail - Order detail object
- * @returns JSON string để encode vào QR
+ * Tạo QR code string - chỉ chứa orderCode (đơn giản nhất)
+ * @param orderCode - Order code string
+ * @returns Order code string để encode vào QR
  */
-export function createQRJSON(orderDetail: {
-  orderId: number;
-  orderCode: string;
-  reservationCode: string | null;
-  orderStatus: string;
-  movieName: string | null;
-  roomName: string | null;
-  showtimeStart: string | null;
-  showtimeEnd: string | null;
-  seats: string[];
-  userName?: string;
-  userId?: number;
-}): string {
-  const qrData: QRPayloadJSON = {
-    orderId: orderDetail.orderId,
-    orderCode: orderDetail.orderCode,
-    reservationCode: orderDetail.reservationCode || "",
-    status: orderDetail.orderStatus,
-    movie: orderDetail.movieName || "",
-    room: orderDetail.roomName || "",
-    start: orderDetail.showtimeStart || "",
-    end: orderDetail.showtimeEnd || "",
-    seats: orderDetail.seats,
-  };
-  
-  // Thêm userName và userId nếu có
-  if (orderDetail.userName) {
-    qrData.userName = orderDetail.userName;
-  }
-  if (orderDetail.userId) {
-    qrData.userId = orderDetail.userId;
-  }
-  
-  return JSON.stringify(qrData);
+export function createQRCode(orderCode: string): string {
+  return orderCode.trim();
 }
 

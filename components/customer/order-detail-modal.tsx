@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Calendar, Clock, MapPin, Ticket, CreditCard, User, QrCode, Loader2, RefreshCw, ShoppingBag } from "lucide-react"
 import { OrderDetail, generateQRCode } from "@/src/api/orders"
 import { QRCodeSVG } from "qrcode.react"
-import { extractQRInfo, extractQRInfoFromString, createQRJSON } from "@/src/utils/qr-decoder"
+import { createQRCode } from "@/src/utils/qr-decoder"
 
 interface OrderDetailModalProps {
   open: boolean
@@ -354,32 +354,17 @@ export function OrderDetailModal({ open, onOpenChange, orderDetail, loading, onQ
                           </p>
                       )}
                     </div>
-                ) : orderDetail.qrJwt || orderDetail.payloadJson ? (
-                    // Trạng thái có QR - dùng JSON trực tiếp (dễ đọc hơn JWT)
+                ) : orderDetail.qrJwt || orderDetail.payloadJson || orderDetail.orderCode ? (
+                    // Trạng thái có QR - chỉ chứa orderCode (đơn giản nhất)
                     (() => {
-                      // Tạo JSON từ orderDetail để encode vào QR (format mới - đơn giản)
-                      const qrJSON = createQRJSON({
-                        orderId: orderDetail.orderId,
-                        orderCode: orderDetail.orderCode,
-                        reservationCode: orderDetail.reservationCode,
-                        orderStatus: orderDetail.orderStatus,
-                        movieName: orderDetail.movieName,
-                        roomName: orderDetail.roomName,
-                        showtimeStart: orderDetail.showtimeStart,
-                        showtimeEnd: orderDetail.showtimeEnd,
-                        seats: orderDetail.seats,
-                        userName: orderDetail.userName,
-                        userId: orderDetail.userId,
-                      })
-                      
-                      // Extract thông tin để hiển thị
-                      const qrInfo = extractQRInfoFromString(qrJSON)
+                      // Tạo QR chỉ chứa orderCode
+                      const qrValue = createQRCode(orderDetail.orderCode)
                       
                       return (
                         <div className="flex flex-col items-center gap-4">
                           <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-md">
                             <QRCodeSVG
-                                value={qrJSON}
+                                value={qrValue}
                                 size={220}
                                 level="H"
                                 includeMargin={true}
@@ -390,26 +375,24 @@ export function OrderDetailModal({ open, onOpenChange, orderDetail, loading, onQ
                               Mã QR hợp lệ
                             </Badge>
                             
-                            {/* Hiển thị Order ID và Username từ QR */}
+                            {/* Hiển thị Order Code */}
                             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2 mt-2">
-                              {qrInfo.orderId && (
-                                <div className="flex items-center justify-center gap-2">
-                                  <Ticket className="h-4 w-4 text-blue-600" />
-                                  <span className="text-sm text-gray-700">Order ID:</span>
-                                  <span className="text-sm font-bold text-blue-700">#{qrInfo.orderId}</span>
-                                </div>
-                              )}
-                              {qrInfo.userName && (
+                              <div className="flex items-center justify-center gap-2">
+                                <Ticket className="h-4 w-4 text-blue-600" />
+                                <span className="text-sm text-gray-700">Mã đơn hàng:</span>
+                                <span className="text-sm font-bold text-blue-700">{orderDetail.orderCode}</span>
+                              </div>
+                              {orderDetail.userName && (
                                 <div className="flex items-center justify-center gap-2">
                                   <User className="h-4 w-4 text-blue-600" />
                                   <span className="text-sm text-gray-700">Khách hàng:</span>
-                                  <span className="text-sm font-semibold text-blue-700">{qrInfo.userName}</span>
+                                  <span className="text-sm font-semibold text-blue-700">{orderDetail.userName}</span>
                                 </div>
                               )}
                             </div>
                             
                             <p className="text-sm text-gray-600">
-                              Quét mã này sẽ hiển thị thông tin đơn hàng dễ đọc. Hãy đưa cho nhân viên soát vé.
+                              Quét mã này sẽ hiển thị mã đơn hàng. Nhân viên sẽ dùng mã này để kiểm tra vé.
                             </p>
                             {orderDetail.graceMinutes && (
                                 <p className="text-xs text-gray-500">
