@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { QrCode, Scan, CheckCircle, XCircle, Clock, User, MapPin, Calendar, Loader2 } from "lucide-react"
+import { QrCode, Scan, CheckCircle, XCircle, Clock, User, MapPin, Calendar, Loader2, Printer } from "lucide-react"
 import { verifyTicket, markTicketAsUsed, TicketCheckResult } from "@/src/api/orders"
 import { toast } from "sonner"
 
@@ -83,37 +83,43 @@ export function ETicketScanner() {
   const handleManualScan = async () => {
     if (!ticketCode.trim()) return
 
+    const orderCode = ticketCode.trim()
+
+    toast.info(`📱 Đã quét mã: ${orderCode}`, {
+      duration: 2000,
+    })
+
     setIsVerifying(true)
     try {
-      const result = await verifyTicket(ticketCode.trim())
-      const ticket = convertToTicketInfo(result, ticketCode.trim())
-      
+      const result = await verifyTicket(orderCode)
+      const ticket = convertToTicketInfo(result, orderCode)
+
       setScannedTicket(ticket)
-      
-      // Add to scan history if not already there
+
       setScanHistory((prev) => {
         const exists = prev.find((t) => t.code === ticket.code || t.orderId === ticket.orderId)
         if (!exists) {
-          return [ticket, ...prev.slice(0, 9)] // Keep last 10 scans
+          return [ticket, ...prev.slice(0, 9)]
         }
         return prev
       })
-      
+
       if (ticket.status === "valid") {
-        toast.success("Vé hợp lệ!")
+        toast.success("✅ Vé hợp lệ!")
       } else if (ticket.status === "used") {
-        toast.warning("Vé đã được sử dụng")
+        toast.warning("⚠️ Vé đã được sử dụng")
       } else if (ticket.status === "expired") {
-        toast.error("Vé đã hết hạn")
+        toast.error("⏰ Vé đã hết hạn")
       } else {
-        toast.error("Vé không hợp lệ")
+        toast.error("❌ Vé không hợp lệ")
       }
     } catch (error: any) {
       const errorMessage = error?.response?.data?.message || error?.message || "Không tìm thấy vé với mã này"
-      toast.error(errorMessage)
-      
+      toast.error(`❌ ${errorMessage}`)
+
+      // Clear scanned ticket on error
       setScannedTicket({
-        code: ticketCode.trim().toUpperCase(),
+        code: orderCode,
         movieTitle: "Không tìm thấy",
         showtime: "",
         theater: "",
@@ -128,6 +134,7 @@ export function ETicketScanner() {
       setTicketCode("")
     }
   }
+
 
   const handleQRScan = async () => {
     setIsScanning(true)
@@ -291,6 +298,33 @@ export function ETicketScanner() {
           <CardContent>
             {scannedTicket.status !== "invalid" ? (
               <div className="space-y-4">
+                {/* Highlight Order ID and Username from QR */}
+                {(scannedTicket.orderId || scannedTicket.customerName) && (
+                  <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <QrCode className="h-5 w-5 text-blue-600" />
+                      <span className="text-sm font-semibold text-blue-900">Thông tin từ QR Code</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {scannedTicket.orderId && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-blue-700">Order ID:</span>
+                          <Badge variant="outline" className="font-mono font-bold text-blue-700 border-blue-300">
+                            #{scannedTicket.orderId}
+                          </Badge>
+                        </div>
+                      )}
+                      {scannedTicket.customerName && (
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-blue-600" />
+                          <span className="text-sm font-medium text-blue-700">Khách hàng:</span>
+                          <span className="text-sm font-semibold text-blue-900">{scannedTicket.customerName}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-3">
                     <div>

@@ -13,7 +13,7 @@ export type CustomerOrder = {
   code?: string | null;
   roomName?: string | null;
   userName?: string | null;
-
+  isCheckIn?: boolean;
   concessions?: Concession[];
 };
 
@@ -74,6 +74,7 @@ export type OrderDetail = {
   payloadJson?: string;
   nonce?: string;
   version?: number;
+  isCheckIn?: boolean;
 };
 
 // Normalize backend response to frontend shape
@@ -91,7 +92,7 @@ const normalizeOrder = (raw: any): CustomerOrder => {
     code: raw?.code ?? raw?.orderCode ?? null,
     roomName: raw?.roomName ?? null,
     userName: raw?.userName ?? raw?.user_name ?? null,
-
+    isCheckIn: Boolean(raw?.isCheckIn ?? false),
     // ✅ THÊM DÒNG NÀY
     concessions: Array.isArray(raw?.concessions) ? raw.concessions : []
   };
@@ -99,41 +100,11 @@ const normalizeOrder = (raw: any): CustomerOrder => {
 
 
 
-export async function listMyOrders(params: ListOrdersParams = {}): Promise<PaginatedResponse<CustomerOrder>> {
-  const { email, page = 1, size = 5 } = params;
-  // Expected backend endpoints (adjust if needed):
-  // - GET /orders/my?email=...&page=1&size=5
-  // - or GET /orders?mine=true&page=1&size=5
-  const response = await apiClient.get("/orders/my", {
-    params: { email, page, size },
-  });
 
-  // Try common envelope formats
-  const data = response?.data;
-  const payload = data?.data ?? data;
-
-  // If backend returns paginated structure
-  if (payload && (Array.isArray(payload.items) || Array.isArray(payload.content))) {
-    const items = (payload.items ?? payload.content ?? []).map(normalizeOrder);
-    const total = Number(payload.total ?? payload.totalElements ?? items.length);
-    const pageNum = Number(payload.page ?? payload.pageNumber ?? page);
-    const sizeNum = Number(payload.size ?? payload.pageSize ?? size);
-    return { items, total, page: pageNum, size: sizeNum };
-  }
-
-  // If backend returns an array directly
-  if (Array.isArray(payload)) {
-    const items = payload.map(normalizeOrder);
-    return { items, total: items.length, page, size };
-  }
-
-  // Fallback empty
-  return { items: [], total: 0, page, size };
-}
 
 export async function searchOrdersByDate(payload: SearchOrdersByDatePayload): Promise<PaginatedResponse<CustomerOrder>> {
   const { date, page = 0, size = 5, sort = [] } = payload;
-  
+
   // Tự động lấy userId từ localStorage nếu không được truyền vào
   let userId = payload.userId;
   if (!userId && typeof window !== 'undefined') {
@@ -200,6 +171,7 @@ const normalizeOrderDetail = (raw: any): OrderDetail => {
     payloadJson: raw?.payloadJson,
     nonce: raw?.nonce,
     version: raw?.version,
+    isCheckIn: Boolean(raw?.isCheckIn ?? false),
   };
 };
 
@@ -232,6 +204,7 @@ export type TicketCheckResult = {
   qrExpired: boolean;
   qrExpiryAt: string | null;
   concessions?: Concession[];
+  isCheckIn?: boolean;
 };
 
 // Normalize ticket check response
@@ -304,6 +277,7 @@ const normalizeTicketCheck = (raw: any): TicketCheckResult => {
     qrExpired: Boolean(raw?.qrExpired ?? false),
     qrExpiryAt: raw?.qrExpiryAt ?? null,
     concessions: Array.isArray(raw?.concessions) ? raw.concessions : [],
+    isCheckIn: Boolean(raw?.isCheckIn ?? false),
   };
 };
 

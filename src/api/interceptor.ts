@@ -27,10 +27,11 @@ const getLoginPage = (): string => {
     
     const currentPath = window.location.pathname
     
-    // Nếu đang ở admin/operator pages thì redirect đến admin login
+    // Nếu đang ở admin/operator/staff pages thì redirect đến admin login
     if (currentPath.startsWith('/admin') || 
         currentPath.startsWith('/operator-manager') || 
-        currentPath.startsWith('/business-manager')) {
+        currentPath.startsWith('/business-manager') ||
+        currentPath.startsWith('/staff')) {
         return "/login/admin"
     }
     
