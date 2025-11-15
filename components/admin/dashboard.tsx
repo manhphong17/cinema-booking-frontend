@@ -299,17 +299,7 @@ export function Dashboard() {
         value: totalAccounts || dashboard.metrics.totalUsers,
         description: "Tổng số tài khoản trong hệ thống",
       },
-      {
-        key: "totalOrders" as MetricKey,
-        title: "Tổng đơn hàng",
-        icon: ShoppingCart,
-        gradient: "from-emerald-500 to-emerald-600",
-        bgGradient: "from-emerald-50 to-emerald-100/50",
-        iconBg: "bg-emerald-100",
-        iconColor: "text-emerald-600",
-        value: totalOrders,
-        description: "Tổng số đơn hàng trong hệ thống",
-      },
+
     ],
     [dashboard.metrics, totalOrders, totalAccounts]
   )
@@ -541,184 +531,6 @@ export function Dashboard() {
         ))}
       </div>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Order Status Distribution Chart */}
-        <Card className="lg:col-span-2 bg-white border-gray-200 shadow-lg hover:shadow-xl transition-shadow duration-300">
-          <CardHeader className="border-b border-gray-100">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600">
-                <ShoppingCart className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <CardTitle className="text-xl text-gray-900">Thống kê trạng thái đơn hàng</CardTitle>
-                <CardDescription className="mt-1">
-                  Phân bổ đơn hàng theo trạng thái
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-6">
-            {ordersLoading || !ordersData ? (
-              <div className="flex items-center justify-center h-[320px] text-gray-500">
-                <Loader2 className="h-6 w-6 animate-spin mr-2" /> Đang tải dữ liệu biểu đồ...
-              </div>
-            ) : !ordersData.orders || ordersData.orders.length === 0 ? (
-              <div className="text-center text-sm text-gray-500 py-16">
-                <ShoppingCart className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                <p>Không có dữ liệu đơn hàng trong khoảng thời gian đã chọn.</p>
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={320}>
-                <BarChart data={(() => {
-                  // Calculate status distribution
-                  const statusCounts: Record<string, number> = {}
-                  ordersData.orders.forEach((order) => {
-                    const status = order.status || "Không xác định"
-                    statusCounts[status] = (statusCounts[status] || 0) + 1
-                  })
-                  
-                  // Convert to array for chart
-                  const chartData = Object.entries(statusCounts).map(([name, value]) => ({
-                    name: name === "PENDING" ? "Đang chờ" 
-                          : name === "COMPLETED" ? "Hoàn thành"
-                          : name === "CANCELED" ? "Đã hủy"
-                          : name === "PROCESSING" ? "Đang xử lý"
-                          : name,
-                    value,
-                    originalName: name,
-                  }))
-                  
-                  return chartData.sort((a, b) => b.value - a.value)
-                })()} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" opacity={0.5} />
-                  <XAxis 
-                    dataKey="name" 
-                    stroke="#64748b" 
-                    tick={{ fontSize: 12, fill: "#64748b" }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis 
-                    stroke="#64748b" 
-                    tick={{ fontSize: 12, fill: "#64748b" }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#ffffff",
-                      border: "1px solid #e2e8f0",
-                      borderRadius: "8px",
-                      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                    }}
-                    cursor={{ fill: "rgba(16, 185, 129, 0.1)" }}
-                    formatter={(value: number) => [`${value} đơn hàng`, "Số lượng"]}
-                  />
-                  <Legend 
-                    wrapperStyle={{ paddingTop: "20px" }}
-                    iconType="circle"
-                  />
-                  <Bar
-                    dataKey="value"
-                    name="Số lượng đơn hàng"
-                    fill="#10b981"
-                    radius={[8, 8, 0, 0]}
-                    maxBarSize={80}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Account Creation Date Distribution Pie Chart */}
-        <Card className="bg-white border-gray-200 shadow-lg hover:shadow-xl transition-shadow duration-300">
-          <CardHeader className="border-b border-gray-100">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-purple-600">
-                <Calendar className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <CardTitle className="text-xl text-gray-900">Phân bổ theo ngày tạo</CardTitle>
-                <CardDescription className="mt-1">
-                  Thống kê tài khoản theo tháng tạo
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-6">
-            {accountsLoading || !accountsData ? (
-              <div className="flex items-center justify-center h-[320px] text-gray-500">
-                <Loader2 className="h-6 w-6 animate-spin mr-2" /> Đang tải...
-              </div>
-            ) : creationDateDistribution.length === 0 ? (
-              <div className="text-center text-sm text-gray-500 py-16">
-                <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                <p>Chưa có dữ liệu thống kê.</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-4"
-                  onClick={() => handleOpenModal("totalUsers")}
-                >
-                  Xem danh sách tài khoản
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <ResponsiveContainer width="100%" height={240}>
-                  <PieChart>
-                    <Pie
-                      data={creationDateDistribution}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }: { name?: string; percent?: number }) => {
-                        // Show shorter label on pie chart
-                        const displayName = name || "Không xác định"
-                        const shortName = displayName.length > 12 ? displayName.substring(0, 10) + '...' : displayName
-                        const percentValue = percent ?? 0
-                        return `${shortName}: ${(percentValue * 100).toFixed(0)}%`
-                      }}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {creationDateDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#ffffff",
-                        border: "1px solid #e2e8f0",
-                        borderRadius: "8px",
-                        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                      }}
-                      formatter={(value: number) => [`${value} tài khoản`, "Số lượng"]}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="space-y-2 pt-2 max-h-[120px] overflow-y-auto">
-                  {creationDateDistribution.map((item, index) => (
-                    <div key={index} className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="h-3 w-3 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: item.fill }}
-                        />
-                        <span className="text-gray-700 font-medium truncate">{item.name || "Không xác định"}</span>
-                      </div>
-                      <span className="text-gray-900 font-semibold ml-2">{item.value}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Recent Activities */}
       <Card className="bg-white border-gray-200 shadow-lg hover:shadow-xl transition-shadow duration-300">
@@ -740,7 +552,7 @@ export function Dashboard() {
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <LogIn className="h-5 w-5 text-amber-600" />
-              Thống kê đăng nhập
+              Thống kê tài khoản đăng ký mới
             </h3>
             {accountsLoading || !accountsData ? (
               <div className="flex items-center justify-center h-32 text-gray-500">
