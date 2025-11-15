@@ -383,6 +383,8 @@ export default function ConcessionPage() {
             //  Validate nhanh
             if (!selectedProduct.name.trim()) return toast.error("Tên sản phẩm không được để trống!");
             if (selectedProduct.quantity < 0) return toast.error("Số lượng không hợp lệ!");
+            if (selectedProduct.quantity > 10000) return toast.error ("Số lượng tồn không được vượt quá 10.000!");
+
 
             //  Chuẩn bị formData (vì có thể có ảnh)
             const formData = new FormData();
@@ -642,6 +644,7 @@ export default function ConcessionPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
+
                                     <TableHead>ID</TableHead>
                                     <TableHead>Tên sản phẩm</TableHead>
                                     <TableHead>Loại sản phẩm</TableHead>
@@ -649,9 +652,9 @@ export default function ConcessionPage() {
                                     <TableHead>Mô tả</TableHead>
                                     <TableHead>Ảnh</TableHead>
                                     <TableHead>Số lượng</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Chỉnh sửa</TableHead>
+                                    <TableHead>Trạng thái</TableHead>
                                     <TableHead className="text-right">Thao tác</TableHead>
+
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -802,8 +805,8 @@ export default function ConcessionPage() {
                                     Trước
                                 </Button>
                                 <span className="text-sm text-gray-600">
-                  Trang {currentPage} / {totalPages}
-                 </span>
+                                    Trang {currentPage} / {totalPages}
+                                </span>
                                 <Button
                                     variant="outline"
                                     size="sm"
