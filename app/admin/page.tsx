@@ -6,7 +6,6 @@ import { AdminLayout } from "@/components/layouts/admin-layout"
 import { AccountManagement } from "@/components/admin/account-management"
 import { CinemaInformation } from "@/components/admin/cinema-information"
 import { Dashboard } from "@/components/admin/dashboard"
-import { ProfileManagement } from "@/components/admin/profile"
 
 
 export default function AdminPage() {
@@ -98,8 +97,6 @@ export default function AdminPage() {
         return <AccountManagement />
       case "cinema-info":
         return <CinemaInformation />
-      case "profile":
-        return <ProfileManagement />
       default:
         return <Dashboard />
     }

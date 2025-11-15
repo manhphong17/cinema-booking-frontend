@@ -2,7 +2,6 @@
 import { useRouter } from "next/navigation"
 import type { ReactNode } from "react"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { logout } from "@/src/api/interceptor"
 import {
   Film,
@@ -11,7 +10,6 @@ import {
   Users,
   Settings,
   BarChart3,
-  User,
 } from "lucide-react"
 
 interface AdminLayoutProps {
@@ -27,7 +25,6 @@ export function AdminLayout({ children, activeSection, onSectionChange }: AdminL
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "accounts", label: "Quản lý tài khoản", icon: Users },
     { id: "cinema-info", label: "Cấu hình thông tin rạp", icon: Settings },
-     { id: "profile", label: "Hồ sơ cá nhân", icon: User },
   ]
 
   const handleLogout = () => {
@@ -45,7 +42,7 @@ export function AdminLayout({ children, activeSection, onSectionChange }: AdminL
               <Film className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-gray-900">System Operation</h1>
+              <h1 className="text-lg font-semibold text-gray-900">System</h1>
               <p className="text-sm text-gray-500">Admin Dashboard</p>
             </div>
           </div>
@@ -74,23 +71,8 @@ export function AdminLayout({ children, activeSection, onSectionChange }: AdminL
           })}
         </nav>
 
-        {/* User Profile + Logout */}
+        {/* Logout */}
         <div className="p-4 border-t mt-auto">
-          <div
-            className="flex items-center gap-3 mb-3 cursor-pointer hover:bg-blue-50 rounded-lg p-2 transition-all duration-200"
-            onClick={() => onSectionChange("profile")}
-
-          >
-            <Avatar className="w-8 h-8 ring-2 ring-blue-100 hover:scale-105 transition-all duration-200">
-              <AvatarImage src="/admin-avatar.png" />
-              <AvatarFallback className="bg-blue-100 text-blue-700 font-semibold">AD</AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">System Admin</p>
-              <p className="text-xs text-gray-500 truncate">admin@cinema.com</p>
-            </div>
-          </div>
-
           <Button
             variant="outline"
             size="sm"

@@ -31,7 +31,6 @@ import {
   TrendingUp,
   Sparkles,
   ArrowUpRight,
-  ShoppingCart,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -45,13 +44,11 @@ import {
 import {
   fetchAdminAccounts,
   fetchAdminDashboard,
-  fetchStatistics,
   type AccountListResponse,
   type DashboardResponse,
-  type StatisticsResponse,
 } from "@/app/api/admin/dashboard"
 
-type MetricKey = "totalUsers" | "totalOrders"
+type MetricKey = "totalUsers"
 
 const DEFAULT_DASHBOARD: DashboardResponse = {
   metrics: {
@@ -127,12 +124,6 @@ export function Dashboard() {
   const [accountsLoading, setAccountsLoading] = useState(false)
   const [accountsError, setAccountsError] = useState<string | null>(null)
   const [accountsPage, setAccountsPage] = useState(0)
-  
-  const [ordersData, setOrdersData] = useState<StatisticsResponse | null>(null)
-  const [ordersLoading, setOrdersLoading] = useState(false)
-  const [ordersError, setOrdersError] = useState<string | null>(null)
-  const [ordersPage, setOrdersPage] = useState(0)
-  const [totalOrders, setTotalOrders] = useState(0)
   const [totalAccounts, setTotalAccounts] = useState(0)
 
   const fetchDashboardData = useCallback(async (start?: string, end?: string) => {
@@ -189,52 +180,6 @@ export function Dashboard() {
     })
   }, [appliedFilters.startDate, appliedFilters.endDate, fetchAccountsData])
 
-  // Load orders statistics initially
-  const fetchOrdersData = useCallback(
-    async ({ start, end, page }: { start?: string; end?: string; page?: number }) => {
-      try {
-        setOrdersLoading(true)
-        setOrdersError(null)
-        console.log("📥 [Dashboard] Fetching orders with params:", { start, end, page })
-        
-        const data = await fetchStatistics({
-          startDate: start || undefined,
-          endDate: end || undefined,
-          page: page ?? 0,
-          size: PAGE_SIZE,
-        })
-        
-        console.log("📥 [Dashboard] Received orders data:", data)
-        console.log("📥 [Dashboard] Orders array:", data.orders)
-        console.log("📥 [Dashboard] Orders count:", data.orders?.length)
-        
-        if (data.orders && data.orders.length > 0) {
-          console.log("📥 [Dashboard] First order sample:", data.orders[0])
-        }
-        
-        setOrdersData(data)
-        setTotalOrders(data.totalOrders)
-        setTotalAccounts(data.totalAccounts)
-      } catch (err: any) {
-        console.error("❌ [Dashboard] Failed to fetch orders list:", err)
-        console.error("❌ [Dashboard] Error response:", err?.response)
-        console.error("❌ [Dashboard] Error data:", err?.response?.data)
-        const message = err?.response?.data?.message ?? err?.message ?? "Không thể tải danh sách đơn hàng"
-        setOrdersError(message)
-      } finally {
-        setOrdersLoading(false)
-      }
-    },
-    []
-  )
-
-  useEffect(() => {
-    fetchOrdersData({
-      start: appliedFilters.startDate,
-      end: appliedFilters.endDate,
-      page: 0,
-    })
-  }, [appliedFilters.startDate, appliedFilters.endDate, fetchOrdersData])
 
   const handleFilterSubmit = (event: React.FormEvent) => {
     event.preventDefault()
@@ -249,21 +194,12 @@ export function Dashboard() {
   const handleOpenModal = (metric: MetricKey) => {
     setSelectedMetric(metric)
     setModalOpen(true)
-    if (metric === "totalOrders") {
-      setOrdersPage(0)
-      fetchOrdersData({
-        start: appliedFilters.startDate,
-        end: appliedFilters.endDate,
-        page: 0,
-      })
-    } else {
-      setAccountsPage(0)
-      fetchAccountsData({
-        start: appliedFilters.startDate,
-        end: appliedFilters.endDate,
-        page: 0,
-      })
-    }
+    setAccountsPage(0)
+    fetchAccountsData({
+      start: appliedFilters.startDate,
+      end: appliedFilters.endDate,
+      page: 0,
+    })
   }
 
   const handleChangeAccountsPage = (nextPage: number) => {
@@ -276,15 +212,6 @@ export function Dashboard() {
     })
   }
 
-  const handleChangeOrdersPage = (nextPage: number) => {
-    if (nextPage < 0 || (ordersData && nextPage >= ordersData.totalPages)) return
-    setOrdersPage(nextPage)
-    fetchOrdersData({
-      start: appliedFilters.startDate,
-      end: appliedFilters.endDate,
-      page: nextPage,
-    })
-  }
 
   const statCards = useMemo(
     () => [
@@ -301,7 +228,7 @@ export function Dashboard() {
       },
 
     ],
-    [dashboard.metrics, totalOrders, totalAccounts]
+    [dashboard.metrics, totalAccounts]
   )
 
   // Prepare pie chart data for account creation date distribution
@@ -662,165 +589,22 @@ export function Dashboard() {
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader className="border-b border-gray-200 pb-4">
             <div className="flex items-center gap-3">
-              <div className={`flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br ${
-                selectedMetric === "totalOrders" 
-                  ? "from-emerald-500 to-emerald-600" 
-                  : "from-blue-500 to-blue-600"
-              }`}>
-                {selectedMetric === "totalOrders" ? (
-                  <ShoppingCart className="h-5 w-5 text-white" />
-                ) : (
-                  <Users className="h-5 w-5 text-white" />
-                )}
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-blue-600">
+                <Users className="h-5 w-5 text-white" />
               </div>
               <div>
                 <DialogTitle className="text-2xl text-gray-900">
                   Chi tiết - {statCards.find((card) => card.key === selectedMetric)?.title}
                 </DialogTitle>
                 <DialogDescription className="mt-1 text-base">
-                  {selectedMetric === "totalOrders" 
-                    ? "Danh sách đơn hàng trong khoảng thời gian được chọn"
-                    : "Danh sách tài khoản liên quan trong khoảng thời gian được chọn"}
+                  Danh sách tài khoản liên quan trong khoảng thời gian được chọn
                 </DialogDescription>
               </div>
             </div>
           </DialogHeader>
 
-          {selectedMetric === "totalOrders" ? (
-            <>
-              {ordersError && (
-                <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-gradient-to-r from-red-50 to-red-100/50 p-3 text-sm text-red-600">
-                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                  <span className="font-medium">{ordersError}</span>
-                </div>
-              )}
-
-              <div className="overflow-hidden rounded-xl border border-gray-200 shadow-sm">
-                <Table>
-                  <TableHeader className="bg-gradient-to-r from-gray-50 to-gray-100/50">
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className="font-semibold text-gray-700">ID</TableHead>
-                      <TableHead className="font-semibold text-gray-700">Khách hàng</TableHead>
-                      <TableHead className="font-semibold text-gray-700">Email</TableHead>
-                      <TableHead className="font-semibold text-gray-700">Tổng tiền</TableHead>
-                      <TableHead className="font-semibold text-gray-700">Trạng thái</TableHead>
-                      <TableHead className="font-semibold text-gray-700">Ngày tạo</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {ordersLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="h-40 text-center">
-                          <div className="flex flex-col items-center justify-center gap-3">
-                            <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
-                            <span className="text-sm text-gray-500 font-medium">Đang tải danh sách đơn hàng...</span>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ) : ordersData && ordersData.orders.length > 0 ? (
-                      (() => {
-                        console.log("🎨 [Dashboard] Rendering orders table with data:", ordersData.orders)
-                        return ordersData.orders.map((order, idx) => {
-                          console.log(`🎨 [Dashboard] Rendering order ${idx}:`, order)
-                          console.log(`🎨 [Dashboard] Order ${idx} - customerName:`, order.customerName)
-                          console.log(`🎨 [Dashboard] Order ${idx} - customerEmail:`, order.customerEmail)
-                          console.log(`🎨 [Dashboard] Order ${idx} - totalAmount:`, order.totalAmount)
-                          
-                          return (
-                            <TableRow 
-                              key={order.id ?? order.orderId ?? idx}
-                              className="hover:bg-gray-50/50 transition-colors"
-                            >
-                              <TableCell className="font-semibold text-gray-900">
-                                #{order.id ?? order.orderId ?? "--"}
-                              </TableCell>
-                              <TableCell className="text-gray-900 font-medium">
-                                {order.customerName || "Không xác định"}
-                              </TableCell>
-                              <TableCell className="text-gray-600">{order.customerEmail || "--"}</TableCell>
-                              <TableCell className="text-gray-900 font-semibold">
-                                {order.totalAmount 
-                                  ? new Intl.NumberFormat("vi-VN", {
-                                      style: "currency",
-                                      currency: "VND",
-                                    }).format(order.totalAmount)
-                                  : "--"}
-                              </TableCell>
-                              <TableCell>
-                                {order.status ? (
-                                  <Badge 
-                                    className={
-                                      order.status.toLowerCase() === "completed" || order.status.toLowerCase() === "success"
-                                        ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200"
-                                        : order.status.toLowerCase() === "pending"
-                                        ? "bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200"
-                                        : "bg-gray-100 text-gray-700"
-                                    }
-                                  >
-                                    {order.status}
-                                  </Badge>
-                                ) : (
-                                  <span className="text-gray-400">--</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-gray-600 text-sm font-medium">
-                                {order.createdAt || "--"}
-                              </TableCell>
-                            </TableRow>
-                          )
-                        })
-                      })()
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={6} className="h-40 text-center">
-                          <div className="flex flex-col items-center justify-center gap-3">
-                            <ShoppingCart className="h-12 w-12 text-gray-300" />
-                            <span className="text-sm text-gray-500 font-medium">Không có đơn hàng nào phù hợp.</span>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-
-              <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                <div className="text-sm text-gray-600">
-                  <span className="font-semibold text-gray-900">{ordersData?.totalElements ?? 0}</span> đơn hàng · 
-                  Trang <span className="font-semibold text-gray-900">{ordersPage + 1}</span> / 
-                  <span className="font-semibold text-gray-900"> {ordersData?.totalPages ?? 1}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    disabled={ordersPage === 0 || ordersLoading}
-                    onClick={() => handleChangeOrdersPage(ordersPage - 1)}
-                    className="border-gray-300 hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    disabled={
-                      ordersLoading ||
-                      !ordersData ||
-                      ordersPage >= (ordersData.totalPages ?? 1) - 1
-                    }
-                    onClick={() => handleChangeOrdersPage(ordersPage + 1)}
-                    className="border-gray-300 hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              {accountsError && (
+          <>
+            {accountsError && (
                 <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-gradient-to-r from-red-50 to-red-100/50 p-3 text-sm text-red-600">
                   <AlertCircle className="h-4 w-4 flex-shrink-0" />
                   <span className="font-medium">{accountsError}</span>
@@ -964,8 +748,7 @@ export function Dashboard() {
                   </Button>
                 </div>
               </div>
-            </>
-          )}
+          </>
         </DialogContent>
       </Dialog>
     </div>
