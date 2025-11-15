@@ -29,6 +29,7 @@ export function PaymentTab({ showtimeId, onPaymentSuccess }: PaymentTabProps) {
     const [isProcessing, setIsProcessing] = useState(false)
     const [paymentSuccess, setPaymentSuccess] = useState(false)
     const [orderDetail, setOrderDetail] = useState<OrderDetail | null>(null)
+    const [isFetchingOrder, setIsFetchingOrder] = useState(false)
 
     // 1️⃣ Decode userId từ accessToken
     useEffect(() => {
@@ -152,18 +153,25 @@ export function PaymentTab({ showtimeId, onPaymentSuccess }: PaymentTabProps) {
             if (selectedPaymentCode ==="CASH") {
                 const res = await apiClient.post("/payment/checkout-cash", payload)
                 if (res.status === 200) {
-                    const orderId = res.data?.data?.orderId || res.data?.orderId
+                    const orderId = res.data?.data?.orderId || res.data?.orderId || res.data?.order?.orderId
                     toast.success("Thanh toán tiền mặt thành công!")
                     setPaymentSuccess(true)
                     
                     // Fetch order details để hiển thị thông tin vé
                     if (orderId) {
+                        setIsFetchingOrder(true)
                         try {
                             const order = await getOrderDetail(orderId)
                             setOrderDetail(order)
                         } catch (err) {
                             console.error("Failed to fetch order details:", err)
+                            toast.error("Không thể tải thông tin đơn hàng. Vui lòng thử lại.")
+                        } finally {
+                            setIsFetchingOrder(false)
                         }
+                    } else {
+                        console.error("OrderId not found in response:", res.data)
+                        toast.error("Không tìm thấy mã đơn hàng")
                     }
                 }
             } else {
@@ -208,7 +216,12 @@ export function PaymentTab({ showtimeId, onPaymentSuccess }: PaymentTabProps) {
                                     <p className="text-muted-foreground">Đơn hàng đã được ghi nhận</p>
                                 </div>
                                 
-                                {orderDetail && (
+                                {isFetchingOrder ? (
+                                    <div className="flex flex-col items-center justify-center py-8 space-y-3">
+                                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                                        <p className="text-sm text-muted-foreground">Đang tải thông tin vé...</p>
+                                    </div>
+                                ) : orderDetail ? (
                                     <>
                                         <div className="border-t pt-4 space-y-3">
                                             <div className="flex items-center justify-between">
@@ -267,6 +280,21 @@ export function PaymentTab({ showtimeId, onPaymentSuccess }: PaymentTabProps) {
                                             Tiếp tục đặt vé
                                         </Button>
                                     </>
+                                ) : (
+                                    <div className="text-center py-4">
+                                        <p className="text-sm text-muted-foreground">Không thể tải thông tin đơn hàng</p>
+                                        <Button
+                                            onClick={() => {
+                                                setPaymentSuccess(false)
+                                                setOrderDetail(null)
+                                                onPaymentSuccess()
+                                            }}
+                                            className="mt-4"
+                                            variant="outline"
+                                        >
+                                            Quay lại
+                                        </Button>
+                                    </div>
                                 )}
                             </div>
                         ) : (
