@@ -496,13 +496,6 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
 
     const seatType = getSeatType(seatId)
 
-    const existingSeatTypes = [...new Set(selectedSeats.map(id => getSeatType(id)))]
-
-    if (existingSeatTypes.length > 0 && !existingSeatTypes.includes(seatType)) {
-      alert(`Bạn chỉ có thể chọn 1 loại ghế trong 1 lần đặt vé. Vui lòng bỏ chọn ghế ${existingSeatTypes[0] === 'vip' ? 'VIP' : 'thường'} trước khi chọn ghế ${seatType === 'vip' ? 'VIP' : 'thường'}.`)
-      return
-    }
-
     const seatsOfSameType = selectedSeats.filter(id => getSeatType(id) === seatType)
 
     if (seatsOfSameType.length >= 8) {
@@ -543,15 +536,7 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
     return seatsOfSameType.length >= 8
   }
 
-  const getSelectedSeatType = () => {
-    if (selectedSeats.length === 0) return null
-    return getSeatType(selectedSeats[0])
-  }
-
-  const isDifferentSeatType = (type: string) => {
-    const selectedType = getSelectedSeatType()
-    return selectedType !== null && selectedType !== type
-  }
+  // Removed isDifferentSeatType function - no longer restricting to one seat type
 
   const getSeatPrice = (seatId: string) => {
     if (seatData.length === 0) return 0
@@ -912,7 +897,7 @@ export function TicketSelection({ onAddToCart, onSyncTicketsToCart }: TicketSele
                           const isOccupied = isBooked || isMaintenance || isBlocked || isHeld
                           const seatType = getSeatType(seat.id)
                           const isLimitReached = !isOccupied && !isSelected && isSeatTypeLimitReached(seatType)
-                          const isDifferentType = !isOccupied && !isSelected && isDifferentSeatType(seatType)
+                          const isDifferentType = false // Removed restriction: allow selecting multiple seat types
 
                           // Debug: check disabled state
                           const buttonDisabled = isSelected 

@@ -260,6 +260,7 @@ export default function CinemaManagement() {
                 total={total}
                 title="Giỏ hàng"
                 showSeatTypeStats={false}
+                onTabChange={setActiveTab}
               />
             </div>
           )}

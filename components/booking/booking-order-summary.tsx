@@ -3,7 +3,7 @@
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card"
 import {Badge} from "@/components/ui/badge"
 import {Button} from "@/components/ui/button"
-import {ArrowLeft, Calendar, Clock, CreditCard, Crown, MapPin, Sofa, Users} from "lucide-react"
+import {ArrowLeft, Calendar, Clock, CreditCard, Crown, MapPin, Sofa, Users, ShoppingCart, Ticket} from "lucide-react"
 import {ReactNode, useEffect, useState, useRef, useCallback, useMemo} from "react"
 import {useRouter} from "next/navigation"
 import {apiClient} from "@/src/api/interceptor"
@@ -65,6 +65,9 @@ type BookingOrderSummaryProps = {
   // Custom title
   title?: string
   showSeatTypeStats?: boolean // Hiển thị thống kê ghế thường/VIP (chỉ dùng ở seat selection)
+  
+  // Tab navigation (for staff)
+  onTabChange?: (tab: string) => void
 }
 
 export default function BookingOrderSummary({
@@ -84,7 +87,8 @@ export default function BookingOrderSummary({
   actionButton,
   title = "Tóm tắt đơn hàng",
   showSeatTypeStats = false,
-  triggerSync
+  triggerSync,
+  onTabChange
 }: BookingOrderSummaryProps) {
   const router = useRouter()
   // Khởi tạo countdown = 0, chỉ hiển thị khi có TTL từ backend (> 0)
@@ -559,6 +563,47 @@ export default function BookingOrderSummary({
         {actionButton && (
           <div className="pt-4">
             {actionButton}
+          </div>
+        )}
+
+        {/* Tab Navigation Buttons (for staff) */}
+        {onTabChange && (
+          <div className="pt-4 border-t border-gray-200 space-y-2">
+            {seats.length === 0 && (
+              <Button
+                onClick={() => onTabChange("tickets")}
+                className="w-full"
+                size="lg"
+                variant="outline"
+                style={{ borderColor: "#38AAEC", color: "#38AAEC" }}
+              >
+                <Ticket className="h-4 w-4 mr-2" />
+                Chọn suất chiếu
+              </Button>
+            )}
+            {seats.length > 0 && concessions.length === 0 && (
+              <Button
+                onClick={() => onTabChange("concessions")}
+                className="w-full"
+                size="lg"
+                variant="outline"
+                style={{ borderColor: "#38AAEC", color: "#38AAEC" }}
+              >
+                <ShoppingCart className="h-4 w-4 mr-2" />
+                Chọn bắp nước
+              </Button>
+            )}
+            {(seats.length > 0 || concessions.length > 0) && (
+              <Button
+                onClick={() => onTabChange("payment")}
+                className="w-full"
+                size="lg"
+                style={{ backgroundColor: "#38AAEC" }}
+              >
+                <CreditCard className="h-4 w-4 mr-2" />
+                Chuyển đến thanh toán
+              </Button>
+            )}
           </div>
         )}
       </CardContent>
