@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { QrCode, Scan, CheckCircle, XCircle, Clock, User, MapPin, Calendar, Loader2 } from "lucide-react"
+import { QrCode, Scan, CheckCircle, XCircle, Clock, User, MapPin, Calendar, Loader2, Printer } from "lucide-react"
 import { verifyTicket, markTicketAsUsed, TicketCheckResult } from "@/src/api/orders"
 import { toast } from "sonner"
 
@@ -351,16 +351,27 @@ export function ETicketScanner() {
                     </p>
                   </div>
                   {scannedTicket.status === "valid" && (
-                    <Button onClick={handleMarkTicketAsUsed} size="lg" disabled={isMarkingAsUsed}>
-                      {isMarkingAsUsed ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Đang xác nhận...
-                        </>
-                      ) : (
-                        "Xác nhận sử dụng vé"
-                      )}
-                    </Button>
+                    <div className="flex gap-3">
+                      <Button 
+                        onClick={() => window.print()} 
+                        variant="outline" 
+                        size="lg"
+                        className="flex items-center gap-2"
+                      >
+                        <Printer className="h-4 w-4" />
+                        In vé
+                      </Button>
+                      <Button onClick={handleMarkTicketAsUsed} size="lg" disabled={isMarkingAsUsed}>
+                        {isMarkingAsUsed ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Đang xác nhận...
+                          </>
+                        ) : (
+                          "Xác nhận sử dụng vé"
+                        )}
+                      </Button>
+                    </div>
                   )}
                 </div>
               </div>

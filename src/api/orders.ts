@@ -13,7 +13,7 @@ export type CustomerOrder = {
   code?: string | null;
   roomName?: string | null;
   userName?: string | null;
-
+  isCheckIn?: boolean;
   concessions?: Concession[];
 };
 
@@ -74,6 +74,7 @@ export type OrderDetail = {
   payloadJson?: string;
   nonce?: string;
   version?: number;
+  isCheckIn?: boolean;
 };
 
 // Normalize backend response to frontend shape
@@ -91,7 +92,7 @@ const normalizeOrder = (raw: any): CustomerOrder => {
     code: raw?.code ?? raw?.orderCode ?? null,
     roomName: raw?.roomName ?? null,
     userName: raw?.userName ?? raw?.user_name ?? null,
-
+    isCheckIn: Boolean(raw?.isCheckIn ?? false),
     // ✅ THÊM DÒNG NÀY
     concessions: Array.isArray(raw?.concessions) ? raw.concessions : []
   };
@@ -200,6 +201,7 @@ const normalizeOrderDetail = (raw: any): OrderDetail => {
     payloadJson: raw?.payloadJson,
     nonce: raw?.nonce,
     version: raw?.version,
+    isCheckIn: Boolean(raw?.isCheckIn ?? false),
   };
 };
 
@@ -232,6 +234,7 @@ export type TicketCheckResult = {
   qrExpired: boolean;
   qrExpiryAt: string | null;
   concessions?: Concession[];
+  isCheckIn?: boolean;
 };
 
 // Normalize ticket check response
@@ -304,6 +307,7 @@ const normalizeTicketCheck = (raw: any): TicketCheckResult => {
     qrExpired: Boolean(raw?.qrExpired ?? false),
     qrExpiryAt: raw?.qrExpiryAt ?? null,
     concessions: Array.isArray(raw?.concessions) ? raw.concessions : [],
+    isCheckIn: Boolean(raw?.isCheckIn ?? false),
   };
 };
 
