@@ -398,7 +398,7 @@ export function RoomManagement({ onSelectRoom }: RoomManagementProps) {
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" onClick={() => setRoomTypeOpen(true)}>Quản lý loại phòng</Button>
-                    <Button variant="outline" onClick={() => setSeatTypeOpen(true)}>Quản lý loại ghế</Button>
+                    {/*<Button variant="outline" onClick={() => setSeatTypeOpen(true)}>Quản lý loại ghế</Button>*/}
                     <Button onClick={() => setCreateOpen(true)} disabled={loading} className="bg-primary text-primary-foreground hover:bg-primary/90">
                         <Plus className="w-4 h-4 mr-2" />
                         Thêm phòng
