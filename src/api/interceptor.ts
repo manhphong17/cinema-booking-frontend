@@ -1,15 +1,22 @@
+// ===============================
+// 1️⃣ IMPORT & CONFIG CHUNG
+// ===============================
 import axios from 'axios'
 
 const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL
 
-// Tạo axios instance
+// ===============================
+// 2️⃣ AXIOS INSTANCE
+// ===============================
 export const apiClient = axios.create({
     baseURL: BASE_URL,
     timeout: 10000,
-    withCredentials: true, // Enable sending cookies (refresh token) with requests
+    withCredentials: true, // Bật gửi cookies (refresh token) với requests
 })
 
-// Token management utilities
+// ===============================
+// 3️⃣ HELPER FUNCTIONS
+// ===============================
 const isTokenExpired = (token: string | null): boolean => {
     if (!token) return true
     try {
@@ -21,7 +28,6 @@ const isTokenExpired = (token: string | null): boolean => {
     }
 }
 
-// Helper function to determine login page based on user role
 const getLoginPage = (): string => {
     if (typeof window === 'undefined') return "/login"
     
@@ -39,6 +45,18 @@ const getLoginPage = (): string => {
     return "/login"
 }
 
+const redirectToLogin = () => {
+    if (typeof window !== 'undefined') {
+        localStorage.removeItem("accessToken")
+        const loginPage = getLoginPage()
+        // Sử dụng replace thay vì href để tránh vấn đề với nút back
+        window.location.replace(loginPage)
+    }
+}
+
+// ===============================
+// 4️⃣ REFRESH TOKEN FUNCTION
+// ===============================
 const refreshAccessToken = async (): Promise<string | null> => {
     try {
         const response = await apiClient.post(
@@ -59,25 +77,26 @@ const refreshAccessToken = async (): Promise<string | null> => {
     }
 }
 
-
-// Request interceptor - tự động thêm token
+// ===============================
+// 5️⃣ REQUEST INTERCEPTOR
+// ===============================
 apiClient.interceptors.request.use(
     (config: any) => {
-        // Skip auth if flag is set (for refresh token request)
+        // Bỏ qua auth nếu flag được set (cho refresh token request)
         if (config.skipAuth) {
             return config
         }
 
         const token = localStorage.getItem("accessToken")
 
-        // Skip auth for login/register/logout endpoints (except refresh-token)
+        // Bỏ qua auth cho login/register/logout endpoints (trừ refresh-token)
         if ((config.url?.includes('/auth/') && !config.url?.includes('/auth/refresh-token')) || 
             config.url?.includes('/login') || 
             config.url?.includes('/register')) {
             return config
         }
         
-        // Skip auth for logout endpoint
+        // Bỏ qua auth cho logout endpoint
         if (config.url?.includes('/auth/log-out')) {
             return config
         }
@@ -86,9 +105,6 @@ apiClient.interceptors.request.use(
         if (token) {
             config.headers = config.headers || {}
             config.headers.Authorization = `Bearer ${token}`
-            console.log('🔐 Token added to request:', config.url)
-        } else {
-            console.warn('⚠️ No token found for request:', config.url)
         }
 
         return config
@@ -98,7 +114,9 @@ apiClient.interceptors.request.use(
     }
 )
 
-// Response interceptor - tự động xử lý token hết hạn
+// ===============================
+// 6️⃣ RESPONSE INTERCEPTOR
+// ===============================
 apiClient.interceptors.response.use(
     (response) => {
         return response
@@ -106,19 +124,19 @@ apiClient.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config
 
-        // Skip redirect for auth endpoints (except refresh-token)
+        // Bỏ qua redirect cho auth endpoints (trừ refresh-token)
         if ((originalRequest.url?.includes('/auth/') && !originalRequest.url?.includes('/auth/refresh-token')) || 
             originalRequest.url?.includes('/login') || 
             originalRequest.url?.includes('/register')) {
             return Promise.reject(error)
         }
 
-        // Skip refresh token if logout endpoint was called
+        // Bỏ qua refresh token nếu logout endpoint được gọi
         if (originalRequest.url?.includes('/auth/log-out')) {
             return Promise.reject(error)
         }
 
-        // Skip redirect for public endpoints (theater details should be publicly accessible)
+        // Bỏ qua redirect cho public endpoints (theater details nên công khai)
         if ((originalRequest.url?.includes('/theater_details') || originalRequest.url?.includes('/api/theater_details')) && 
             originalRequest.method?.toLowerCase() === 'get') {
             return Promise.reject(error)
@@ -140,11 +158,11 @@ apiClient.interceptors.response.use(
                     redirectToLogin()
                 }
             } catch (refreshError) {
-                // Refresh failed, redirect to appropriate login page
+                // Refresh thất bại, redirect đến trang login phù hợp
                 redirectToLogin()
             }
         } else if (error.response?.status === 401) {
-            // 401 error but already retried or not retryable
+            // Lỗi 401 nhưng đã retry hoặc không thể retry
             redirectToLogin()
         }
 
@@ -152,20 +170,12 @@ apiClient.interceptors.response.use(
     }
 )
 
-// Helper function to redirect to login
-const redirectToLogin = () => {
-    if (typeof window !== 'undefined') {
-        localStorage.removeItem("accessToken")
-        const loginPage = getLoginPage()
-        // Use replace instead of href to prevent back button issues
-        window.location.replace(loginPage)
-    }
-}
-
-// Logout function - call backend to delete refresh token and clear cookies
+// ===============================
+// 7️⃣ LOGOUT FUNCTION
+// ===============================
 export const logout = async () => {
     try {
-        // Set flag to indicate coming from logout (prevent auto-login)
+        // Set flag để chỉ ra đang từ logout (ngăn auto-login)
         if (typeof window !== 'undefined') {
             sessionStorage.setItem("fromLogout", "true")
         }
@@ -173,8 +183,7 @@ export const logout = async () => {
         // Gọi endpoint logout để xóa refresh token trong database và xóa cookie
         await apiClient.post('/auth/log-out', {}, { withCredentials: true })
     } catch (error) {
-        // Ignore errors - we still want to clear local storage and redirect
-        console.error('Logout error:', error)
+        // Bỏ qua lỗi - vẫn muốn xóa local storage và redirect
     } finally {
         // Xóa tất cả localStorage data
         if (typeof window !== 'undefined') {
@@ -198,4 +207,7 @@ export const logout = async () => {
     }
 }
 
+// ===============================
+// 8️⃣ EXPORT DEFAULT
+// ===============================
 export default apiClient

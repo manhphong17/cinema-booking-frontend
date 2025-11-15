@@ -1,5 +1,8 @@
 "use client";
 
+// ===============================
+// 1️⃣ IMPORT & CONFIG CHUNG
+// ===============================
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Loader2, Monitor, Sofa } from "lucide-react";
@@ -36,15 +39,17 @@ type ShowtimeSeatResponse = {
   data: ShowtimeSeatData[];
 };
 
-/**
- * Seat Selection Page Component
- */
+// ===============================
+// 3️⃣ COMPONENT CHÍNH
+// ===============================
 export default function SeatSelectionPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-
-  // Extract search params values to use as stable dependencies for useEffect
   const showtimeIdParam = searchParams.get("showtimeId");
+
+  // =======================================
+  // 🟢 STATE CHÍNH & DATA
+  // =======================================
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
   const [selectedTicketIds, setSelectedTicketIds] = useState<number[]>([]);
   const [syncTrigger, setSyncTrigger] = useState(0); // Trigger để sync TTL khi chọn ghế
@@ -54,33 +59,29 @@ export default function SeatSelectionPage() {
   const [loadingSeats, setLoadingSeats] = useState(false);
   const [userId, setUserId] = useState<number | null>(null);
 
-  useEffect(() => {
-    try {
-      const token = localStorage.getItem("accessToken");
-      if (token) {
-        const decoded: any = jwtDecode(token);
-        setUserId(decoded.userId);
-      }
-    } catch (error) {
-      console.error("[Seats Page] Error decoding token:", error);
-    }
-  }, []);
+  // =======================================
+  // 🟢 REFS & TRACKING
+  // =======================================
+  const releasedSeatsRef = useRef<Set<number>>(new Set()); // Theo dõi ghế vừa được giải phóng bởi user hiện tại
+  const sentSeatsRef = useRef<Set<number>>(new Set()); // Theo dõi đã gửi ghế nào qua WebSocket
+  const hasRestoredRef = useRef(false); // Theo dõi đã khôi phục ghế chưa để tránh vòng lặp vô hạn
 
-  // Track seats that were just released by current user (to ignore stale backendStatus HELD)
-  const releasedSeatsRef = useRef<Set<number>>(new Set());
+  // =======================================
+  // 🟢 WEBSOCKET CALLBACKS
+  // =======================================
 
-  // WebSocket callback when seats are released
+  // Callback WebSocket khi ghế được giải phóng
   const handleSeatReleased = useCallback(
     (releasedUserId: number, ticketIds: number[]) => {
-      // When current user's seats are released via WebSocket, update local seatData
-      // This ensures UI reflects the release immediately, even if backendStatus hasn't updated in API response
+      // Khi ghế của user hiện tại được giải phóng qua WebSocket, cập nhật seatData local
+      // Đảm bảo UI phản ánh việc giải phóng ngay lập tức, kể cả khi backendStatus chưa cập nhật trong API response
       if (releasedUserId === userId) {
         console.log(
           "[SeatSelection] WebSocket RELEASED confirmed, updating local seatData:",
           ticketIds
         );
 
-        // Update local seatData to reflect the release
+        // Cập nhật seatData local để phản ánh việc giải phóng
         setSeatData((prev) =>
           prev.map((seat) => {
             if (
@@ -93,11 +94,11 @@ export default function SeatSelectionPage() {
           })
         );
 
-        // Now cleanup releasedSeatsRef since we've updated the local state
+        // Dọn dẹp releasedSeatsRef vì đã cập nhật state local
         ticketIds.forEach((ticketId) => {
           releasedSeatsRef.current.delete(ticketId);
           console.log(
-            "[SeatSelection] Removed from releasedSeatsRef - local state updated:",
+            "[SeatSelection] Đã xóa khỏi releasedSeatsRef - state local đã cập nhật:",
             ticketId
           );
         });
@@ -106,10 +107,10 @@ export default function SeatSelectionPage() {
     [userId]
   );
 
-  // WebSocket callback when seats are booked
+  // Callback WebSocket khi ghế được đặt
   const handleSeatBooked = useCallback(
     (ticketIds: number[]) => {
-      // Update local seatData to reflect the booking
+      // Cập nhật seatData local để phản ánh việc đặt ghế
       setSeatData((prev) =>
         prev.map((seat) => {
           if (ticketIds.includes(seat.ticketId)) {
@@ -119,15 +120,15 @@ export default function SeatSelectionPage() {
         })
       );
 
-      // Remove from selected seats if current user had selected these seats
+      // Xóa khỏi ghế đã chọn nếu user hiện tại đã chọn những ghế này
       setSelectedTicketIds((prev) =>
         prev.filter((ticketId) => !ticketIds.includes(ticketId))
       );
 
-      // Remove corresponding seatIds from selectedSeats
+      // Xóa seatId tương ứng khỏi selectedSeats
       setSelectedSeats((prev) => {
         return prev.filter((seatId) => {
-          // Find ticketId for this seatId from current seatData
+          // Tìm ticketId cho seatId này từ seatData hiện tại
           const seat = seatData.find((ticket) => {
             const rowLabel = String.fromCharCode(65 + ticket.rowIdx);
             const seatNumber = ticket.columnInx + 1;
@@ -139,7 +140,7 @@ export default function SeatSelectionPage() {
         });
       });
 
-      // Clean up sentSeatsRef
+      // Dọn dẹp sentSeatsRef
       ticketIds.forEach((ticketId) => {
         sentSeatsRef.current.delete(ticketId);
         releasedSeatsRef.current.delete(ticketId);
@@ -153,9 +154,24 @@ export default function SeatSelectionPage() {
       showtimeId,
       userId,
       !!showtimeId && !!userId,
-      handleSeatReleased, // Callback when seats are released
-      handleSeatBooked // Callback when seats are booked
+      handleSeatReleased,
+      handleSeatBooked
     );
+
+  // =======================================
+  // 🟢 useEffect — INIT & LOAD DATA
+  // =======================================
+  useEffect(() => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (token) {
+        const decoded: any = jwtDecode(token);
+        setUserId(decoded.userId);
+      }
+    } catch (error) {
+      console.error("[Seats Page] Error decoding token:", error);
+    }
+  }, []);
 
   useEffect(() => {
     const fetchSeatData = async () => {
@@ -198,12 +214,12 @@ export default function SeatSelectionPage() {
           );
           setSeatData(tickets);
 
-          // Reset restore flag when fetching new seats (new showtime or reload)
+          // Reset cờ khôi phục khi fetch ghế mới (showtime mới hoặc reload)
           hasRestoredRef.current = false;
-          // Clear releasedSeatsRef when fetching new seats (new showtime or reload)
+          // Xóa releasedSeatsRef khi fetch ghế mới (showtime mới hoặc reload)
           releasedSeatsRef.current.clear();
 
-          // Try to get showtime details from order session to get movie, date, time, hall info
+          // Thử lấy chi tiết showtime từ order session để lấy thông tin phim, ngày, giờ, phòng
           if (userId) {
             try {
               const orderSessionResponse = await apiClient.get(
@@ -214,7 +230,7 @@ export default function SeatSelectionPage() {
                 orderSessionResponse.data?.data
               ) {
                 const orderSession = orderSessionResponse.data.data;
-                // Extract movie info if available
+                // Trích xuất thông tin phim nếu có
                 if (orderSession.movieId) {
                   try {
                     const movieResponse = await apiClient.get(
@@ -262,13 +278,12 @@ export default function SeatSelectionPage() {
     fetchSeatData();
   }, [showtimeIdParam, userId]);
 
-  // Track if we've already restored seats to avoid infinite loop
-  const hasRestoredRef = useRef(false);
-
-  // Restore user's held seats from API when seatData is loaded (on page load/reload)
+  // =======================================
+  // 🟢 useEffect — KHÔI PHỤC GHẾ ĐÃ GIỮ
+  // =======================================
   useEffect(() => {
     if (!userId || !showtimeId || !seatData.length) return;
-    if (hasRestoredRef.current) return; // Already restored once
+    if (hasRestoredRef.current) return; // Đã khôi phục rồi
 
     const restoreHeldSeats = async () => {
       try {
@@ -307,19 +322,19 @@ export default function SeatSelectionPage() {
             hasRestoredRef.current = true;
             setSelectedSeats(restoredSeats);
             setSelectedTicketIds(restoredTicketIds);
-            // Clear releasedSeatsRef when restoring - these seats are being restored, not released
+            // Xóa releasedSeatsRef khi khôi phục - những ghế này đang được khôi phục, không phải giải phóng
             restoredTicketIds.forEach((ticketId) => {
               releasedSeatsRef.current.delete(ticketId);
             });
           } else {
-            // If no seats to restore, clear releasedSeatsRef for this showtime
+            // Nếu không có ghế nào để khôi phục, xóa releasedSeatsRef cho showtime này
             releasedSeatsRef.current.clear();
           }
         }
       } catch (error) {
-        // No held seats or error - ignore
+        // Không có ghế đã giữ hoặc lỗi - bỏ qua
         console.log(
-          "[SeatSelection] No held seats to restore or error:",
+          "[SeatSelection] Không có ghế đã giữ để khôi phục hoặc lỗi:",
           error
         );
       }
@@ -328,11 +343,9 @@ export default function SeatSelectionPage() {
     restoreHeldSeats();
   }, [userId, showtimeId, seatData]);
 
-  // Track đã gửi ghế nào qua WebSocket để tránh gửi lại
-  const sentSeatsRef = useRef<Set<number>>(new Set());
-
-  // Sync selected seats with WebSocket after restoring from URL
-  // CHỈ gọi khi có ghế MỚI được thêm vào (không gọi lại khi đã gửi rồi)
+  // =======================================
+  // 🟢 useEffect — ĐỒNG BỘ WEBSOCKET
+  // =======================================
   useEffect(() => {
     if (
       !isConnected ||
@@ -349,20 +362,20 @@ export default function SeatSelectionPage() {
         return false;
       }
 
-      // Check if this ticket is held by someone else (not current user)
+      // Kiểm tra xem ghế này có được giữ bởi người khác không (không phải user hiện tại)
       if (!heldSeats.has(ticketId)) {
-        // Not held by anyone, can select
+        // Không được giữ bởi ai, có thể chọn
         return true;
       }
 
-      // Check if held by current user
+      // Kiểm tra xem có được giữ bởi user hiện tại không
       const currentUserSeats = userId ? seatsByUser.get(userId) : null;
       if (currentUserSeats && currentUserSeats.has(ticketId)) {
-        // Held by current user, can select
+        // Được giữ bởi user hiện tại, có thể chọn
         return true;
       }
 
-      // Held by someone else, cannot select
+      // Được giữ bởi người khác, không thể chọn
       return false;
     });
 
@@ -383,7 +396,9 @@ export default function SeatSelectionPage() {
     seatsByUser,
   ]);
 
-  // Cleanup: xóa ghế đã bỏ chọn khỏi sentSeatsRef
+  // =======================================
+  // 🟢 useEffect — DỌN DẸP
+  // =======================================
   useEffect(() => {
     // So sánh với selectedTicketIds hiện tại
     const currentSelectedSet = new Set(selectedTicketIds);
@@ -399,22 +414,22 @@ export default function SeatSelectionPage() {
     toRemove.forEach((ticketId) => sentSeatsRef.current.delete(ticketId));
   }, [selectedTicketIds]);
 
-  // Clean up releasedSeatsRef when backendStatus is no longer HELD
-  // Primary cleanup happens via handleSeatReleased when WebSocket confirms RELEASED message
-  // This is just a fallback in case WebSocket message is missed
+  // Dọn dẹp releasedSeatsRef khi backendStatus không còn là HELD
+  // Dọn dẹp chính xảy ra qua handleSeatReleased khi WebSocket xác nhận message RELEASED
+  // Đây chỉ là phương án dự phòng trong trường hợp bỏ lỡ message WebSocket
   useEffect(() => {
     if (!seatData.length) return;
 
     releasedSeatsRef.current.forEach((ticketId) => {
-      // Check if backendStatus is no longer HELD for this seat
+      // Kiểm tra xem backendStatus có còn là HELD cho ghế này không
       const seat = seatData.find((t) => t.ticketId === ticketId);
       const backendStatus = seat?.seatStatus || "AVAILABLE";
 
-      // Remove from releasedSeatsRef if backendStatus is NOT HELD (fallback cleanup)
+      // Xóa khỏi releasedSeatsRef nếu backendStatus KHÔNG phải HELD (dọn dẹp dự phòng)
       if (backendStatus !== "HELD") {
         releasedSeatsRef.current.delete(ticketId);
         console.log(
-          "[SeatSelection] Removed from releasedSeatsRef - backendStatus updated (fallback):",
+          "[SeatSelection] Đã xóa khỏi releasedSeatsRef - backendStatus đã cập nhật (dự phòng):",
           ticketId,
           backendStatus
         );
@@ -422,6 +437,9 @@ export default function SeatSelectionPage() {
     });
   }, [seatData]);
 
+  // =======================================
+  // 🟢 HÀM HỖ TRỢ
+  // =======================================
   const getTicketId = (seatId: string): number | null => {
     const seat = seatData.find((ticket) => {
       const rowLabel = String.fromCharCode(65 + ticket.rowIdx);
@@ -432,23 +450,26 @@ export default function SeatSelectionPage() {
     return seat?.ticketId || null;
   };
 
+  // =======================================
+  // 🟢 XỬ LÝ SỰ KIỆN
+  // =======================================
   const handleSeatClick = (
     seatId: string,
     isOccupied: boolean,
     isHeld: boolean
   ) => {
-    console.log("[handleSeatClick] Called with:", {
+    console.log("[handleSeatClick] Được gọi với:", {
       seatId,
       isOccupied,
       isHeld,
     });
     const ticketId = getTicketId(seatId);
     if (!ticketId) {
-      console.log("[handleSeatClick] No ticketId found for seat:", seatId);
+      console.log("[handleSeatClick] Không tìm thấy ticketId cho ghế:", seatId);
       return;
     }
 
-    // If seat is already selected by current user, allow deselection
+    // Nếu ghế đã được chọn bởi user hiện tại, cho phép bỏ chọn
     const isSelectedByCurrentUser = selectedSeats.includes(seatId);
     console.log(
       "[handleSeatClick] isSelectedByCurrentUser:",
@@ -456,8 +477,8 @@ export default function SeatSelectionPage() {
     );
 
     if (isSelectedByCurrentUser) {
-      // Always allow deselection if seat is selected by current user
-      // Check directly if seat is held by someone else (not relying on isHeld parameter)
+      // Luôn cho phép bỏ chọn nếu ghế được chọn bởi user hiện tại
+      // Kiểm tra trực tiếp xem ghế có được giữ bởi người khác không (không dựa vào tham số isHeld)
       const isHeldByOther =
         userId && seatsByUser
           ? Array.from(seatsByUser.entries()).some(
@@ -467,12 +488,12 @@ export default function SeatSelectionPage() {
           : false;
 
       if (isHeldByOther) {
-        // Cannot deselect seat held by someone else
-        console.log("Cannot deselect: seat is held by another user");
+        // Không thể bỏ chọn ghế được giữ bởi người khác
+        console.log("Không thể bỏ chọn: ghế được giữ bởi user khác");
         return;
       }
 
-      // Check if seat is booked, in maintenance, or blocked - cannot deselect those
+      // Kiểm tra xem ghế có bị đặt, bảo trì, hoặc chặn không - không thể bỏ chọn những ghế đó
       const seatFromData = seatData.find((t) => t.ticketId === ticketId);
       const backendStatus = seatFromData?.seatStatus || "AVAILABLE";
       if (
@@ -480,7 +501,7 @@ export default function SeatSelectionPage() {
         backendStatus === "UNAVAILABLE" ||
         backendStatus === "BLOCKED"
       ) {
-        console.log("Cannot deselect: seat is booked, unavailable, or blocked");
+        console.log("Không thể bỏ chọn: ghế đã được đặt, không khả dụng, hoặc bị chặn");
         return;
       }
 
@@ -504,12 +525,12 @@ export default function SeatSelectionPage() {
       // (sẽ được cleanup tự động bởi useEffect ở trên, nhưng xóa ngay để chắc chắn)
       sentSeatsRef.current.delete(ticketId);
 
-      // Mark as released to ignore stale backendStatus HELD
+      // Đánh dấu là đã giải phóng để bỏ qua backendStatus HELD cũ
       releasedSeatsRef.current.add(ticketId);
 
-      // Deselect via WebSocket - this will release the hold on backend
+      // Bỏ chọn qua WebSocket - điều này sẽ giải phóng hold trên backend
       console.log(
-        "[SeatSelection] Deselecting seat:",
+        "[SeatSelection] Đang bỏ chọn ghế:",
         seatId,
         "ticketId:",
         ticketId,
@@ -520,13 +541,13 @@ export default function SeatSelectionPage() {
         deselectSeats([ticketId]);
       } else {
         console.warn(
-          "[SeatSelection] WebSocket not connected, cannot deselect via WebSocket"
+          "[SeatSelection] WebSocket chưa kết nối, không thể bỏ chọn qua WebSocket"
         );
       }
       return;
     }
 
-    // For selecting new seats, check if occupied or held
+    // Để chọn ghế mới, kiểm tra xem có bị chiếm hoặc giữ không
     if (isOccupied || isHeld) return;
 
     const seatType = getSeatType(seatId);
@@ -561,6 +582,15 @@ export default function SeatSelectionPage() {
     // Không cần gọi trực tiếp ở đây để tránh duplicate calls
   };
 
+  const handleContinue = () => {
+    if (selectedSeats.length > 0 && showtimeId) {
+      router.push(`/booking/combo?showtimeId=${showtimeId}`);
+    }
+  };
+
+  // =======================================
+  // 🟢 HÀM LAYOUT & TÍNH TOÁN
+  // =======================================
   const getSeatLayout = () => {
     if (seatData.length === 0) return [];
 
@@ -650,14 +680,9 @@ export default function SeatSelectionPage() {
     return getSeatTypeCount(type) >= 8;
   };
 
-  const handleContinue = () => {
-    if (selectedSeats.length > 0 && showtimeId) {
-      router.push(`/booking/combo?showtimeId=${showtimeId}`);
-    }
-  };
-
-  // Prepare data for BookingOrderSummary component
-  // Use useMemo directly with selectedSeats and seatData as dependencies
+  // =======================================
+  // 🟢 useMemo — GIÁ TRỊ TÍNH TOÁN
+  // =======================================
   const seatsInfo: SeatInfo[] = useMemo(() => {
     if (!selectedSeats.length || !seatData.length) {
       console.log("[seatsInfo] Empty:", {
@@ -695,6 +720,9 @@ export default function SeatSelectionPage() {
     return total;
   }, [selectedSeats, seatData]);
 
+  // =======================================
+  // 🟢 RETURN UI
+  // =======================================
   return (
     <div className="min-h-screen bg-white relative overflow-hidden">
       {/* Background Pattern */}
@@ -848,9 +876,9 @@ export default function SeatSelectionPage() {
                               const isSelected = selectedSeats.includes(
                                 seat.id
                               );
-                              // If seat is selected by current user, check if it's held by current user (can be deselected)
-                              // Otherwise, check if it's held by someone else
-                              // Check if seat is held by someone else (not current user)
+                              // Nếu ghế được chọn bởi user hiện tại, kiểm tra xem có được giữ bởi user hiện tại không (có thể bỏ chọn)
+                              // Ngược lại, kiểm tra xem có được giữ bởi người khác không
+                              // Kiểm tra xem ghế có được giữ bởi người khác không (không phải user hiện tại)
                               const isHeldByOther =
                                 !isSelected && userId && seatsByUser
                                   ? Array.from(seatsByUser.entries()).some(
@@ -860,27 +888,27 @@ export default function SeatSelectionPage() {
                                     )
                                   : false;
 
-                              // WebSocket held - only if not selected by current user
+                              // WebSocket giữ - chỉ khi không được chọn bởi user hiện tại
                               const isHeldByWebSocket =
                                 !isSelected && heldSeats.has(ticketId);
 
-                              // Check if this seat was just released by current user
-                              // If so, don't trust backendStatus HELD as it may not be updated yet
+                              // Kiểm tra xem ghế này có vừa được giải phóng bởi user hiện tại không
+                              // Nếu có, không tin tưởng backendStatus HELD vì có thể chưa được cập nhật
                               const isJustReleased =
                                 releasedSeatsRef.current.has(ticketId);
 
-                              // Backend status HELD - trust it if:
-                              // 1. Seat is not selected by current user
-                              // 2. AND it's not just released by current user (to avoid stale HELD status after release)
-                              // This allows showing HELD status for seats held by others (even if WebSocket hasn't synced yet),
-                              // but prevents showing HELD for seats that were just released by current user
+                              // Trạng thái HELD từ backend - tin tưởng nếu:
+                              // 1. Ghế không được chọn bởi user hiện tại
+                              // 2. VÀ nó không vừa được giải phóng bởi user hiện tại (để tránh trạng thái HELD cũ sau khi giải phóng)
+                              // Điều này cho phép hiển thị trạng thái HELD cho ghế được giữ bởi người khác (kể cả khi WebSocket chưa đồng bộ),
+                              // nhưng ngăn hiển thị HELD cho ghế vừa được giải phóng bởi user hiện tại
                               const isHeldByBackend =
                                 !isSelected &&
                                 backendStatus === "HELD" &&
                                 !isJustReleased;
 
-                              // If seat is selected by current user, it's not considered "held" (can be deselected)
-                              // Even if backendStatus is HELD, if it's selected by current user, allow deselection
+                              // Nếu ghế được chọn bởi user hiện tại, nó không được coi là "held" (có thể bỏ chọn)
+                              // Kể cả khi backendStatus là HELD, nếu nó được chọn bởi user hiện tại, cho phép bỏ chọn
                               const isHeld =
                                 !isSelected &&
                                 (isHeldByBackend ||
@@ -896,14 +924,14 @@ export default function SeatSelectionPage() {
                                 !isOccupied &&
                                 !isSelected &&
                                 isSeatTypeLimitReached(seatType);
-                              const isDifferentType = false; // Removed restriction: allow selecting multiple seat types
+                              const isDifferentType = false; // Đã bỏ hạn chế: cho phép chọn nhiều loại ghế
 
-                              // Debug: check disabled state
+                              // Debug: kiểm tra trạng thái disabled
                               const buttonDisabled = isSelected
-                                ? isBooked || isMaintenance || isBlocked // If selected, disable if booked/maintenance/blocked
+                                ? isBooked || isMaintenance || isBlocked // Nếu đã chọn, disable nếu đã đặt/bảo trì/chặn
                                 : isOccupied ||
                                   isLimitReached ||
-                                  isDifferentType; // If not selected, normal checks
+                                  isDifferentType; // Nếu chưa chọn, kiểm tra bình thường
 
                               return (
                                 <button
